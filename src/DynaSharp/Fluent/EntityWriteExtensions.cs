@@ -119,7 +119,7 @@ public static class EntityWriteExtensions
     /// <c>orders.Put(order).IgnoreVersion()</c> of the entity as it was read stores version 1, and the next write is an ordinary one. For a table that keeps such items, <see cref="VersionMissing.Allow"/> is the better answer.
     /// </para>
     /// <para>
-    /// <b>The last version.</b> An entity at the last version its property holds throws <see cref="OverflowException"/> at <see cref="Table{T}.Put(T)"/>, because it has no next one.
+    /// <b>The last version.</b> An entity at the last version its property holds throws <see cref="ArgumentOutOfRangeException"/> naming the property and the version at <see cref="Table{T}.Put(T)"/>, because it has no next one.
     /// </para>
     /// </remarks>
     /// <typeparam name="T">The entity. A table without a schema has no version, so it does not compile.</typeparam>

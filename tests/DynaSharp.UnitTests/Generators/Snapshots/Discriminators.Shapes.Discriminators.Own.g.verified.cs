@@ -57,6 +57,11 @@ partial class Own : __Map.IDynamoDbDiscriminated<global::Shapes.Discriminators.O
     static long __Map.IDynamoDbDocument<global::Shapes.Discriminators.Own>.WriteNextVersion(__Ser.DynamoDbWriter writer, global::Shapes.Discriminators.Own entity)
     {
         var held = entity.Revision;
+        if (held >= long.MaxValue)
+        {
+            throw new global::System.ArgumentOutOfRangeException(null, "The property Revision of Own, the attribute \"rev\", cannot be written: it holds version " + held.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + ", and a put stores the next one, which the long property cannot hold.");
+        }
+
         __WriteAttributes(writer, entity, checked((long)(held + 1)));
         return checked((long)held);
     }

@@ -47,7 +47,7 @@ public interface IDynamoDbDocument<TSelf>
     /// <param name="entity">The value to write.</param>
     /// <returns>The version the value holds, which is the one the put expects to find.</returns>
     /// <exception cref="NotSupportedException">The type does not implement this.</exception>
-    /// <exception cref="OverflowException">The next version does not fit the property.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The next version does not fit the property, or a <see cref="long"/>. The message names the property and the version.</exception>
     public static virtual long WriteNextVersion(DynamoDbWriter writer, TSelf entity) =>
         throw new NotSupportedException($"{typeof(TSelf)} names a version attribute and does not implement WriteNextVersion.");
 }

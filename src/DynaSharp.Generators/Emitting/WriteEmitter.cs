@@ -61,9 +61,21 @@ internal static class WriteEmitter
         code.Close();
     }
 
-    // A plain write gives the version as it stands, and a put gives the next one. A value that does not fit the property fails here, not on a read of the item.
+    // A plain write gives the version as it stands, and a put gives the next one. A next version that does not fit the property, or the long of a write result, fails here, not on a
+    // read of the item, and names the property as a value a converter refuses does:
+    // if (held >= int.MaxValue) { throw new global::System.ArgumentOutOfRangeException(null, "The property Revision of Note, ... version " + held.ToString(...) + ", ..."); }
     private static void EmitVersionedWrites(IndentedCode code, TypeModel type, PropertyModel version)
     {
+        var valueType = version.InnerValueType();
+        var (limit, holder, hint) = valueType switch
+        {
+            "ulong" => ("(ulong)long.MaxValue", "the long of a write result", string.Empty),
+            "long" => ("long.MaxValue", "the long property", string.Empty),
+            _ => ($"{valueType}.MaxValue", $"the {valueType} property", " A long property holds more."),
+        };
+        var where = $"The property {version.Name} of {type.Name}, the attribute \"{version.AttributeName}\", cannot be written: it holds version ";
+        var why = $", and a put stores the next one, which {holder} cannot hold.{hint}";
+
         code.Line(CodeText.GeneratedCode);
         code.Line($"static void __Map.IDynamoDbDocument<{type.FullName}>.WriteAttributes(__Ser.DynamoDbWriter writer, {type.FullName} entity) => __WriteAttributes(writer, entity, entity.{version.Identifier});");
         code.Blank();
@@ -71,6 +83,11 @@ internal static class WriteEmitter
         code.Line($"static long __Map.IDynamoDbDocument<{type.FullName}>.WriteNextVersion(__Ser.DynamoDbWriter writer, {type.FullName} entity)");
         code.Open();
         code.Line($"var held = entity.{version.Identifier};");
+        code.Line($"if (held >= {limit})");
+        code.Open();
+        code.Line($"throw new global::System.ArgumentOutOfRangeException(null, {CodeText.Literal(where)} + held.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + {CodeText.Literal(why)});");
+        code.Close();
+        code.Blank();
         code.Line($"__WriteAttributes(writer, entity, checked(({version.ValueType})(held + 1)));");
         code.Line("return checked((long)held);");
         code.Close();

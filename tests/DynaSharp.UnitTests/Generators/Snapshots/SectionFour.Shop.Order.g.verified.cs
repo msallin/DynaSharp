@@ -80,6 +80,11 @@ partial record Order : __Map.IDynamoDbDiscriminated<global::Shop.Order>
     static long __Map.IDynamoDbDocument<global::Shop.Order>.WriteNextVersion(__Ser.DynamoDbWriter writer, global::Shop.Order entity)
     {
         var held = entity.Revision;
+        if (held >= long.MaxValue)
+        {
+            throw new global::System.ArgumentOutOfRangeException(null, "The property Revision of Order, the attribute \"Revision\", cannot be written: it holds version " + held.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + ", and a put stores the next one, which the long property cannot hold.");
+        }
+
         __WriteAttributes(writer, entity, checked((long)(held + 1)));
         return checked((long)held);
     }

@@ -62,6 +62,11 @@ partial record Note : __Map.IDynamoDbDiscriminated<global::Shapes.VersionAllowed
     static long __Map.IDynamoDbDocument<global::Shapes.VersionAllowed.Note>.WriteNextVersion(__Ser.DynamoDbWriter writer, global::Shapes.VersionAllowed.Note entity)
     {
         var held = entity.Revision;
+        if (held >= short.MaxValue)
+        {
+            throw new global::System.ArgumentOutOfRangeException(null, "The property Revision of Note, the attribute \"Revision\", cannot be written: it holds version " + held.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + ", and a put stores the next one, which the short property cannot hold. A long property holds more.");
+        }
+
         __WriteAttributes(writer, entity, checked((short)(held + 1)));
         return checked((long)held);
     }

@@ -221,7 +221,7 @@ public sealed class WriteRulesPutTests
     }
 
     [Test]
-    public async Task SendAsync_PutThatIsTheLastThePropertyHolds_ThrowsAndSendsNothing()
+    public async Task SendAsync_PutThatIsTheLastThePropertyHolds_ThrowsNamingThePropertyAndTheVersion()
     {
         // Arrange
         using var handler = new StubHandler();
@@ -229,10 +229,57 @@ public sealed class WriteRulesPutTests
         var ticket = Held(int.MaxValue);
 
         // Act
-        var act = () => client.Table<Ticket>("Shop").Put(ticket).ToRequestJson();
+        var failure = TestClient.Catch(() => _ = client.Table<Ticket>("Shop").Put(ticket).ToRequestJson());
 
         // Assert
-        await Assert.That(act).ThrowsExactly<OverflowException>();
+        await Assert.That((failure.GetType(), failure.Message, handler.Requests.Count)).IsEqualTo((typeof(ArgumentOutOfRangeException),
+            "The property Revision of Ticket, the attribute \"Revision\", cannot be written: it holds version 2147483647, and a put stores the next one, which the int property cannot hold. A long property holds more.", 0));
+    }
+
+    [Test]
+    public async Task ToRequestJson_PutOfTheLastLongVersion_ThrowsNamingTheProperty()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+        var order = new UserOrder { UserId = "u", OrderId = Guid.Empty, Revision = long.MaxValue };
+
+        // Act
+        var failure = TestClient.Catch(() => _ = client.Table<UserOrder>("Shop").Put(order).ToRequestJson());
+
+        // Assert
+        await Assert.That((failure.GetType(), failure.Message)).IsEqualTo((typeof(ArgumentOutOfRangeException),
+            "The property Revision of UserOrder, the attribute \"Revision\", cannot be written: it holds version 9223372036854775807, and a put stores the next one, which the long property cannot hold."));
+    }
+
+    [Test]
+    [Arguments(9223372036854775807UL)]
+    [Arguments(18446744073709551615UL)]
+    public async Task ToRequestJson_PutOfAnUnsignedVersionPastTheLastLong_ThrowsNamingTheProperty(ulong revision)
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var failure = TestClient.Catch(() => _ = client.Table<Gauge>("Shop").Put(new Gauge { Id = "g", Revision = revision }).ToRequestJson());
+
+        // Assert
+        await Assert.That((failure is ArgumentOutOfRangeException, failure.Message.EndsWith("which the long of a write result cannot hold.", StringComparison.Ordinal))).IsEqualTo((true, true));
+    }
+
+    [Test]
+    public async Task ToRequestJson_PutOfTheVersionBeforeTheLastLong_StoresTheLast()
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var client = TestClient.Create(handler);
+
+        // Act
+        var json = client.Table<Gauge>("Shop").Put(new Gauge { Id = "g", Revision = long.MaxValue - 1 }).ToRequestJson();
+
+        // Assert
+        await Assert.That(json.Contains("\"9223372036854775807\"", StringComparison.Ordinal)).IsTrue();
     }
 
     [Test]

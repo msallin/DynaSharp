@@ -118,6 +118,7 @@ public sealed partial class Table<T>
     /// <param name="item">The item, which must hold the key attributes.</param>
     /// <returns>The command.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="item"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The <see cref="VersionAttribute"/> property holds the last version it can, which has no next one. The message names the property and the version.</exception>
     public PutCommand<T> Put(T item)
     {
         Argument.ThrowIfNull(item);

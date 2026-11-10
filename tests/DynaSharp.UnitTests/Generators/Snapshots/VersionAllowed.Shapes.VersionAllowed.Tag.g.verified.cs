@@ -48,6 +48,11 @@ partial record Tag : __Map.IDynamoDbDiscriminated<global::Shapes.VersionAllowed.
     static long __Map.IDynamoDbDocument<global::Shapes.VersionAllowed.Tag>.WriteNextVersion(__Ser.DynamoDbWriter writer, global::Shapes.VersionAllowed.Tag entity)
     {
         var held = entity.Revision;
+        if (held >= uint.MaxValue)
+        {
+            throw new global::System.ArgumentOutOfRangeException(null, "The property Revision of Tag, the attribute \"Revision\", cannot be written: it holds version " + held.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + ", and a put stores the next one, which the uint property cannot hold. A long property holds more.");
+        }
+
         __WriteAttributes(writer, entity, checked((uint)(held + 1)));
         return checked((long)held);
     }
