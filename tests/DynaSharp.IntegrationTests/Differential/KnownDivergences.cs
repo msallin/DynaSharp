@@ -71,7 +71,7 @@ internal static class KnownDivergences
         "A transaction with a key off the schema, an index key of another type or an update of a key attribute in one action and another fault elsewhere (an empty key, one item twice): the fake cancels for the first, the emulators fail the request for the other fault. Which fault DynamoDB names first is fine print the fake does not mimic.";
 
     private const string DynamoDbLocalIndexScanFilter =
-        "DynamoDB Local applies the filter of a scan of a global index to the table item; the fake and Dynoxide apply it to the projected attributes, as the Developer Guide says a global index holds only those (FidelityTests question 11).";
+        "DynamoDB Local applies the filter of a scan of a global index to the table item; real DynamoDB, the fake and Dynoxide apply it to the projected attributes (FidelityTests question 11).";
 
     private const string ValidationException = "ValidationException";
 

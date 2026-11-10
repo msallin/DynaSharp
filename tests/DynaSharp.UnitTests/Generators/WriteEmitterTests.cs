@@ -22,6 +22,10 @@ public sealed class WriteEmitterTests
         // An empty set in a list or a map.
         ["NonEmptySetConverter"] = [Prefix + "NonEmptySetConverter<"],
 
+        // An empty key, which DynamoDB does not take as a name in a map.
+        ["DictionaryConverter"] = [Prefix + "DictionaryConverter<"],
+        ["ReadOnlyDictionaryConverter"] = [Prefix + "ReadOnlyDictionaryConverter<"],
+
         // JSON that DynamoDB cannot store.
         ["JsonElementConverter"] = [Prefix + "JsonElementConverter"],
     };
@@ -29,10 +33,10 @@ public sealed class WriteEmitterTests
     private static readonly string[] Accepting =
     [
         "ArrayConverter", "AttributeValueConverter", "BinaryConverter", "BinarySetElement", "BoolAsNumberConverter", "BoolConverter", "DateOnlyConverter",
-        "DateTimeOffsetConverter", "DictionaryConverter", "DocumentConverter", "EmptyStringAsMissingConverter", "EpochSecondsConverter", "GuidConverter",
+        "DateTimeOffsetConverter", "DocumentConverter", "EmptyStringAsMissingConverter", "EpochSecondsConverter", "GuidConverter",
         "GuidSetElement", "HashSetConverter", "ListConverter", "MutableListConverter", "NullableConverter", "NullableHandleConverter",
         "NullableReferenceConverter", "NullableReferenceHandleConverter", "OffsetTimestampConverter", "OmitEmptyCollectionConverter", "OmitEmptyConverter",
-        "OmitEmptySetConverter", "ReadOnlyDictionaryConverter", "ReadOnlyListConverter", "ReadOnlyMemoryConverter", "ReadOnlySetConverter",
+        "OmitEmptySetConverter", "ReadOnlyListConverter", "ReadOnlyMemoryConverter", "ReadOnlySetConverter",
         "SdkDateTimeConverter", "SetArrayConverter", "SetElementValueConverter", "StringConverter", "StringSetElement", "TimeOnlyConverter",
         "TimeSpanConverter",
     ];

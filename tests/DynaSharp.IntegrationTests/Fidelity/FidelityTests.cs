@@ -8,8 +8,8 @@ namespace DynaSharp.IntegrationTests.Fidelity;
 
 /// <summary>
 /// The questions about DynamoDB that <c>FakeDynamoDb</c>, DynamoDB Local and Dynoxide answered differently (<c>spec/tasks.md</c>, "Fidelity of the fake"), asked of real DynamoDB on the raw wire.
-/// Each test asserts what real DynamoDB answered in <c>real-aws.yml</c> run 42356511937; where that run left the rule open, the test accepts the answers seen and records which one
-/// came. Either way the answer is written to the output of the test and, when <c>DYNASHARP_FIDELITY_REPORT</c> names a file, to that file as one JSON line.
+/// Each test asserts what real DynamoDB answered in <c>real-aws.yml</c> run 42356511937, questions 11 and 12 in run 42785127527; where a run left the rule open, the test accepts the answers seen and records
+/// which one came. Either way the answer is written to the output of the test and, when <c>DYNASHARP_FIDELITY_REPORT</c> names a file, to that file as one JSON line.
 /// </summary>
 /// <remarks>
 /// Real DynamoDB and the fake are asserted: the answer of DynamoDB is the spec of the fake. An emulator that answers otherwise records its answer and is skipped with it in the reason,
@@ -338,12 +338,13 @@ public sealed class FidelityTests(Backend backend)
         await Assert.That(outcome).IsEqualTo(expected);
     }
 
-    // Question 11: a filter on an attribute that a global index of keys only does not project. DynamoDB Local rejects it in a query and evaluates a scan on the table item; Dynoxide
-    // evaluates both on the entry of the index, where the attribute is missing. A typed read of DynaSharp filters on _type, so the answer says what such a read of an index meets.
+    // Question 11: a filter on an attribute that a global index of keys only does not project. Real DynamoDB evaluates a scan on the entry of the index, where the attribute is missing, and
+    // rejects a query ("Secondary index by-g does not project one or more filter attributes: [v]"). DynamoDB Local evaluates a scan on the table item; Dynoxide answers a query. A typed
+    // read of DynaSharp filters on _type, so this is what such a read of an index meets.
     [Test]
-    [Arguments("Scan")]
-    [Arguments("Query")]
-    public async Task IndexRead_FilterOnAnAttributeAKeysOnlyGlobalIndexDoesNotProject_IsRecorded(string operation)
+    [Arguments("Scan", "OK, 0 items")]
+    [Arguments("Query", "ValidationException")]
+    public async Task IndexRead_FilterOnAnAttributeAKeysOnlyGlobalIndexDoesNotProject_ScanFindsNothingAndQueryIsRejected(string operation, string expected)
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
@@ -360,16 +361,16 @@ public sealed class FidelityTests(Backend backend)
         // Act
         var response = await sandbox.Emulator.Raw.SendAsync(operation, json);
         var answer = response.StatusCode == HttpStatusCode.OK ? $"OK, {JsonNode.Parse(response.Body)!["Count"]!.GetValue<int>()} items" : Outcome(response);
-        var outcome = Record($"11 {operation} of a keys-only global index with a filter on an attribute it does not project", answer, response, null);
+        var outcome = Record($"11 {operation} of a keys-only global index with a filter on an attribute it does not project", answer, response, expected);
 
         // Assert
-        await Assert.That(outcome).IsIn("ValidationException", "OK, 0 items", "OK, 1 items");
+        await Assert.That(outcome).IsEqualTo(expected);
     }
 
-    // Question 12: an empty name inside a map. DictionaryConverter writes one and FakeDynamoDb stores it, while AttributeValue.FromJson refuses it as a name DynamoDB does not have;
-    // the answer says which side is right. A stored map is read back, to see that the name stays.
+    // Question 12: an empty name inside a map. Real DynamoDB rejects it ("1 validation error detected: Empty attribute name"), as AttributeValue.FromJson does. A map that an emulator
+    // stores is read back, to see whether the name stays.
     [Test]
-    public async Task PutItem_MapWithAnEmptyName_IsRecorded()
+    public async Task PutItem_MapWithAnEmptyName_IsAValidationException()
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
@@ -384,11 +385,16 @@ public sealed class FidelityTests(Backend backend)
             var read = (await sandbox.Emulator.Raw.SendAsync("GetItem", $$$$$"""{"TableName":"{{{{{table}}}}}","Key":{"pk":{"S":"e"}},"ConsistentRead":true}""")).EnsureSuccess();
             answer = JsonNode.Parse(read.Body)!["Item"]!["m"]!["M"]!.AsObject().ContainsKey(string.Empty) ? "OK, kept" : "OK, dropped";
         }
+        else
+        {
+            answer = $"{answer}: {Message(response)}";
+        }
 
-        var outcome = Record("12 PutItem of a map with an empty name", answer, response, null);
+        const string Expected = "ValidationException: 1 validation error detected: Empty attribute name";
+        var outcome = Record("12 PutItem of a map with an empty name", answer, response, Expected);
 
         // Assert
-        await Assert.That(outcome).IsIn("OK, kept", "OK, dropped", "ValidationException");
+        await Assert.That(outcome).IsEqualTo(Expected);
     }
 
     // One item for each failing update: a number of 38 digits, and nothing else that the updates reach. The other item is the one the condition check reads.

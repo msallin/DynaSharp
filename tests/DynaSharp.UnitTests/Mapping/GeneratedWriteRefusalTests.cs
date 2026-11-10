@@ -77,6 +77,21 @@ public sealed class GeneratedWriteRefusalTests
     }
 
     [Test]
+    public async Task ItemFrom_DictionaryWithAnEmptyKey_ThrowsArgumentExceptionNamingThePropertyAndTheFix()
+    {
+        // Arrange (DynamoDB answers "1 validation error detected: Empty attribute name", FidelityTests question 12)
+        var logbook = Clean with { Shifts = new() { ["day"] = [1], [string.Empty] = [2] } };
+
+        // Act
+        var act = () => Item.From(logbook);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentException>().WithMessage(
+            "The property Shifts of Logbook, the attribute \"Shifts\", cannot be written: a key of its dictionary is empty, and DynamoDB has no empty names in a map. Leave the entry out, or give it a name.",
+            StringComparison.Ordinal);
+    }
+
+    [Test]
     public async Task ToRequestJson_PutOfAnEmptySetInsideAList_KeepsTheConverterFailureInside()
     {
         // Arrange

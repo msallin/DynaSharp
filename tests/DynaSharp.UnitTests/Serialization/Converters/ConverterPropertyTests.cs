@@ -234,8 +234,8 @@ public sealed class ConverterPropertyTests
     [FsCheckProperty(MaxTest = PropertyRun.Cases, Replay = PropertyRun.Seed, QuietOnSuccess = true, Arbitrary = [typeof(Arbitraries)])]
     public async Task RoundTrip_AnyDictionaryOfNumbers_GivesTheSameEntries(string[] names, long[] numbers)
     {
-        // Arrange (names of any text, the empty one included, which only DynamoDB refuses)
-        var values = names.Distinct(StringComparer.Ordinal).Zip(numbers).ToDictionary(StringComparer.Ordinal);
+        // Arrange (names of any text but the empty one, which the converter refuses as DynamoDB does)
+        var values = names.Where(static name => name.Length > 0).Distinct(StringComparer.Ordinal).Zip(numbers).ToDictionary(StringComparer.Ordinal);
 
         // Act
         var back = ConverterRun.Read<Dictionary<string, long>, DictionaryConverter<long, NumberConverter<long>>>(ConverterRun.Write<Dictionary<string, long>, DictionaryConverter<long, NumberConverter<long>>>(values));

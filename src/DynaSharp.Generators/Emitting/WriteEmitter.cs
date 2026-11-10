@@ -20,6 +20,8 @@ internal static class WriteEmitter
         "global::DynaSharp.Serialization.NumberSetElement<float>",
         "global::DynaSharp.Serialization.NumberSetElement<global::System.Half>",
         "global::DynaSharp.Serialization.NonEmptySetConverter<",
+        "global::DynaSharp.Serialization.DictionaryConverter<",
+        "global::DynaSharp.Serialization.ReadOnlyDictionaryConverter<",
         "global::DynaSharp.Serialization.JsonElementConverter",
     ];
 

@@ -34,16 +34,16 @@ public sealed class DictionaryConverterTests
     }
 
     [Test]
-    public async Task Write_EmptyAndUnusualNames_WritesThemAsAttributeNames()
+    public async Task Write_EmptyName_ThrowsTheRefusalOfAnEmptyName()
     {
-        // Arrange: DynamoDB accepts an empty name inside a map
-        var value = new Dictionary<string, string> { [string.Empty] = "x" };
+        // Arrange: DynamoDB answers "1 validation error detected: Empty attribute name" (FidelityTests question 12)
+        var value = new Dictionary<string, string> { ["a"] = "y", [string.Empty] = "x" };
 
         // Act
-        var json = ConverterRun.Write<Dictionary<string, string>, DictionaryConverter<string, StringConverter>>(value);
+        var failure = TestClient.Catch(() => ConverterRun.Write<Dictionary<string, string>, DictionaryConverter<string, StringConverter>>(value));
 
         // Assert
-        await Assert.That(json).IsEqualTo("""{"M":{"":{"S":"x"}}}""");
+        await Assert.That((failure is ArgumentException refused && ConverterChecks.IsRefusedValue(refused), ((ArgumentException)failure).ParamName)).IsEqualTo((true, (string?)"value"));
     }
 
     [Test]

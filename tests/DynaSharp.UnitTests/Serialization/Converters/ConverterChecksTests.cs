@@ -10,6 +10,7 @@ public sealed class ConverterChecksTests
         () => (new UnspecifiedDateTimeException("value"), true),
         () => (new NonFiniteNumberException("value", double.NaN), true),
         () => (new EmptySetException("value"), true),
+        () => (new EmptyMapNameException("value"), true),
         () => (new ArgumentException("Another failure.", "value"), false),
         () => (new ArgumentOutOfRangeException("value"), false),
         () => (new ArgumentNullException("value"), false),

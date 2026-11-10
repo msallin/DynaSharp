@@ -14,6 +14,7 @@ public readonly struct ReadOnlyDictionaryConverter<T, TConverter> : IDynamoDbCon
 {
     /// <inheritdoc/>
     /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">A key of <paramref name="value"/> is empty, which DynamoDB rejects.</exception>
     public static void Write(DynamoDbWriter writer, IReadOnlyDictionary<string, T> value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -26,6 +27,11 @@ public readonly struct ReadOnlyDictionaryConverter<T, TConverter> : IDynamoDbCon
         writer.WriteStartMap();
         foreach (var (name, element) in value)
         {
+            if (name.Length == 0)
+            {
+                throw new EmptyMapNameException(nameof(value));
+            }
+
             writer.WriteAttributeName(name);
             TConverter.Write(writer, element);
         }

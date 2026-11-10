@@ -7,8 +7,8 @@ namespace DynaSharp.Serialization;
 /// <typeparam name="TConverter">The converter of the values.</typeparam>
 /// <remarks>
 /// <para>
-/// The keys are the attribute names of the map, so they are always strings; DynamoDB allows an empty name inside a map, and names are compared
-/// ordinally. DynamoDB does not keep the order of a map.
+/// The keys are the attribute names of the map, so they are always strings, and names are compared ordinally. DynamoDB has no empty name in a map, so a write of a dictionary with an
+/// empty key throws <see cref="ArgumentException"/>. DynamoDB does not keep the order of a map.
 /// </para>
 /// <para>
 /// The dictionary that is read has exactly the capacity of its entries. A name that appears twice, which DynamoDB never sends, keeps its last value.
@@ -20,12 +20,18 @@ public readonly struct DictionaryConverter<T, TConverter> : IDynamoDbConverter<D
 {
     /// <inheritdoc/>
     /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">A key of <paramref name="value"/> is empty, which DynamoDB rejects.</exception>
     public static void Write(DynamoDbWriter writer, Dictionary<string, T> value)
     {
         ArgumentNullException.ThrowIfNull(value);
         writer.WriteStartMap();
         foreach (var (name, element) in value)
         {
+            if (name.Length == 0)
+            {
+                throw new EmptyMapNameException(nameof(value));
+            }
+
             writer.WriteAttributeName(name);
             TConverter.Write(writer, element);
         }

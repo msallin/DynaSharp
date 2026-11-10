@@ -22,6 +22,19 @@ public sealed class ReadOnlyDictionaryConverterTests
     }
 
     [Test]
+    public async Task Write_OtherDictionaryWithAnEmptyName_ThrowsTheRefusalOfAnEmptyName()
+    {
+        // Arrange
+        IReadOnlyDictionary<string, string> value = new ForeignReadOnlyDictionary<string>(new Dictionary<string, string> { [string.Empty] = "x" });
+
+        // Act
+        var failure = TestClient.Catch(() => ConverterRun.Write<IReadOnlyDictionary<string, string>, ReadOnlyDictionaryConverter<string, StringConverter>>(value));
+
+        // Assert
+        await Assert.That(failure is ArgumentException refused && ConverterChecks.IsRefusedValue(refused)).IsTrue();
+    }
+
+    [Test]
     public async Task Write_OtherDictionary_WritesAMapOfValues()
     {
         // Arrange

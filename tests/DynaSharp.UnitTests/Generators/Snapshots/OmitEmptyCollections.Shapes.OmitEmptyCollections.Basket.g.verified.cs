@@ -77,12 +77,26 @@ partial class Basket : __Map.IDynamoDbDocument<global::Shapes.OmitEmptyCollectio
         if (entity.Counts is { Count: > 0 } __v7)
         {
             writer.WriteAttributeName("Counts"u8);
-            global::DynaSharp.Serialization.DictionaryConverter<int, global::DynaSharp.Serialization.NumberConverter<int>>.Write(writer, __v7);
+            try
+            {
+                global::DynaSharp.Serialization.DictionaryConverter<int, global::DynaSharp.Serialization.NumberConverter<int>>.Write(writer, __v7);
+            }
+            catch (global::System.ArgumentException __e) when (__Ser.ConverterChecks.IsRefusedValue(__e))
+            {
+                throw __Ser.ConverterChecks.RefusedValue(__e, "Basket", "Counts", "Counts");
+            }
         }
         if (entity.Totals is { Count: > 0 } __v8)
         {
             writer.WriteAttributeName("Totals"u8);
-            global::DynaSharp.Serialization.ReadOnlyDictionaryConverter<string?, global::DynaSharp.Serialization.NullableReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>>.Write(writer, __v8);
+            try
+            {
+                global::DynaSharp.Serialization.ReadOnlyDictionaryConverter<string?, global::DynaSharp.Serialization.NullableReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>>.Write(writer, __v8);
+            }
+            catch (global::System.ArgumentException __e) when (__Ser.ConverterChecks.IsRefusedValue(__e))
+            {
+                throw __Ser.ConverterChecks.RefusedValue(__e, "Basket", "Totals", "Totals");
+            }
         }
         if (entity.Names is { Length: > 0 } __v9)
         {

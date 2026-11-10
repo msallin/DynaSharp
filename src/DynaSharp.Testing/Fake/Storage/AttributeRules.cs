@@ -9,7 +9,7 @@ namespace DynaSharp.Testing.Fake;
 /// equal are equal as text too, and a key <c>1.0</c> finds the item of the key <c>1</c>.
 /// </para>
 /// <para>
-/// A set with an element twice is rejected, numbers by value: <c>["1","1.0"]</c> is a duplicate. An empty set does not get this far: the reader of the client rejects it, and so does
+/// A map with an empty name is rejected, as real DynamoDB does (<c>FidelityTests</c> question 12). A set with an element twice is rejected, numbers by value: <c>["1","1.0"]</c> is a duplicate. An empty set does not get this far: the reader of the client rejects it, and so does
 /// <see cref="AttributeValue"/>.
 /// </para>
 /// </remarks>
@@ -75,6 +75,11 @@ internal static class AttributeRules
                 var map = new Item(value.AsMap().Count);
                 foreach (var (name, element) in value.AsMap())
                 {
+                    if (name.Length == 0)
+                    {
+                        throw FakeError.Validation("1 validation error detected: Empty attribute name");
+                    }
+
                     map.Add(name, Normalize(element, depth + 1));
                 }
 

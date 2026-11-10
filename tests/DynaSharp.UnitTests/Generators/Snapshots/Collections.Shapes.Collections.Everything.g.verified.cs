@@ -155,9 +155,23 @@ partial class Everything : __Map.IDynamoDbDocument<global::Shapes.Collections.Ev
             global::DynaSharp.Serialization.SetArrayConverter<string, global::DynaSharp.Serialization.StringSetElement>.Write(writer, __v6);
         }
         writer.WriteAttributeName("Map"u8);
-        global::DynaSharp.Serialization.DictionaryConverter<int, global::DynaSharp.Serialization.NumberConverter<int>>.Write(writer, entity.Map);
+        try
+        {
+            global::DynaSharp.Serialization.DictionaryConverter<int, global::DynaSharp.Serialization.NumberConverter<int>>.Write(writer, entity.Map);
+        }
+        catch (global::System.ArgumentException __e) when (__Ser.ConverterChecks.IsRefusedValue(__e))
+        {
+            throw __Ser.ConverterChecks.RefusedValue(__e, "Everything", "Map", "Map");
+        }
         writer.WriteAttributeName("Leaf"u8);
-        global::DynaSharp.Serialization.ReadOnlyDictionaryConverter<global::Shapes.Collections.Leaf, global::DynaSharp.Serialization.DocumentConverter<global::Shapes.Collections.Leaf>>.Write(writer, entity.Leaf);
+        try
+        {
+            global::DynaSharp.Serialization.ReadOnlyDictionaryConverter<global::Shapes.Collections.Leaf, global::DynaSharp.Serialization.DocumentConverter<global::Shapes.Collections.Leaf>>.Write(writer, entity.Leaf);
+        }
+        catch (global::System.ArgumentException __e) when (__Ser.ConverterChecks.IsRefusedValue(__e))
+        {
+            throw __Ser.ConverterChecks.RefusedValue(__e, "Everything", "Leaf", "Leaf");
+        }
         if (entity.Maybe is { } __v7)
         {
             writer.WriteAttributeName("Maybe"u8);
