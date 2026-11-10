@@ -145,3 +145,13 @@ DYNA239 | DynaSharp.Commands | Error | Write by key that does not say how it tre
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
 DYNA240 | DynaSharp.Commands | Warning | Entity of the table left out of CreateTable
+
+## Release 0.10.0
+
+### New Rules
+
+Rule ID | Category | Severity | Notes
+--------|----------|----------|-------
+DYNA241 | DynaSharp.Commands | Warning | Update may create an item the entity cannot read
+DYNA242 | DynaSharp.Commands | Error | Add on a time to live
+DYNA243 | DynaSharp.Commands | Info | Set of a value that may be null

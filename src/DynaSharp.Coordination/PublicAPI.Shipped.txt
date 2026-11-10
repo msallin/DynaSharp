@@ -15,6 +15,7 @@ DynaSharp.Coordination.LockTable.Options.get -> DynaSharp.Coordination.LockTable
 DynaSharp.Coordination.LockTable.RunAsLeaderAsync(string! name, System.TimeSpan leaseDuration, System.Func<DynaSharp.Coordination.Lease!, System.Threading.CancellationToken, System.Threading.Tasks.Task!>! work, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 DynaSharp.Coordination.LockTable.Table.get -> DynaSharp.Table<DynaSharp.Item!>!
 DynaSharp.Coordination.LockTable.TryAcquireAsync(string! name, System.TimeSpan leaseDuration, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Coordination.Lease?>!
+DynaSharp.Coordination.LockTable.TryAcquireAsync(string! name, System.TimeSpan leaseDuration, System.TimeSpan wait, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Coordination.Lease?>!
 DynaSharp.Coordination.LockTableOptions
 DynaSharp.Coordination.LockTableOptions.HolderLabel.get -> string?
 DynaSharp.Coordination.LockTableOptions.HolderLabel.init -> void

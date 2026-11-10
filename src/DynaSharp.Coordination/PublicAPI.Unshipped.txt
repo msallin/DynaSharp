@@ -1,2 +1,1 @@
 #nullable enable
-DynaSharp.Coordination.LockTable.TryAcquireAsync(string! name, System.TimeSpan leaseDuration, System.TimeSpan wait, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Coordination.Lease?>!
