@@ -102,3 +102,10 @@ DynaSharp.ScanSelectCommand<T1, TConverter1, T2, TConverter2>.ValuesAsync(System
 DynaSharp.ScanSelectCommand<TValue, TConverter>.And<TNext, TNextConverter>(DynaSharp.Attr<TNext!, DynaSharp.Serialization.NullableReferenceHandleConverter<TNext!, TNextConverter>> attribute) -> DynaSharp.ScanSelectCommand<TValue, TConverter, TNext?, DynaSharp.Serialization.NullableReferenceConverter<TNext!, TNextConverter>>
 DynaSharp.ScanSelectCommand<TValue, TConverter>.And<TNext, TNextConverter>(DynaSharp.Attr<TNext, DynaSharp.Serialization.NullableHandleConverter<TNext, TNextConverter>> attribute) -> DynaSharp.ScanSelectCommand<TValue, TConverter, TNext?, DynaSharp.Serialization.NullableConverter<TNext, TNextConverter>>
 DynaSharp.ScanSelectCommand<TValue, TConverter>.And<TNext, TNextConverter>(DynaSharp.Attr<TNext, TNextConverter> attribute) -> DynaSharp.ScanSelectCommand<TValue, TConverter, TNext, TNextConverter>
+DynaSharp.BatchGetCommand<T>.Get(DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, DynaSharp.AttributeValue sortKey, out DynaSharp.BatchSlot<DynaSharp.Item!> slot) -> DynaSharp.BatchGetCommand<T>
+DynaSharp.BatchGetCommand<T>.Get(DynaSharp.Table<DynaSharp.Item!>! table, DynaSharp.AttributeValue partitionKey, out DynaSharp.BatchSlot<DynaSharp.Item!> slot) -> DynaSharp.BatchGetCommand<T>
+DynaSharp.BatchGetCommand<T>.Get<TOther, TKey>(DynaSharp.Table<TOther>! table, TKey key, out DynaSharp.BatchSlot<TOther> slot) -> DynaSharp.BatchGetCommand<T>
+DynaSharp.BatchGetIncompleteException<T>.Read<TOther>(DynaSharp.BatchSlot<TOther> slot) -> DynaSharp.GetResult<TOther>
+DynaSharp.BatchGetResult<T>.Read<TOther>(DynaSharp.BatchSlot<TOther> slot) -> DynaSharp.GetResult<TOther>
+DynaSharp.BatchSlot<T>
+DynaSharp.BatchSlot<T>.BatchSlot() -> void

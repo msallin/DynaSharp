@@ -1,4 +1,6 @@
 using System.Net;
+using DynaSharp.Fluent;
+using DynaSharp.Mapping;
 using DynaSharp.Requests;
 
 namespace DynaSharp;
@@ -43,6 +45,19 @@ public sealed class BatchGetIncompleteException<T> : DynamoDbException
     /// <summary>Gets the keys that were not answered, by table, in the form <c>client.BatchGetItemAsync</c> takes, with the consistency and the projection of the batch. It includes the requests the batch did not get to.</summary>
     public IReadOnlyDictionary<string, KeysAndAttributes> UnprocessedKeys { get; }
 
-    /// <summary>Gets the items that were read before the batch gave up.</summary>
+    /// <summary>Gets the items of the table of the command that were read before the batch gave up. The gets with a slot are read with <see cref="Read{TOther}(BatchSlot{TOther})"/>.</summary>
     public IReadOnlyList<T> Items { get; }
+
+    /// <summary>Gets or initializes the gets of the batch that have a slot, or <see langword="null"/> for an exception that no batch threw.</summary>
+    internal BatchSlots? Slots { get; init; }
+
+    /// <summary>Reads the item of a get with a slot that DynamoDB answered before the batch gave up.</summary>
+    /// <typeparam name="TOther">How the item is read, which the slot knows.</typeparam>
+    /// <param name="slot">The slot of the get.</param>
+    /// <returns>The item, or <see cref="GetResult{T}.Found"/> <see langword="false"/> if DynamoDB answered that there is none under the key.</returns>
+    /// <exception cref="ArgumentException">The slot is a default value, or it comes from another batch with more slots.</exception>
+    /// <exception cref="InvalidOperationException">DynamoDB did not answer the key of the slot, which is in <see cref="UnprocessedKeys"/>.</exception>
+    /// <exception cref="DynamoDbMappingException">The item cannot be read as <typeparamref name="TOther"/>.</exception>
+    public GetResult<TOther> Read<TOther>(BatchSlot<TOther> slot)
+        where TOther : IDynamoDbDocument<TOther> => BatchSlots.Read(Slots, slot);
 }

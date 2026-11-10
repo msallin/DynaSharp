@@ -9,9 +9,18 @@ using DynaSharp.Serialization;
 namespace DynaSharp;
 
 /// <summary>
-/// A <c>BatchGetItem</c> under construction: many keys of one table, of any number. Chain the keys and options and end with <see cref="SendAsync"/> in
-/// one expression. Reads of another table go through a batch of that table, or through <c>client.BatchGetItemAsync</c> of <c>DynaSharp.Requests</c>.
+/// A <c>BatchGetItem</c> under construction: many keys of its table, of any number, and gets of other tables and types that each hand out a slot. Chain the keys and
+/// options and end with <see cref="SendAsync"/> in one expression.
 /// </summary>
+/// <example>
+/// <code>
+/// var batch = await orders.BatchGet()
+///     .Get(Order.Keys.Of("bob", 1))
+///     .Get(customers, Customer.Keys.Of("bob"), out var buyer)
+///     .SendAsync(ct);
+/// var customer = batch.Read(buyer).Item;
+/// </code>
+/// </example>
 /// <remarks>
 /// <para>
 /// DynamoDB takes 100 keys in a request and returns 16 MB of items in a response. The command cuts the keys into requests of 100, which run one after the
@@ -28,6 +37,11 @@ namespace DynaSharp;
 /// <para>
 /// DynamoDB rejects a request that holds one key twice with a <see cref="ValidationException"/>. The command leaves that to DynamoDB and does not look for
 /// duplicates: a key that occurs twice in one request fails it, and one that occurs in two requests is read twice.
+/// </para>
+/// <para>
+/// <b>Other tables.</b> <see cref="Get{TOther, TKey}(Table{TOther}, TKey, out BatchSlot{TOther})"/> adds a key of any table, also of another type on the same table, and its slot reads the item from
+/// <see cref="BatchGetResult{T}.Read{TOther}(BatchSlot{TOther})"/>; it is not in <see cref="BatchGetResult{T}.Items"/>. Such gets share the requests of 100 keys, the second round for unprocessed keys and
+/// <see cref="Consistent"/> with the keys of the table of the command. <c>Project</c> is about the table of the command only, so it rejects a get with a slot on that table, which reads another type.
 /// </para>
 /// <para>
 /// Telemetry has one span per request, so a batch can make several, and they carry the table and the capacity of their own request. See
@@ -89,6 +103,63 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
         return new(state, state.Table);
     }
 
+    /// <summary>Adds a get by a generated key of any table, whose item <paramref name="slot"/> reads from the result. The table can be another one or this one, for another type.</summary>
+    /// <typeparam name="TOther">How the item is read.</typeparam>
+    /// <typeparam name="TKey">The key. A key of another entity is a compile error.</typeparam>
+    /// <param name="table">The table.</param>
+    /// <param name="key">The key.</param>
+    /// <param name="slot">What reads the item from the result.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="table"/> or <paramref name="key"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">The table is the one of the command and the command has a <c>Project</c>, which a read of another type cannot do with.</exception>
+    public BatchGetCommand<T> Get<TOther, TKey>(Table<TOther> table, TKey key, out BatchSlot<TOther> slot)
+        where TOther : IDynamoDbDocument<TOther>
+        where TKey : IKey<TOther>
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        Argument.ThrowIfNull(key);
+        ThrowIfProjected(table.Model);
+        var state = Enter();
+        var offset = StartSlot(state, table.Model);
+        state.BodyJson.WriteStartObject();
+        key.WriteKey(new DynamoDbWriter(state.BodyJson));
+        state.EndKey();
+        slot = new BatchSlot<TOther>(EndSlot(state, table.Model, offset));
+        return new(state, state.Table);
+    }
+
+    /// <summary>Adds a get on a table without a schema, by the values of the key, whose item <paramref name="slot"/> reads from the result.</summary>
+    /// <param name="table">The table.</param>
+    /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
+    /// <param name="sortKey">The sort key as it is stored, which a table with a sort key needs.</param>
+    /// <param name="slot">What reads the item from the result.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">A key is empty, or the sort key is given and the table has none, or left out and the table has one.</exception>
+    /// <exception cref="InvalidOperationException">The table is the one of the command and the command has a <c>Project</c>, which a read of another type cannot do with.</exception>
+    public BatchGetCommand<T> Get(Table<Item> table, AttributeValue partitionKey, AttributeValue sortKey, out BatchSlot<Item> slot)
+    {
+        ArgumentNullException.ThrowIfNull(table);
+        var model = table.Model;
+        model.CheckKey(partitionKey, sortKey);
+        ThrowIfProjected(model);
+        var state = Enter();
+        var offset = StartSlot(state, model);
+        state.WriteKeyObject(model, partitionKey, sortKey);
+        slot = new BatchSlot<Item>(EndSlot(state, model, offset));
+        return new(state, state.Table);
+    }
+
+    /// <summary>Adds a get on a table without a schema and without a sort key, by the value of the partition key, whose item <paramref name="slot"/> reads from the result.</summary>
+    /// <param name="table">The table.</param>
+    /// <param name="partitionKey">The partition key as it is stored. Strings and binary values must not be empty.</param>
+    /// <param name="slot">What reads the item from the result.</param>
+    /// <returns>The command, which replaces this one.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">The key is empty, or the table has a sort key.</exception>
+    /// <exception cref="InvalidOperationException">The table is the one of the command and the command has a <c>Project</c>, which a read of another type cannot do with.</exception>
+    public BatchGetCommand<T> Get(Table<Item> table, AttributeValue partitionKey, out BatchSlot<Item> slot) => Get(table, partitionKey, default, out slot);
+
     /// <summary>Asks for strongly consistent reads, which see every write that succeeded before them and cost twice the capacity. Reads are eventually consistent otherwise.</summary>
     /// <returns>The command, which replaces this one.</returns>
     public BatchGetCommand<T> Consistent()
@@ -105,8 +176,10 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     /// <param name="paths">The names or document paths. Reserved words need no care, and a second call adds to the first.</param>
     /// <returns>The command, which replaces this one.</returns>
     /// <exception cref="ArgumentException">A path is not valid.</exception>
+    /// <exception cref="InvalidOperationException">The command has a get with a slot on its own table, which reads another type and needs the whole item.</exception>
     public BatchGetCommand<T> Project(params ReadOnlySpan<string> paths)
     {
+        ThrowIfSlotOnTable();
         var state = Enter();
         state.Expressions.Projection.Add(paths);
         return new(state, state.Table);
@@ -115,8 +188,10 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     /// <summary>Reads only some attributes, given as handles: <c>Project(Order.Attrs.Status, Order.Attrs.Total)</c>. See <see cref="Project(ReadOnlySpan{string})"/>.</summary>
     /// <param name="attributes">The attributes. A second call adds to the first.</param>
     /// <returns>The command, which replaces this one.</returns>
+    /// <exception cref="InvalidOperationException">The command has a get with a slot on its own table, which reads another type and needs the whole item.</exception>
     public BatchGetCommand<T> Project(params ReadOnlySpan<Attr> attributes)
     {
+        ThrowIfSlotOnTable();
         var state = Enter();
         state.Expressions.Projection.Add(attributes);
         return new(state, state.Table);
@@ -210,6 +285,40 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
         json.WriteStartObject();
         key.WriteKey(new DynamoDbWriter(json));
         state.EndKey();
+    }
+
+    private static int StartSlot(CommandState state, TableModel table)
+    {
+        var offset = state.Body.WrittenCount;
+        state.Actions.Add(table, offset);
+        return offset;
+    }
+
+    private static int EndSlot(CommandState state, TableModel table, int offset)
+    {
+        var actions = state.Actions;
+        actions.Slots ??= new BatchSlots();
+        return actions.Slots.Add(table, state.Body.WrittenSpan[offset..], actions.Count - 1);
+    }
+
+    // A projection is written once, for the table of the command, so a read of another type on that table would get it too. Checked before the command is entered, so that
+    // the call leaves the command as it was.
+    private void ThrowIfProjected(TableModel table)
+    {
+        var state = CommandState.Check(_state, _version, Operation, _table);
+        if (table.Name == state.Table.Name && state.Expressions[Clause.Projection].WrittenCount > 0)
+        {
+            throw new InvalidOperationException($"This batch reads {state.Table.Name} with a projection, which a get with a slot on that table would get too. Read the other type in a batch of its own, or leave out Project.");
+        }
+    }
+
+    private void ThrowIfSlotOnTable()
+    {
+        var state = CommandState.Check(_state, _version, Operation, _table);
+        if (state.Actions.Slots?.TableNamed(state.Table.Name) is not null)
+        {
+            throw new InvalidOperationException($"This batch has a get with a slot on {state.Table.Name}, which reads another type and needs the whole item. Read that type in a batch of its own, or leave out Project.");
+        }
     }
 
     private CommandState Prepare()

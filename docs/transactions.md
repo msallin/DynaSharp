@@ -73,6 +73,20 @@ var written = await products.BatchWrite().PutAll(catalog).SendAsync(ct);
 var found = await products.BatchGet().GetAll(skus.Select(Product.Keys.Of)).SendAsync(ct);
 ```
 
+A batch get reads the keys of its table into `Items`, and it reads other tables too: `Get(table, key, out slot)` adds a key of any table, also of another type on the same table, and hands out a slot that reads its item from the result, as a transaction does. Those keys share the requests of 100 and the rounds for unprocessed keys with the rest, and they are not in `Items`.
+
+```csharp
+var batch = await orders.BatchGet()
+    .GetAll([Order.Keys.Of("bob", 1), Order.Keys.Of("bob", 2)])
+    .Get(customers, Customer.Keys.Of("bob"), out var bobSlot)
+    .Get(carts, Cart.Keys.Of("bob"), out var bobsCart)
+    .SendAsync(ct);
+
+Customer? bob = batch.Read(bobSlot).Item;
+```
+
+`Consistent()` applies to every table, and `Project` to the table of the command only, so it cannot go with a get with a slot on that same table, which reads another type. A batch that gives up throws `BatchGetIncompleteException<T>`, whose `Read(slot)` gives what DynamoDB answered and throws for a key in `UnprocessedKeys`.
+
 A batch deletes by key the same way, and one batch can put and delete:
 
 ```csharp

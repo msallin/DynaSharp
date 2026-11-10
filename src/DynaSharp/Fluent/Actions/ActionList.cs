@@ -68,6 +68,9 @@ internal sealed class ActionList
     /// <summary>Gets or sets what a batch has read so far: a list of the type of its table, which this class does not know.</summary>
     public object? Results { get; set; }
 
+    /// <summary>Gets or sets the gets of a batch that hand out a slot, or <see langword="null"/> if there are none.</summary>
+    public BatchSlots? Slots { get; set; }
+
     /// <summary>Gets the name of the table, if all actions have one.</summary>
     public string? OnlyTableName => TableCount == 1 ? _tables[0].Name : null;
 
@@ -181,6 +184,7 @@ internal sealed class ActionList
         SentBody = default;
         Token = null;
         Results = null;
+        Slots = null;
         ReadFailed = false;
     }
 

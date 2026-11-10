@@ -10,7 +10,7 @@ using static DynaSharp.UnitTests.Http.RetryTestSupport;
 
 namespace DynaSharp.UnitTests.Fluent;
 
-public sealed class BatchGetCommandTests
+public sealed partial class BatchGetCommandTests
 {
     private const string Throttle = "ProvisionedThroughputExceededException";
 

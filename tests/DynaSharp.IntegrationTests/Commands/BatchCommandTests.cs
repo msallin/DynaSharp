@@ -183,6 +183,31 @@ public sealed class BatchCommandTests(Backend backend)
     }
 
     [Test]
+    public async Task BatchGet_SlotsOnTwoTablesAndAnotherType_ReadEachItem()
+    {
+        // Arrange
+        await using var sandbox = await CommandSandbox.StartAsync(backend);
+        var other = await sandbox.CreateTableAsync();
+        var profiles = sandbox.Shop.Of<Profile>();
+        await profiles.Put(new Profile("alice", "Alice")).SendAsync();
+        await sandbox.Shop.Put(new Item { ["pk"] = "a", ["sk"] = "s", ["v"] = 1 }).SendAsync();
+        await other.Put(new Item { ["pk"] = "b", ["sk"] = "s", ["v"] = 2 }).SendAsync();
+
+        // Act
+        var result = await profiles.BatchGet()
+            .Get(Profile.Keys.Of("alice"))
+            .Get(sandbox.Shop, "a", "s", out var onShop)
+            .Get(other, "b", "s", out var onOther)
+            .Get(other, "missing", "s", out var missing)
+            .Consistent()
+            .SendAsync();
+
+        // Assert
+        await Assert.That((result.Items.Single().FullName, result.Read(onShop).Item!.GetNumber<int>("v"), result.Read(onOther).Item!.GetNumber<int>("v"), result.Read(missing).Found))
+            .IsEqualTo(("Alice", 1, 2, false));
+    }
+
+    [Test]
     public async Task BatchGet_Projection_ReturnsThoseAttributes()
     {
         // Arrange (status is a reserved word)

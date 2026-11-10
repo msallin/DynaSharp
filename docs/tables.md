@@ -305,7 +305,7 @@ public static class Deposits
 What spans tables and what does not:
 
 - A transaction belongs to the client, so `client.TransactWrite()` and `client.TransactGet()` take actions on any tables of the account and region, as DynamoDB does.
-- A batch belongs to a table: `BatchGet()` and `BatchWrite()` of `Table<T>` read or write that table only, so two tables take two batches.
+- A batch starts from a table and spans tables: `BatchWrite()` takes puts and deletes of any table, and `BatchGet()` reads the keys of its table into `Items` and those of other tables through slots, see [Batches](transactions.md#batches).
 - Mixed-type reads, fan-out queries and `Of<T>()` are about one table holding several types.
 - `FakeDynamoDb` holds any number of tables, and the [locks](coordination.md) and [streams](streams.md) work on any table.
 
