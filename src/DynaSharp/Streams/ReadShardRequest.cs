@@ -20,7 +20,7 @@ public sealed record ReadShardRequest
     public required ShardIteratorType ShardIteratorType { get; init; }
 
     /// <summary>
-    /// Gets the sequence number to start at or after. Required for <see cref="Streams.ShardIteratorType.AtSequenceNumber"/> and
+    /// Gets the sequence number to start at or after. Required, and not empty, for <see cref="Streams.ShardIteratorType.AtSequenceNumber"/> and
     /// <see cref="Streams.ShardIteratorType.AfterSequenceNumber"/>, and not allowed for the other types.
     /// </summary>
     public string? SequenceNumber { get; init; }

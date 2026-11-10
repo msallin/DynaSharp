@@ -485,6 +485,55 @@ public sealed class DynamoDbStreamsClientReadShardTests
     }
 
     [Test]
+    [Arguments(ShardIteratorType.AtSequenceNumber)]
+    [Arguments(ShardIteratorType.AfterSequenceNumber)]
+    public async Task ReadShardAsync_EmptySequenceNumber_ThrowsArgumentExceptionNamingIt(ShardIteratorType type)
+    {
+        // Arrange
+        using var handler = new StubHandler();
+        using var streams = TestClient.CreateStreams(handler);
+
+        // Act
+        var act = () => streams.ReadShardAsync(FromTrimHorizon() with { ShardIteratorType = type, SequenceNumber = string.Empty });
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentException>()
+            .WithMessageContaining("SequenceNumber is empty: AtSequenceNumber and AfterSequenceNumber need the sequence number of a record.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    [Arguments(0)]
+    [Arguments(-1)]
+    [Arguments(1001)]
+    public async Task ReadShardAsync_LimitOutOfRange_ThrowsArgumentOutOfRangeExceptionNamingIt(int limit)
+    {
+        // Arrange
+        using var streams = TestClient.CreateStreams(new StubHandler());
+
+        // Act
+        var act = () => streams.ReadShardAsync(FromTrimHorizon() with { Limit = limit });
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>()
+            .WithMessageContaining("Limit must be from 1 to 1,000 records, or null for the default of GetRecords.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    [Arguments(1)]
+    [Arguments(1000)]
+    public async Task ReadShardAsync_LimitAtTheEdgeOfTheRange_IsTaken(int limit)
+    {
+        // Arrange
+        using var streams = TestClient.CreateStreams(new StubHandler());
+
+        // Act
+        var records = streams.ReadShardAsync(FromTrimHorizon() with { Limit = limit });
+
+        // Assert
+        await Assert.That(records).IsNotNull();
+    }
+
+    [Test]
     [Arguments(-1L)]
     [Arguments(15L * 60 * 1000)]
     [Arguments(long.MaxValue / TimeSpan.TicksPerMillisecond)]

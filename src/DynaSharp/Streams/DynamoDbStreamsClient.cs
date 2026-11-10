@@ -49,6 +49,10 @@ public sealed class DynamoDbStreamsClient : IDisposable
 {
     private const string EmptyPageDelayMessage = "EmptyPageDelay must be zero or more and below the 15 minutes an iterator lives.";
 
+    // The range of the Limit of GetRecords.
+    private const int MinRecordsLimit = 1;
+    private const int MaxRecordsLimit = 1000;
+
     private static readonly TimeSpan IteratorLifetime = TimeSpan.FromMinutes(15);
 
     private readonly ClientCore _core;
@@ -310,11 +314,11 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <see cref="ReadShardRequest.ShardIteratorType"/> is <see cref="ShardIteratorType.Unknown"/> or undefined, or
+    /// <see cref="ReadShardRequest.ShardIteratorType"/> is <see cref="ShardIteratorType.Unknown"/> or undefined, <see cref="ReadShardRequest.Limit"/> is not from 1 to 1,000, or
     /// <see cref="ReadShardRequest.EmptyPageDelay"/> is negative or 15 minutes or more.
     /// </exception>
     /// <exception cref="ArgumentException">
-    /// <see cref="ReadShardRequest.SequenceNumber"/> is missing for <see cref="ShardIteratorType.AtSequenceNumber"/> or
+    /// <see cref="ReadShardRequest.SequenceNumber"/> is missing or empty for <see cref="ShardIteratorType.AtSequenceNumber"/> or
     /// <see cref="ShardIteratorType.AfterSequenceNumber"/>, or set for <see cref="ShardIteratorType.TrimHorizon"/> or <see cref="ShardIteratorType.Latest"/>.
     /// </exception>
     /// <exception cref="TrimmedDataAccessException">
@@ -344,6 +348,16 @@ public sealed class DynamoDbStreamsClient : IDisposable
         if (needsSequenceNumber != request.SequenceNumber is not null)
         {
             throw new ArgumentException("AtSequenceNumber and AfterSequenceNumber need a SequenceNumber, and TrimHorizon and Latest take none.", nameof(request));
+        }
+
+        if (request.SequenceNumber is { Length: 0 })
+        {
+            throw new ArgumentException("SequenceNumber is empty: AtSequenceNumber and AfterSequenceNumber need the sequence number of a record.", nameof(request));
+        }
+
+        if (request.Limit is < MinRecordsLimit or > MaxRecordsLimit)
+        {
+            throw new ArgumentOutOfRangeException(nameof(request), request.Limit, "Limit must be from 1 to 1,000 records, or null for the default of GetRecords.");
         }
 
         if (!IsEmptyPageDelayValid(request.EmptyPageDelay))
