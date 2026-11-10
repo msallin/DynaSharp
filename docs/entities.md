@@ -147,8 +147,8 @@ var labels = client.Table<LabelRecord>("Labels");
 var label = new ShippingLabel("Bern", 1.50m, null);
 await labels.Put(new LabelRecord { Id = "l1", Label = System.Text.Json.JsonSerializer.SerializeToElement(label, ContractJson.Default.ShippingLabel) }).SendAsync(ct);
 
-await labels.Update(LabelRecord.Keys.Of("l1")).Set("Label.To", "Basel").SendAsync(ct);
-var heavy = labels.Scan().Filter(Attr("Label.Weight").Gt(10)).ItemsAsync(ct);
+await labels.Update(LabelRecord.Keys.Of("l1")).Set("Label.To", "Basel").IfExists().SendAsync(ct);
+var heavy = labels.Scan().Filter(Attr(LabelRecord.Attrs.Label.Path + ".Weight").Gt(10)).ItemsAsync(ct);
 
 var stored = await labels.Get(LabelRecord.Keys.Of("l1")).ItemAsync(ct);
 ShippingLabel? back = stored is null ? null : System.Text.Json.JsonSerializer.Deserialize(stored.Label, ContractJson.Default.ShippingLabel);
@@ -158,7 +158,7 @@ ShippingLabel? back = stored is null ? null : System.Text.Json.JsonSerializer.De
 - **What a write refuses.** JSON that DynamoDB cannot store throws an `ArgumentException` that names the property and the place in the JSON, such as `$.lines[2].weight`: a number beyond 38 digits or the range of DynamoDB, more than 32 levels, an empty name, a name twice in one object, and a `default(JsonElement)`.
 - **Null.** A `JsonElement?` that is null leaves the attribute out, and a missing attribute or `NULL` reads as null. A JSON `null` in a `JsonElement` is stored as `NULL`.
 - **What a read takes.** Any value, also one other code wrote: a string set and a number set read as an array, a binary value and a binary set as base64 text.
-- **Paths.** `LabelRecord.Attrs.Label` sets, compares and selects the whole document. Inside it a path is a string, as in `Set("Label.To", ...)`, `Attr("Label.Weight")` and `Project("Label.To")`: `.At(...)` walks into a `[DynamoDbDocument]` only, which has handles of its own.
+- **Paths.** `LabelRecord.Attrs.Label` sets, compares and selects the whole document. Inside it a path is a string, as in `Set("Label.To", ...)`, `Attr("Label.Weight")` and `Project("Label.To")`: `.At(...)` walks into a `[DynamoDbDocument]` only, which has handles of its own. `LabelRecord.Attrs.Label.Path + ".Weight"` starts the path at the attribute's name, which follows a `Naming` of the assembly.
 - **One type.** `JsonElement` and no other type of JSON; a `JsonNode` converts with `JsonSerializer.SerializeToElement(node)`.
 
 ## Project defaults
