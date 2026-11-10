@@ -371,6 +371,35 @@ public sealed class WebIdentityCredentialsProviderTests
     }
 
     [Test]
+    public async Task GetCredentialsAsync_FailuresAtAnEndpointOfAwsEndpointUrl_SayWhichVariableToSetForDynamoDb()
+    {
+        // Arrange (AWS_ENDPOINT_URL meant for an emulator of DynamoDB sends STS there too)
+        var world = new World(Env([.. Irsa, ("AWS_ENDPOINT_URL", "http://127.0.0.1:8000")])) { Answer = (_, _) => Task.FromResult(Error("Throttling", HttpStatusCode.BadRequest)) };
+
+        // Act
+        var failing = TestClient.CaptureAsync<CredentialsUnavailableException>(async () => await world.Provider.GetCredentialsAsync(CancellationToken.None));
+        await world.AdvanceThroughPausesAsync(2);
+        var exception = await failing;
+
+        // Assert
+        await Assert.That(exception.Message).IsEqualTo(
+            "STS at 127.0.0.1 did not return credentials in 3 attempts. The last attempt: Throttling. The endpoint of STS came from AWS_ENDPOINT_URL, which sends the calls of every AWS service there, STS included; to send only DynamoDB to an emulator, set AWS_ENDPOINT_URL_DYNAMODB instead.");
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_RejectedAtAnEndpointOfAwsEndpointUrl_SaysWhichVariableToSetForDynamoDb()
+    {
+        // Arrange
+        var world = new World(Env([.. Irsa, ("AWS_ENDPOINT_URL", "http://127.0.0.1:8000")])) { Answer = (_, _) => Task.FromResult(Error("UnknownOperationException", HttpStatusCode.BadRequest)) };
+
+        // Act
+        var exception = await TestClient.CaptureAsync<CredentialsUnavailableException>(async () => await world.Provider.GetCredentialsAsync(CancellationToken.None));
+
+        // Assert
+        await Assert.That(exception.Message.EndsWith("set AWS_ENDPOINT_URL_DYNAMODB instead.", StringComparison.Ordinal)).IsTrue();
+    }
+
+    [Test]
     public async Task GetCredentialsAsync_FailuresAtAConfiguredEndpoint_NameItsHost()
     {
         // Arrange

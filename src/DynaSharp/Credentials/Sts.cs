@@ -60,20 +60,27 @@ internal static class Sts
     /// <param name="readFile">Reads the shared AWS files.</param>
     /// <param name="explicitEndpoint">An endpoint given in code, or <see langword="null"/>.</param>
     /// <param name="region">The region, or a function that finds it. It is asked only when no endpoint is configured.</param>
-    /// <returns>The endpoint, and the region it is in when it came from the region, otherwise <see langword="null"/>.</returns>
+    /// <returns>
+    /// The endpoint, the region it is in when it came from the region, otherwise <see langword="null"/>, and what a failed call adds to its message: <see cref="ClientConfiguration.GenericEndpointNote"/>.
+    /// </returns>
     /// <exception cref="CredentialsUnavailableException">An endpoint variable is no valid endpoint, or the region is needed and not known.</exception>
-    public static (Uri Endpoint, AwsRegion? Region) ResolveEndpoint(Func<string, string?> getEnvironmentVariable, ReadTextFile readFile, Uri? explicitEndpoint, Func<AwsRegion> region)
+    public static (Uri Endpoint, AwsRegion? Region, string FailureNote) ResolveEndpoint(Func<string, string?> getEnvironmentVariable, ReadTextFile readFile, Uri? explicitEndpoint, Func<AwsRegion> region)
     {
-        if ((explicitEndpoint ?? ReadConfiguredEndpoint(getEnvironmentVariable)) is { } configured)
+        if (explicitEndpoint is not null)
         {
-            return (configured, null);
+            return (explicitEndpoint, null, string.Empty);
+        }
+
+        if (ReadConfiguredEndpoint(getEnvironmentVariable) is ({ } configured, var source))
+        {
+            return (configured, null, ClientConfiguration.GenericEndpointNote(source, "STS"));
         }
 
         var resolved = region();
         var endpoint = string.Equals(SharedConfigFiles.ReadSetting(getEnvironmentVariable, readFile, RegionalEndpointsVariable, "sts_regional_endpoints"), "legacy", StringComparison.OrdinalIgnoreCase) && Array.IndexOf(LegacyGlobalRegions, resolved.Name) >= 0
             ? GlobalEndpoint
             : resolved.StsEndpoint;
-        return (endpoint, resolved);
+        return (endpoint, resolved, string.Empty);
     }
 
     /// <summary>Finds the region of a provider that no client made, as a client would: <c>AWS_REGION</c>, <c>AWS_DEFAULT_REGION</c>, the selected profile.</summary>
@@ -93,11 +100,11 @@ internal static class Sts
         }
     }
 
-    private static Uri? ReadConfiguredEndpoint(Func<string, string?> getEnvironmentVariable)
+    private static (Uri? Endpoint, string Source) ReadConfiguredEndpoint(Func<string, string?> getEnvironmentVariable)
     {
         try
         {
-            return ClientConfiguration.FindEndpointInEnvironment(getEnvironmentVariable, EndpointVariable).Endpoint;
+            return ClientConfiguration.FindEndpointInEnvironment(getEnvironmentVariable, EndpointVariable);
         }
         catch (InvalidOperationException exception)
         {

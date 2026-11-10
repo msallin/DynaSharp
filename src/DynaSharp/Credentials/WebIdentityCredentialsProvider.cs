@@ -298,8 +298,8 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
 
     // What botocore does: a configured endpoint goes ahead of the region and of the legacy mode, and with one the region does not matter, because the request is not signed.
     // An endpoint passed in code is botocore's endpoint_url, which goes ahead of the configured ones. Only a provider that no client made looks for the region itself.
-    private Uri ResolveEndpoint(Settings settings) =>
-        Sts.ResolveEndpoint(_getEnvironmentVariable, _readFile, settings.Endpoint, () => settings.Region ?? Sts.ResolveRegion(_getEnvironmentVariable, _readFile)).Endpoint;
+    private (Uri Endpoint, AwsRegion? Region, string FailureNote) ResolveEndpoint(Settings settings) =>
+        Sts.ResolveEndpoint(_getEnvironmentVariable, _readFile, settings.Endpoint, () => settings.Region ?? Sts.ResolveRegion(_getEnvironmentVariable, _readFile));
 
     private string ReadToken(string path)
     {
@@ -331,7 +331,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     private async ValueTask<AwsCredentials> FetchAsync()
     {
         var settings = ResolveSettings();
-        var endpoint = ResolveEndpoint(settings);
+        var (endpoint, _, note) = ResolveEndpoint(settings);
         if (ClientConfiguration.IsUnencryptedRemote(endpoint) && Interlocked.Exchange(ref _unencryptedWarned, 1) == 0)
         {
             CredentialsLog.UnencryptedStsEndpoint(_logger, endpoint.Host);
@@ -378,12 +378,12 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
 
         if (!IsTransient(last, parsed, code))
         {
-            throw new CredentialsUnavailableException($"STS rejected the web identity token with {DescribeRejection(code, last.StatusCode)}.");
+            throw new CredentialsUnavailableException($"STS rejected the web identity token with {DescribeRejection(code, last.StatusCode)}.{note}");
         }
 
         var lastFailure = code ?? (last.IsOk ? "the response is not XML" : last.DescribeFailure());
         throw new CredentialsUnavailableException(
-            $"STS at {endpoint.DnsSafeHost} did not return credentials in {CredentialsHttp.MaxAttempts} attempts. The last attempt: {lastFailure}.");
+            $"STS at {endpoint.DnsSafeHost} did not return credentials in {CredentialsHttp.MaxAttempts} attempts. The last attempt: {lastFailure}.{note}");
     }
 
     /// <summary>What a fetch needs to know, however it came about.</summary>

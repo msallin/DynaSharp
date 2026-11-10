@@ -194,16 +194,16 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
 
     // The global endpoint signs for us-east-1. A configured endpoint signs for the region that is known, and for us-east-1 without one, as an
     // emulator does not care and a VPC endpoint comes with the region of the client.
-    private (Uri Endpoint, string SigningRegion) ResolveEndpoint()
+    private (Uri Endpoint, string SigningRegion, string FailureNote) ResolveEndpoint()
     {
         var getEnvironmentVariable = _dependencies.GetEnvironmentVariable;
-        var (endpoint, region) = Sts.ResolveEndpoint(getEnvironmentVariable, _dependencies.ReadFile, _settings.Endpoint, () => _settings.Region ?? Sts.ResolveRegion(getEnvironmentVariable, _dependencies.ReadFile));
+        var (endpoint, region, note) = Sts.ResolveEndpoint(getEnvironmentVariable, _dependencies.ReadFile, _settings.Endpoint, () => _settings.Region ?? Sts.ResolveRegion(getEnvironmentVariable, _dependencies.ReadFile));
         if (endpoint == Sts.GlobalEndpoint)
         {
-            return (endpoint, "us-east-1");
+            return (endpoint, "us-east-1", note);
         }
 
-        return (endpoint, (region ?? _settings.Region ?? TryResolveRegion())?.Name ?? "us-east-1");
+        return (endpoint, (region ?? _settings.Region ?? TryResolveRegion())?.Name ?? "us-east-1", note);
     }
 
     private AwsRegion? TryResolveRegion()
@@ -234,7 +234,7 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
     [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "The clients of CredentialsHttp are shared, and not to be disposed; SendWithRetriesAsync disposes each request.")]
     private async ValueTask<CredentialsOutcome> FetchAsync()
     {
-        var (endpoint, signingRegion) = ResolveEndpoint();
+        var (endpoint, signingRegion, note) = ResolveEndpoint();
         if (ClientConfiguration.IsUnencryptedRemote(endpoint) && Interlocked.Exchange(ref _unencryptedWarned, 1) == 0)
         {
             CredentialsLog.UnencryptedStsEndpoint(_logger, endpoint.Host);
@@ -292,10 +292,10 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
         {
             var lastFailure = document.ErrorCode ?? (result.IsOk ? "the response is not XML" : result.DescribeFailure());
             throw new CredentialsUnavailableException(
-                $"STS at {endpoint.DnsSafeHost} did not return credentials in {CredentialsHttp.MaxAttempts} attempts. The last attempt: {lastFailure}.");
+                $"STS at {endpoint.DnsSafeHost} did not return credentials in {CredentialsHttp.MaxAttempts} attempts. The last attempt: {lastFailure}.{note}");
         }
 
-        throw new CredentialsUnavailableException($"STS did not let the source credentials assume the role {_settings.RoleArn}: {DescribeRejection(document.ErrorCode, result.StatusCode)}.");
+        throw new CredentialsUnavailableException($"STS did not let the source credentials assume the role {_settings.RoleArn}: {DescribeRejection(document.ErrorCode, result.StatusCode)}.{note}");
     }
 
     /// <summary>What a fetch needs to know.</summary>

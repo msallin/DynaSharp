@@ -281,6 +281,36 @@ public sealed class AssumeRoleCredentialsProviderTests
     }
 
     [Test]
+    public async Task GetCredentialsAsync_RejectedAtAnEndpointOfAwsEndpointUrl_SaysWhichVariableToSetForDynamoDb()
+    {
+        // Arrange (AWS_ENDPOINT_URL meant for an emulator of DynamoDB sends STS there too)
+        var world = new World(Settings("s"), Env(("AWS_ENDPOINT_URL", "http://localhost:8000")));
+        world.Respond(_ => Error("UnknownOperationException", HttpStatusCode.BadRequest));
+
+        // Act
+        var exception = await TestClient.CaptureAsync<CredentialsUnavailableException>(async () => await world.Provider.GetCredentialsAsync(CancellationToken.None));
+
+        // Assert
+        await Assert.That(exception.Message.EndsWith(
+            " The endpoint of STS came from AWS_ENDPOINT_URL, which sends the calls of every AWS service there, STS included; to send only DynamoDB to an emulator, set AWS_ENDPOINT_URL_DYNAMODB instead.",
+            StringComparison.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task GetCredentialsAsync_RejectedAtAnEndpointOfAwsEndpointUrlSts_SaysNothingOfTheVariable()
+    {
+        // Arrange
+        var world = new World(Settings("s"), Env(("AWS_ENDPOINT_URL_STS", "http://localhost:8000")));
+        world.Respond(_ => Error("UnknownOperationException", HttpStatusCode.BadRequest));
+
+        // Act
+        var exception = await TestClient.CaptureAsync<CredentialsUnavailableException>(async () => await world.Provider.GetCredentialsAsync(CancellationToken.None));
+
+        // Assert
+        await Assert.That(exception.Message.Contains("AWS_ENDPOINT_URL", StringComparison.Ordinal)).IsFalse();
+    }
+
+    [Test]
     public async Task GetCredentialsAsync_EndpointAndRegionInTheEnvironmentAndARegionGiven_SignsForTheRegionGiven()
     {
         // Arrange

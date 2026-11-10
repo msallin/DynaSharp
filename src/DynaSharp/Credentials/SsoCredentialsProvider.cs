@@ -299,12 +299,15 @@ public sealed class SsoCredentialsProvider : IRefreshableCredentialsProvider
     private CredentialsUnavailableException LoginNeeded(string problem) =>
         new($"The cached SSO token of {TokenName} {problem}. {_settings.SignIn}");
 
-    private Uri ResolveEndpoint(string variable, Uri regional)
+    private (Uri Endpoint, string FailureNote) ResolveEndpoint(string variable, Uri regional)
     {
         Uri endpoint;
+        string note;
         try
         {
-            endpoint = ClientConfiguration.FindEndpointInEnvironment(_dependencies.GetEnvironmentVariable, variable).Endpoint ?? regional;
+            var (found, source) = ClientConfiguration.FindEndpointInEnvironment(_dependencies.GetEnvironmentVariable, variable);
+            endpoint = found ?? regional;
+            note = found is null ? string.Empty : ClientConfiguration.GenericEndpointNote(source, "SSO");
         }
         catch (InvalidOperationException exception)
         {
@@ -316,7 +319,7 @@ public sealed class SsoCredentialsProvider : IRefreshableCredentialsProvider
             CredentialsLog.UnencryptedSsoEndpoint(_logger, endpoint.Host);
         }
 
-        return endpoint;
+        return (endpoint, note);
     }
 
     // botocore's SSOTokenLoader: the file is named by the SHA-1 of the session name, or of the start URL without a session.
@@ -369,7 +372,8 @@ public sealed class SsoCredentialsProvider : IRefreshableCredentialsProvider
         }
 
         var body = CreateTokenBody(token);
-        var endpoint = new Uri(ResolveEndpoint(OidcEndpointVariable, _settings.Region.SsoOidcEndpoint), "token");
+        var (oidc, _) = ResolveEndpoint(OidcEndpointVariable, _settings.Region.SsoOidcEndpoint);
+        var endpoint = new Uri(oidc, "token");
         HttpRequestMessage CreateRequest() => new(HttpMethod.Post, endpoint) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
 
         var http = CredentialsHttp.GetClientFor(endpoint, _dependencies.Handler);
@@ -432,7 +436,8 @@ public sealed class SsoCredentialsProvider : IRefreshableCredentialsProvider
 
         var accessToken = token.AccessToken!;
         var query = $"federation/credentials?role_name={Uri.EscapeDataString(_settings.RoleName)}&account_id={Uri.EscapeDataString(_settings.AccountId)}";
-        var endpoint = new Uri(ResolveEndpoint(PortalEndpointVariable, _settings.Region.SsoPortalEndpoint), query);
+        var (portal, note) = ResolveEndpoint(PortalEndpointVariable, _settings.Region.SsoPortalEndpoint);
+        var endpoint = new Uri(portal, query);
         HttpRequestMessage CreateRequest()
         {
             var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
@@ -445,17 +450,17 @@ public sealed class SsoCredentialsProvider : IRefreshableCredentialsProvider
         if (result.IsOk)
         {
             return TryParseRoleCredentials(result.Body, out var credentials) is { } problem
-                ? throw new CredentialsUnavailableException($"The SSO portal returned an unusable response: {problem}.")
+                ? throw new CredentialsUnavailableException($"The SSO portal returned an unusable response: {problem}.{note}")
                 : CredentialsOutcome.Found(credentials!);
         }
 
         if (IsTransient(result))
         {
             throw new CredentialsUnavailableException(
-                $"The SSO portal at {endpoint.DnsSafeHost} did not return credentials in {CredentialsHttp.MaxAttempts} attempts. The last attempt: {result.DescribeFailure()}.");
+                $"The SSO portal at {endpoint.DnsSafeHost} did not return credentials in {CredentialsHttp.MaxAttempts} attempts. The last attempt: {result.DescribeFailure()}.{note}");
         }
 
-        throw new CredentialsUnavailableException($"The SSO portal did not return credentials for the role {_settings.RoleName} in the account {_settings.AccountId}: {DescribeRejection(result.StatusCode)}.");
+        throw new CredentialsUnavailableException($"The SSO portal did not return credentials for the role {_settings.RoleName} in the account {_settings.AccountId}: {DescribeRejection(result.StatusCode)}.{note}");
     }
 
     /// <summary>What a fetch needs to know.</summary>

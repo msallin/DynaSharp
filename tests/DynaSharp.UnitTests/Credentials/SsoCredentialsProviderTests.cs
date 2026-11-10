@@ -481,6 +481,21 @@ public sealed class SsoCredentialsProviderTests
     }
 
     [Test]
+    public async Task GetCredentialsAsync_PortalOfAwsEndpointUrlRejects_SaysWhichVariableToSetForDynamoDb()
+    {
+        // Arrange (AWS_ENDPOINT_URL meant for an emulator of DynamoDB sends the portal call there too)
+        var world = new World(Session, variables: [("AWS_ENDPOINT_URL", "http://localhost:8000")], portal: _ => new StubResponse { StatusCode = HttpStatusCode.BadRequest, Body = "{}" });
+        world.Files[world.TokenPath(SessionKey)] = Token(Now.AddHours(8));
+
+        // Act
+        var exception = await TestClient.CaptureAsync<CredentialsUnavailableException>(async () => await world.Provider.GetCredentialsAsync(CancellationToken.None));
+
+        // Assert
+        await Assert.That(exception.Message).IsEqualTo(
+            "The SSO portal did not return credentials for the role ReadOnly in the account 123456789012: InvalidRequestException: the portal refused the request. The endpoint of SSO came from AWS_ENDPOINT_URL, which sends the calls of every AWS service there, SSO included; to send only DynamoDB to an emulator, set AWS_ENDPOINT_URL_DYNAMODB instead.");
+    }
+
+    [Test]
     public async Task GetCredentialsAsync_OidcEndpointInTheEnvironment_RefreshesThere()
     {
         // Arrange

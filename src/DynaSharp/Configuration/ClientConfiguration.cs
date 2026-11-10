@@ -208,6 +208,18 @@ internal sealed record ClientConfiguration
         return (endpoint, source);
     }
 
+    /// <summary>
+    /// Says, for the message of a failed call of a credentials provider, that its endpoint came from <c>AWS_ENDPOINT_URL</c>, which also redirects the calls of the provider, and which variable points DynamoDB
+    /// alone at an emulator: a failure there is most often an emulator that answers for DynamoDB only.
+    /// </summary>
+    /// <param name="source">The variable the endpoint came from, as <see cref="FindEndpointInEnvironment"/> gave it, or <see langword="null"/> for an endpoint of another origin.</param>
+    /// <param name="service">The service of the call, such as <c>STS</c>.</param>
+    /// <returns>The sentence, with a space ahead of it, or an empty string for an endpoint of another origin.</returns>
+    internal static string GenericEndpointNote(string? source, string service) =>
+        source == EndpointVariable
+            ? $" The endpoint of {service} came from {EndpointVariable}, which sends the calls of every AWS service there, {service} included; to send only DynamoDB to an emulator, set {DynamoDbEndpointVariable} instead."
+            : string.Empty;
+
     /// <summary>Checks what makes an endpoint: an absolute http or https URL without user info, path, query or fragment.</summary>
     /// <param name="endpoint">The endpoint.</param>
     /// <returns>What is wrong with it, for a message, or <see langword="null"/> if it is fine.</returns>
