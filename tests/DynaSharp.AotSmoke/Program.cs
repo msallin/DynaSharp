@@ -211,10 +211,11 @@ commandHandler.Enqueue(StubResponse.Json(MixedItems));
 var mixedPage = await users.Scan().Of<Basket, Visitor>().PageAsync();
 Check(mixedPage.ScannedCount == 3 && mixedPage.Items[0].Is(out Visitor? mixedVisitor) && mixedVisitor.Visits == 1, "a mixed scan reads a page");
 
-// A fan-out: tasks that read at once, a heap, a token that holds a key per partition, and numbers that merge by value.
+// A fan-out: tasks that read at once, a heap, a token that holds a key per partition, and numbers that merge by value. Each
+// partition answers with items of its own partition key, as DynamoDB does, since the token checks the key it holds.
 using var fanOutHandler = new StubHandler(request => StubResponse.Json(request.BodyText.Contains("ExclusiveStartKey", StringComparison.Ordinal)
     ? """{"Items":[]}"""
-    : """{"Items":[{"pk":{"S":"a"},"sk":{"N":"-1.5"}},{"pk":{"S":"a"},"sk":{"N":"10"}}],"Count":2,"ScannedCount":2}"""));
+    : $$$"""{"Items":[{"pk":{"S":"{{{PartitionOf(request)}}}"},"sk":{"N":"-1.5"}},{"pk":{"S":"{{{PartitionOf(request)}}}"},"sk":{"N":"10"}}],"Count":2,"ScannedCount":2}"""));
 using var fanOutClient = new DynamoDbClient(new DynamoDbClientOptions { Region = AwsRegion.FromName("eu-central-2"), Credentials = credentials, HttpHandler = fanOutHandler });
 var shards = fanOutClient.Table("Shards", "pk", "sk");
 AttributeValue[] partitions = ["a", "b", "c"];
@@ -772,6 +773,20 @@ foreach (var failure in failures)
 return failures.Count == 0 ? 0 : 1;
 
 static void SendWithoutAVersion(Table<Voucher> table) => _ = table.Update(Voucher.Keys.Of("v-1")).Set("Rank", 1).ToRequestJson();
+
+// The partition key a query of the fan-out asks for: the one string value of its key condition.
+static string PartitionOf(RecordedRequest request)
+{
+    foreach (var value in request.BodyJson.GetProperty("ExpressionAttributeValues").EnumerateObject())
+    {
+        if (value.Value.TryGetProperty("S", out var text))
+        {
+            return text.GetString()!;
+        }
+    }
+
+    throw new InvalidOperationException("The query names no partition.");
+}
 
 static void SendTwice(Table<Visitor> table)
 {
