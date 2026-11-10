@@ -110,9 +110,9 @@ if (order.Found)
     Console.WriteLine($"{status}: {amount}");
 }
 
-await foreach (var (number, placed) in orders.Query(Order.Keys.Pk.Of("alice")).Select(Order.Attrs.Number).And(Order.Attrs.PlacedAt).ValuesAsync(ct))
+await foreach (var (total, placed) in orders.Query(Order.Keys.Pk.Of("alice")).Select(Order.Attrs.Total).And(Order.Attrs.PlacedAt).ValuesAsync(ct))
 {
-    Console.WriteLine($"{number} at {placed}");
+    Console.WriteLine($"{total} at {placed}");
 }
 ```
 
