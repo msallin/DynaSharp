@@ -96,6 +96,31 @@ public sealed class TypeArgumentAnalyzerTests
             public required int Seq { get; init; }
         }
 
+        [DynamoDbEntity]
+        [Discriminator("SESSION")]
+        [PartitionKey("SESSION#{Id}")]
+        public partial class Session
+        {
+            public required string Id { get; init; }
+
+            [TimeToLive, DynamoDbAttribute("ttl"), DynamoDbConverter(typeof(EpochSecondsConverter))]
+            public DateTimeOffset? ExpiresAt { get; init; }
+
+            [DynamoDbConverter(typeof(EpochSecondsConverter))]
+            public DateTimeOffset StartedAt { get; init; }
+        }
+
+        [DynamoDbEntity]
+        [Discriminator("LEASE")]
+        [PartitionKey("LEASE#{Id}")]
+        public partial class Lease
+        {
+            public required string Id { get; init; }
+
+            [TimeToLive]
+            public long ExpiresAt { get; init; }
+        }
+
         public sealed class Hand : IDynamoDbEntity<Hand>
         {
         }
@@ -110,6 +135,8 @@ public sealed class TypeArgumentAnalyzerTests
         """;
 
     private const string Run = "public static void Run(DynamoDbClient client, Table<Order> orders)\n{\n";
+
+    private const string Sessions = "public static void Run(DynamoDbClient client, Table<Session> sessions, Table<Lease> leases)\n{\n";
 
     private static readonly AnalyzerFixture Fixture = new(Model);
 
@@ -256,6 +283,50 @@ public sealed class TypeArgumentAnalyzerTests
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA233 Error: Add adds to a number or a set, and " + holds + ". Use Set to write the value."));
+    }
+
+    [Test]
+    [Arguments("""sessions.Update(Session.Keys.Of("a")).Add([|Session.Attrs.ExpiresAt|], 3600);""")]
+    [Arguments("""sessions.Update(Session.Keys.Of("a")).Add([|Session.Attrs.ExpiresAt|], DateTimeOffset.UtcNow);""")]
+    [Arguments("""client.TransactWrite().Update(sessions, Session.Keys.Of("a")).Add([|Session.Attrs.ExpiresAt|], 3600);""")]
+    public async Task Analyze_AddOnATimeToLive_SaysItHoldsSeconds(string statement)
+    {
+        // Arrange
+        var source = AnalyzerRun.Member(Sessions + statement + "\n}");
+
+        // Act
+        var report = await Fixture.ReportWithAsync(source, new TypeArgumentAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA242 Error: 'Session.Attrs.ExpiresAt' is the time to live, which DynamoDB stores as seconds since 1970, and Add cannot add to the instant it holds. Write the new expiry with Set(Session.Attrs.ExpiresAt, expiry), or add seconds to the stored number with Add(Expr.Attr<long>(\"ttl\"), seconds)."));
+    }
+
+    [Test]
+    [Arguments("""sessions.Update(Session.Keys.Of("a")).Add([|Session.Attrs.StartedAt|], 3600);""", "'Session.Attrs.StartedAt' holds 'DateTimeOffset'")]
+    [Arguments("""var expires = Session.Attrs.ExpiresAt; sessions.Update(Session.Keys.Of("a")).Add([|expires|], 3600);""", "'expires' holds 'DateTimeOffset'")]
+    public async Task Analyze_AddOnAnInstantThatIsNoTimeToLive_IsDYNA233(string statement, string holds)
+    {
+        // Arrange (another instant, and a time to live that cannot be told from its handle in a variable)
+        var source = AnalyzerRun.Member(Sessions + statement + "\n}");
+
+        // Act
+        var report = await Fixture.ReportWithAsync(source, new TypeArgumentAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA233 Error: Add adds to a number or a set, and " + holds + ". Use Set to write the value."));
+    }
+
+    [Test]
+    public async Task Analyze_AddOnATimeToLiveOfSeconds_ReportsNothing()
+    {
+        // Arrange (a time to live that is a number takes Add as it is)
+        var source = AnalyzerRun.Member(Sessions + """leases.Update(Lease.Keys.Of("a")).Add(Lease.Attrs.ExpiresAt, 3600);""" + "\n}");
+
+        // Act
+        var report = await Fixture.ReportWithAsync(source, new TypeArgumentAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEmpty();
     }
 
     [Test]

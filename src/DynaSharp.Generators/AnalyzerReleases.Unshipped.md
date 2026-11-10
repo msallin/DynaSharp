@@ -5,3 +5,4 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
+DYNA242 | DynaSharp.Commands | Error | Add on a time to live

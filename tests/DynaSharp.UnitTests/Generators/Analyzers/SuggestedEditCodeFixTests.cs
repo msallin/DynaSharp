@@ -60,6 +60,17 @@ public sealed class SuggestedEditCodeFixTests
         }
 
         [DynamoDbEntity]
+        [Discriminator("SESSION")]
+        [PartitionKey("SESSION#{Id}")]
+        public partial class Session
+        {
+            public required string Id { get; init; }
+
+            [TimeToLive, DynamoDbAttribute("ttl"), DynamoDbConverter(typeof(EpochSecondsConverter))]
+            public DateTimeOffset? ExpiresAt { get; init; }
+        }
+
+        [DynamoDbEntity]
         [Discriminator("BADGE")]
         [PartitionKey("BADGE#{Id}")]
         [GlobalIndexKey("ByCode", PartitionKey = "{Code}", PartitionKeyAttributeName = "code")]
@@ -94,6 +105,7 @@ public sealed class SuggestedEditCodeFixTests
         private static readonly Table<Cart> carts = null!;
         private static readonly Table<Badge> badges = null!;
         private static readonly Table<Tag> tags = null!;
+        private static readonly Table<Session> sessions = null!;
         private static readonly Cart cart = null!;
         private static readonly Order order = null!;
         private static readonly Order.Keys.PrimaryKey key = default;
@@ -113,7 +125,7 @@ public sealed class SuggestedEditCodeFixTests
         var ids = fix.FixableDiagnosticIds;
 
         // Assert
-        await Assert.That(ids).IsEquivalentTo(["DYNA204", "DYNA206", "DYNA207", "DYNA208", "DYNA213", "DYNA224", "DYNA227", "DYNA233", "DYNA235"]);
+        await Assert.That(ids).IsEquivalentTo(["DYNA204", "DYNA206", "DYNA207", "DYNA208", "DYNA213", "DYNA224", "DYNA227", "DYNA233", "DYNA235", "DYNA242"]);
     }
 
     [Test]
@@ -556,6 +568,36 @@ public sealed class SuggestedEditCodeFixTests
 
         // Act
         var fixedSource = await FixAllAsync(source, "DYNA233.0", new TypeArgumentAnalyzer());
+
+        // Assert
+        await Assert.That(await CheckAsync(fixedSource, new TypeArgumentAnalyzer())).IsEqualTo((string.Empty, 0));
+    }
+
+    [Test]
+    public async Task Fix_AddOnATimeToLive_WritesSetOrAddsToTheSeconds()
+    {
+        // Arrange
+        var source = Run("""_ = sessions.Update(Session.Keys.Of("a")).Add(Session.Attrs.ExpiresAt, 3600);""");
+
+        // Act
+        var fixes = await FixesAsync(source, "DYNA242", new TypeArgumentAnalyzer());
+
+        // Assert
+        await Assert.That(fixes).IsEquivalentTo(
+        [
+            ("Use Set", Run("""_ = sessions.Update(Session.Keys.Of("a")).Set(Session.Attrs.ExpiresAt, 3600);""")),
+            ("Add to the seconds: Expr.Attr<long>(\"ttl\")", Run("""_ = sessions.Update(Session.Keys.Of("a")).Add(Expr.Attr<long>("ttl"), 3600);""")),
+        ]);
+    }
+
+    [Test]
+    public async Task Fix_AddToTheSecondsOfATimeToLive_LeavesNoDiagnosticAndCompiles()
+    {
+        // Arrange
+        var source = Run("""_ = sessions.Update(Session.Keys.Of("a")).Add(Session.Attrs.ExpiresAt, 3600);""");
+
+        // Act
+        var fixedSource = (await FixesAsync(source, "DYNA242", new TypeArgumentAnalyzer()))[1].Text;
 
         // Assert
         await Assert.That(await CheckAsync(fixedSource, new TypeArgumentAnalyzer())).IsEqualTo((string.Empty, 0));

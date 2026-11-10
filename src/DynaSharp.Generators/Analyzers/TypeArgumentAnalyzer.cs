@@ -8,11 +8,12 @@ using Microsoft.CodeAnalysis.Text;
 namespace DynaSharp.Generators;
 
 /// <summary>
-/// DYNA230 to DYNA233: a type argument of the library that does not satisfy its constraint. The compiler answers with CS0311, CS0315 or CS0453, which name an interface
+/// DYNA230 to DYNA233 and DYNA242: a type argument of the library that does not satisfy its constraint. The compiler answers with CS0311, CS0315 or CS0453, which name an interface
 /// of the library or a nullable value type and say nothing about what to write: <c>orders.Get(Customer.Keys.Of(id))</c> reads "no boxing conversion to IKey&lt;Order&gt;",
 /// <c>Set(User.Attrs.Name, 5)</c> reads "'string' must be a non-nullable value type". This says it in the words of the library. DYNA230 also reports a key given as its stored
 /// values on a table or an index of an entity, <c>transports.Get("1")</c>, which skips the key template: such a key goes only with <c>Item</c>, and the compiler answers with
-/// CS0311, CS1501, CS1503 or CS1929, after the overload it measured the call against, so this names the generated builder instead.
+/// CS0311, CS1501, CS1503 or CS1929, after the overload it measured the call against, so this names the generated builder instead. DYNA242 is DYNA233 on the <c>[TimeToLive]</c> of an entity,
+/// an instant stored as seconds, where the remedy is a <c>Set</c> or a handle of the seconds.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -59,7 +60,7 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
 
     /// <inheritdoc/>
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-        [Descriptors.KeyOfAnotherEntity, Descriptors.NotAnEntity, Descriptors.ValueOfAnotherType, Descriptors.AddWithoutNumberOrSet];
+        [Descriptors.KeyOfAnotherEntity, Descriptors.NotAnEntity, Descriptors.ValueOfAnotherType, Descriptors.AddWithoutNumberOrSet, Descriptors.AddOnTimeToLive];
 
     /// <inheritdoc/>
     public override void Initialize(AnalysisContext context)
@@ -70,8 +71,9 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
         {
             if (Library.Of(start.Compilation) is { } library)
             {
+                var models = new ModelCatalog(start.Compilation);
                 start.RegisterSyntaxNodeAction(context => AnalyzeGenericName(context, library), SyntaxKind.GenericName);
-                start.RegisterSyntaxNodeAction(context => AnalyzeInvocation(context, library), SyntaxKind.InvocationExpression);
+                start.RegisterSyntaxNodeAction(context => AnalyzeInvocation(context, library, models), SyntaxKind.InvocationExpression);
             }
         });
     }
@@ -109,7 +111,7 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
     }
 
     // A type argument that was inferred: orders.Get(key), Set(handle, value), Add(handle, value), and the steps of a transaction and a batch.
-    private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context, Library library)
+    private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context, Library library, ModelCatalog models)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
         if (invocation.Expression is GenericNameSyntax or MemberAccessExpressionSyntax { Name: GenericNameSyntax })
@@ -132,7 +134,7 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
         foreach (var method in info.CandidateSymbols.OfType<IMethodSymbol>())
         {
             if (method.IsGenericMethod && DynaSharpTypes.IsDeclaredByDynaSharp(method.ContainingType) && Infer(context, method, invocation.ArgumentList, library) is { } inferred
-                && Explain(context, method.ConstructedFrom, inferred, library) is { } diagnostic)
+                && Explain(context, method.ConstructedFrom, inferred, library, models) is { } diagnostic)
             {
                 context.ReportDiagnostic(diagnostic);
                 return;
@@ -140,7 +142,7 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static Diagnostic? Explain(SyntaxNodeAnalysisContext context, IMethodSymbol method, Inferred inferred, Library library)
+    private static Diagnostic? Explain(SyntaxNodeAnalysisContext context, IMethodSymbol method, Inferred inferred, Library library, ModelCatalog models)
     {
         foreach (var parameter in method.TypeParameters)
         {
@@ -152,7 +154,7 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
             var diagnostic = FirstUnmet(parameter, argument, inferred.Map, library, out var constraint) switch
             {
                 Need.Key => KeyOfAnotherEntity(inferred, parameter, argument, (INamedTypeSymbol)constraint, library),
-                Need.Addable => AddWithoutNumberOrSet(inferred),
+                Need.Addable => AddWithoutNumberOrSet(context, inferred, models),
                 Need.ValueType => ValueOfAnotherType(context, inferred, parameter, argument),
 
                 // An entity inferred from a table: the table is a type that was written, and reported there.
@@ -328,13 +330,38 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
 
     private static ITypeSymbol? TypeOf(SyntaxNodeAnalysisContext context, ExpressionSyntax expression) => context.SemanticModel.GetTypeInfo(expression, context.CancellationToken).Type;
 
-    private static Diagnostic AddWithoutNumberOrSet(Inferred inferred)
+    private static Diagnostic AddWithoutNumberOrSet(SyntaxNodeAnalysisContext context, Inferred inferred, ModelCatalog models)
     {
         var (handle, stored) = inferred.Handle();
 
         // The name of the method, however the call is written (x.Add, Add, x.Add<int, C>); Set takes the same arguments.
         var verb = ((InvocationExpressionSyntax)handle.Parent!.Parent!).Expression.DescendantTokens().Last(static token => token.ValueText == AddVerb);
-        return SuggestedEdit.Create(Descriptors.AddWithoutNumberOrSet, handle.Expression.GetLocation(), [new SuggestedEdit("Use Set", verb.Span, "Set")], handle.Expression.ToString(), Display(stored));
+        var useSet = new SuggestedEdit("Use Set", verb.Span, "Set");
+        if (TimeToLiveOf(context, handle.Expression, models) is { } attribute)
+        {
+            // The seconds the item holds are a number, which Add takes by a handle of a number under the same name.
+            var seconds = "Expr.Attr<long>(" + SymbolDisplay.FormatLiteral(attribute, quote: true) + ")";
+            return SuggestedEdit.Create(
+                Descriptors.AddOnTimeToLive,
+                handle.Expression.GetLocation(),
+                [useSet, new SuggestedEdit("Add to the seconds: " + seconds, handle.Expression.Span, seconds)],
+                handle.Expression.ToString(),
+                attribute);
+        }
+
+        return SuggestedEdit.Create(Descriptors.AddWithoutNumberOrSet, handle.Expression.GetLocation(), [useSet], handle.Expression.ToString(), Display(stored));
+    }
+
+    // The attribute of a handle such as Session.Attrs.ExpiresAt when its property is the [TimeToLive] of its entity, which an instant such as a DateTimeOffset stores as seconds.
+    private static string? TimeToLiveOf(SyntaxNodeAnalysisContext context, ExpressionSyntax handle, ModelCatalog models)
+    {
+        if (context.SemanticModel.GetSymbolInfo(handle, context.CancellationToken).Symbol is not IPropertySymbol { ContainingType: { Name: "Attrs", ContainingType: { } type } } property
+            || models.ModelOf(type) is not { Entity.TimeToLiveAttribute: { } attribute } model)
+        {
+            return null;
+        }
+
+        return model.Properties.Any(candidate => candidate.Name == property.Name && candidate.AttributeName == attribute) ? attribute : null;
     }
 
     // Set(handle, value) where the value does not convert to what the handle holds. The compiler reports the overload for a nullable value type and its constraint,

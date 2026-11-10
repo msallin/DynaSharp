@@ -23,6 +23,7 @@ namespace DynaSharp.Generators;
 /// <item><c>DYNA227</c>: <c>GetValueOrDefault()</c>, or <c>result.Found ? result.Value : default</c>.</item>
 /// <item><c>DYNA233</c>: <c>Set</c> for <c>Add</c>.</item>
 /// <item><c>DYNA235</c>: <c>IfVersion(n)</c> removed, or replaced with <c>IgnoreVersion()</c>.</item>
+/// <item><c>DYNA242</c>: <c>Set</c> for <c>Add</c>, or the handle of a number under the attribute, <c>Expr.Attr&lt;long&gt;("expiresAt")</c>.</item>
 /// </list>
 /// The equivalence key is the rule and the rank of the edit, so a fix-all takes the edit of the same rank of every diagnostic, the closest spelling of each.
 /// </remarks>
@@ -42,6 +43,7 @@ internal sealed class SuggestedEditCodeFix : CodeFixProvider
         Descriptors.ValueWithoutFound.Id,
         Descriptors.AddWithoutNumberOrSet.Id,
         Descriptors.IfVersionOnPut.Id,
+        Descriptors.AddOnTimeToLive.Id,
     ];
 
     /// <inheritdoc/>

@@ -288,7 +288,7 @@ Not reported:
 - **Fix.** Test `Found` first, `result.Found ? result.Value : 0m`, or write `result.GetValueOrDefault(0m)`, or `GetValueOrDefault()` for the type's default. The code fix offers `GetValueOrDefault()`, and `result.Found ? result.Value : default` where the result is a variable.
 - **Not reported.** A member that reads `Found` of any `SelectResult` anywhere: in a condition, a guard clause, a property pattern such as `{ Found: true, Value: var total }` or a lambda. The rule goes by member, not by flow, so a check of another result or on another path silences it too. `nameof(result.Value)`.
 
-`DYNA230` to `DYNA234` stand beside a compiler error on a call that does not compile. Where the compiler names a constraint, such as `IKey<Order>` or a nullable value type, these say what is wrong and what to write. They are errors, but only on code that already fails to compile.
+`DYNA230` to `DYNA234` and `DYNA242` stand beside a compiler error on a call that does not compile. Where the compiler names a constraint, such as `IKey<Order>` or a nullable value type, these say what is wrong and what to write. They are errors, but only on code that already fails to compile.
 
 `DYNA230` (error) reports a key the table does not take, where the compiler says `CS0315`: another entity's key, `orders.Get(Customer.Keys.Of(id))`, a partition key where the call needs the whole key, `orders.Get(Order.Keys.Pk.Of(id))`, a value that is no key, `orders.Get(id)` with a `Guid`, or an entity of another type, `orders.BatchWrite().DeleteAll(customers)`. It covers every verb that takes a key: `Get`, `Update`, `Delete` and `Query` of a table and of an index, the steps of `TransactWrite` and `TransactGet`, and `BatchGet` and `BatchWrite`.
 
@@ -310,6 +310,11 @@ It also reports a key given as the values it is stored as on a table or an index
 `DYNA233` (error) reports `Add` by a handle that is no number or set, `customers.Update(key).Add(Customer.Attrs.Name, "x")` or `orders.Update(key).Add(Order.Attrs.Lines, lines)`, where the compiler says `CS0315` about `IAddableConverter`. DynamoDB's `ADD` adds only to a number or a set.
 
 - **Fix.** `Set` writes the value. `Add` is for a counter, `Add(Customer.Attrs.OrderCount, 1)`, and a set, `Add(Customer.Attrs.Interests, ["books"])`. The code fix turns `Add` into `Set`.
+
+`DYNA242` (error) reports `Add` by the handle of a [time to live](entities.md#time-to-live) that holds an instant, `sessions.Update(key).Add(Session.Attrs.ExpiresAt, 3600)` on a `DateTimeOffset` with `EpochSecondsConverter`, where the compiler says `CS0315` about `IAddableConverter`. It stands in place of `DYNA233`: DynamoDB stores the expiry as a number of seconds since 1970, and the handle holds the instant, which `Add` cannot add to.
+
+- **Fix.** Write the new expiry, `Set(Session.Attrs.ExpiresAt, DateTimeOffset.UtcNow.AddHours(1))`, or add seconds to the stored number with a handle of a number under the attribute's name, `Add(Expr.Attr<long>("ExpiresAt"), 3600)`, which extends an expiry the item holds. On an item without one, `ADD` starts from 0, an instant in 1970, so the item expires at once: set an expiry there. The code fix offers both: `Set` for `Add`, and `Expr.Attr<long>(...)` with the attribute's name for the handle.
+- **Not reported.** A time to live of whole seconds, `long ExpiresAt`, which takes `Add` as it is, and a handle in a variable, which is `DYNA233`.
 
 `DYNA234` (error) reports a LINQ method called on a read instead of its items, `orders.Query(pk).Descending().ToListAsync()`, where the compiler says `CS1061`, that the read has no `ToListAsync`, or `CS0411` about `AsyncEnumerable.ToListAsync`. A read is a command; only `ItemsAsync`, the call that sends it, streams items. It covers every `AsyncEnumerable` and `Enumerable` method the read does not have itself, such as `Where`, `FirstAsync`, `ToListAsync`, and `Take` after `Select` or on a fan-out, which have no `Take` of their own.
 
