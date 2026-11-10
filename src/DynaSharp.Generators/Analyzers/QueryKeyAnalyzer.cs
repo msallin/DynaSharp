@@ -15,8 +15,9 @@ namespace DynaSharp.Generators;
 /// and which compares text of another template at the sort key, or throws when the read has no sort key.
 /// </summary>
 /// <remarks>
-/// What a query reads is known from its chain: a table of an entity, or an index of one from <c>Index(name)</c> or <c>Index(name, partitionKey, sortKey)</c> with constants. An index in a field or a variable, a
-/// table of <c>Item</c>, a mixed read and a name that is not constant say nothing, and neither does a later placeholder of the sort key, which no key condition can test on its own, or a bare name in the text.
+/// What a query reads is known from its chain: a table of an entity, or an index of one from <c>Index(name)</c> or <c>Index(name, partitionKey, sortKey)</c> with constants, also through a local, a field or
+/// a property that holds that index and nothing else, as <see cref="OnlyValue"/> decides. Any other index in a variable, a table of <c>Item</c>, a mixed read and a name that is not constant say nothing, and
+/// neither does a later placeholder of the sort key, which no key condition can test on its own, or a bare name in the text.
 /// </remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
@@ -234,7 +235,8 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
             return new Read("the table", type, model, entity.PartitionKey.AttributeName, entity.SortKey?.AttributeName, entity.PartitionKey, entity.SortKey, true);
         }
 
-        if (source is not IInvocationOperation { TargetMethod.Name: IndexVerb } index || !IsOfTheLibrary(index) || Constant(index, "name") is not { } name)
+        // An index in a local, a field or a property that holds nothing else is the index of its one value: var byStatus = orders.Index(Order.Indexes.ByStatus).
+        if (OnlyValue.Of(source) is not IInvocationOperation { TargetMethod.Name: IndexVerb } index || !IsOfTheLibrary(index) || Constant(index, "name") is not { } name)
         {
             return null;
         }

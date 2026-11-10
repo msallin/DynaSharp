@@ -416,6 +416,7 @@ public sealed class SuggestedEditCodeFixTests
     [Arguments("""_ = orders.Index(Order.Indexes.ByUser).Query(Order.Keys.Pk.Of("u"));""", "Use Order.Keys.ByUserPk", """_ = orders.Index(Order.Indexes.ByUser).Query(Order.Keys.ByUserPk.Of("u"));""")]
     [Arguments("""_ = orders.Index(Order.Indexes.ByUser).Query(new[] { "u" }.Select(Order.Keys.Pk.Of));""", "Use Order.Keys.ByUserPk", """_ = orders.Index(Order.Indexes.ByUser).Query(new[] { "u" }.Select(Order.Keys.ByUserPk.Of));""")]
     [Arguments("""_ = orders.Index(Order.Indexes.ByUser).Query(Order.Keys.ByUserPk.Of("u"), Order.Keys.Sk.BeginsWith());""", "Use Order.Keys.ByUserSk", """_ = orders.Index(Order.Indexes.ByUser).Query(Order.Keys.ByUserPk.Of("u"), Order.Keys.ByUserSk.BeginsWith());""")]
+    [Arguments("""var byUser = orders.Index(Order.Indexes.ByUser); _ = byUser.Query(Order.Keys.Pk.Of("u"));""", "Use Order.Keys.ByUserPk", """var byUser = orders.Index(Order.Indexes.ByUser); _ = byUser.Query(Order.Keys.ByUserPk.Of("u"));""")]
     public async Task Fix_KeyOfAnotherAttribute_UsesTheBuilderOfTheRead(string statement, string title, string expected)
     {
         // Arrange

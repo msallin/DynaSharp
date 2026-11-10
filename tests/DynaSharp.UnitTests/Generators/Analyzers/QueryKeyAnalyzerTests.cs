@@ -105,6 +105,17 @@ public sealed class QueryKeyAnalyzerTests
             }
         }
 
+        public static class Tables
+        {
+            public static readonly Table<Order> Orders = null!;
+
+            public static readonly Index<Order> ByMarket = Orders.Index(Order.Indexes.ByMarket);
+        }
+
+        public partial class Split
+        {
+        }
+
         [DynamoDbDocument]
         public partial record Part(string Name)
         {
@@ -127,6 +138,9 @@ public sealed class QueryKeyAnalyzerTests
         private static readonly Index<Order> byMarket = null!;
         private static readonly DateTimeOffset now = default;
         private static string Name() => "ByMarket";
+        private static void Keep(Index<Order> index) { }
+        private static void Give(out Index<Order> index) => index = null!;
+        private static void Swap(ref Index<Order> index) { }
 
         """;
 
@@ -273,6 +287,115 @@ public sealed class QueryKeyAnalyzerTests
 
         // Assert
         await Assert.That(Shared.CompilerErrors(source)).IsEmpty();
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("""public static void Run() { var market = orders.Index(Order.Indexes.ByMarket); _ = market.Query([|Order.Keys.Pk.Of("u")|]); }""")]
+    [Arguments("""public static void Run() { var market = orders.Index("ByMarket"); Keep(market); Index<Order> other; other = market; _ = market.Query([|Order.Keys.Pk.Of("u")|]); }""")]
+    [Arguments("""private static readonly Index<Order> market = orders.Index(Order.Indexes.ByMarket); public static void Run() { _ = market.Query([|Order.Keys.Pk.Of("u")|]); }""")]
+    [Arguments("""private static readonly Index<Order> market; static Code() { market = orders.Index(Order.Indexes.ByMarket); Keep(market); } public static void Run() { _ = market.Query([|Order.Keys.Pk.Of("u")|]); }""")]
+    [Arguments("""private static Index<Order> Market { get; } = orders.Index(Order.Indexes.ByMarket); public static void Run() { _ = Market.Query([|Order.Keys.Pk.Of("u")|]); }""")]
+    [Arguments("""private static Index<Order> Market { get; } static Code() { Market = orders.Index(Order.Indexes.ByMarket); } public static void Run() { _ = Market.Query([|Order.Keys.Pk.Of("u")|]); }""")]
+    [Arguments("""private static Index<Order> Market => orders.Index(Order.Indexes.ByMarket); public static void Run() { _ = Market.Query([|Order.Keys.Pk.Of("u")|]); }""")]
+    public async Task Analyze_KeyOfAnotherAttributeOnAnIndexInAVariableOfOneValue_Warns(string member)
+    {
+        // Arrange (a local declared with the index and not written again, a readonly field and a get-only property given it once, and a property that computes it)
+        var source = AnalyzerRun.Member(Fields + member);
+
+        // Act
+        var report = await Shared.ReportWithAsync(source, new QueryKeyAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA224 Warning: Order.Keys.Pk builds a key of the attribute pk, and this query of the index ByMarket reads bymarketpk, so it throws ArgumentException. Use Order.Keys.ByMarketPk."));
+    }
+
+    [Test]
+    public async Task Analyze_KeyOfAnotherAttributeOnAnIndexOfAConstructor_Warns()
+    {
+        // Arrange (the pattern of a service that opens its index once)
+        var source = AnalyzerRun.Member(Fields, """
+            public sealed class Service
+            {
+                private readonly Index<Order> _byMarket;
+
+                public Service(Table<Order> orders) => _byMarket = orders.Index(Order.Indexes.ByMarket);
+
+                public string Run() => _byMarket.Query([|Order.Keys.Pk.Of("u")|]).ToRequestJson();
+            }
+            """);
+
+        // Act
+        var report = await Shared.ReportWithAsync(source, new QueryKeyAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, "DYNA224 Warning: Order.Keys.Pk builds a key of the attribute pk, and this query of the index ByMarket reads bymarketpk, so it throws ArgumentException. Use Order.Keys.ByMarketPk."));
+    }
+
+    [Test]
+    [Arguments("""public static void Run() { var market = orders.Index(Order.Indexes.ByMarket); market = orders.Index(Order.Indexes.ByUser); _ = market.Query(Order.Keys.Pk.Of("u")); }""")]
+    [Arguments("""public static void Run() { Index<Order> market; market = orders.Index(Order.Indexes.ByMarket); _ = market.Query(Order.Keys.Pk.Of("u")); }""")]
+    [Arguments("""public static void Run() { var market = orders.Index(Order.Indexes.ByMarket); Give(out market); _ = market.Query(Order.Keys.Pk.Of("u")); }""")]
+    [Arguments("""public static void Run() { var market = orders.Index(Order.Indexes.ByMarket); Swap(ref market); _ = market.Query(Order.Keys.Pk.Of("u")); }""")]
+    [Arguments("""public static void Run() { var market = orders.Index(Order.Indexes.ByMarket); (market, var n) = (orders.Index(Order.Indexes.ByUser), 1); _ = market.Query(Order.Keys.Pk.Of("u")); }""")]
+    [Arguments("""public static void Run() { var market = orders.Index(Order.Indexes.ByMarket); ref var alias = ref market; alias = orders.Index(Order.Indexes.ByUser); _ = market.Query(Order.Keys.Pk.Of("u")); _ = alias.Query(Order.Keys.Pk.Of("u")); }""")]
+    [Arguments("""private static Index<Order> market = orders.Index(Order.Indexes.ByMarket); public static void Run() { _ = market.Query(Order.Keys.Pk.Of("u")); }""")]
+    [Arguments("""private static readonly Index<Order> market = orders.Index(Order.Indexes.ByMarket); static Code() { market = orders.Index(Order.Indexes.ByUser); } public static void Run() { _ = market.Query(Order.Keys.Pk.Of("u")); }""")]
+    [Arguments("""private static readonly Index<Order> market; static Code() { Give(out market); } public static void Run() { _ = market.Query(Order.Keys.Pk.Of("u")); }""")]
+    [Arguments("""private static Index<Order> Market { get; set; } = orders.Index(Order.Indexes.ByMarket); public static void Run() { _ = Market.Query(Order.Keys.Pk.Of("u")); }""")]
+    [Arguments("""private static Index<Order> Market { get { return orders.Index(Order.Indexes.ByMarket); } } public static void Run() { _ = Market.Query(Order.Keys.Pk.Of("u")); }""")]
+    [Arguments("""private static Index<Order> Market { get => orders.Index(Order.Indexes.ByMarket); } public static void Run() { _ = Market.Query(Order.Keys.Pk.Of("u")); }""")]
+    [Arguments("""public static void Run() { _ = Tables.ByMarket.Query(Order.Keys.Pk.Of("u")); }""")]
+    public async Task Analyze_KeyOnAnIndexInAVariableThatCanHoldAnother_ReportsNothing(string member)
+    {
+        // Arrange (a local written again, by out, ref, a deconstruction or a ref local, a field that is not readonly or is written twice, a property with a setter or a getter of statements, and a field of another file)
+        var source = AnalyzerRun.Member(Fields + member);
+
+        // Act
+        var report = await Shared.ReportWithAsync(source, new QueryKeyAnalyzer());
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("""
+        public partial class Split
+        {
+            private readonly Index<Order> _byMarket = Tables.Orders.Index(Order.Indexes.ByMarket);
+
+            public string Run() => _byMarket.Query(Order.Keys.Pk.Of("u")).ToRequestJson();
+        }
+        """)]
+    [Arguments("""
+        public class Service
+        {
+            public virtual Index<Order> ByMarket => Tables.Orders.Index(Order.Indexes.ByMarket);
+
+            public Index<Order> this[int shard] => Tables.Orders.Index(Order.Indexes.ByMarket);
+
+            public string Run() => ByMarket.Query(Order.Keys.Pk.Of("u")).ToRequestJson() + this[0].Query(Order.Keys.Pk.Of("u")).ToRequestJson();
+        }
+        """)]
+    [Arguments("""
+        public partial class Lazy
+        {
+            public partial Index<Order> ByMarket { get; }
+
+            public partial Index<Order> ByMarket => Tables.Orders.Index(Order.Indexes.ByMarket);
+
+            public string Run() => ByMarket.Query(Order.Keys.Pk.Of("u")).ToRequestJson();
+        }
+        """)]
+    public async Task Analyze_KeyOnAnIndexOfAMemberThatCannotBeFollowed_ReportsNothing(string outside)
+    {
+        // Arrange (a type declared in two files, a property that can be overridden, an indexer, and a property declared in parts)
+        var source = AnalyzerRun.Member(Fields, outside);
+
+        // Act
+        var report = await Shared.ReportWithAsync(source, new QueryKeyAnalyzer());
+
+        // Assert
         await Assert.That(report).IsEmpty();
     }
 

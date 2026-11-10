@@ -17,7 +17,7 @@ var byStatus = orders.Index(Order.Indexes.ByStatus);
 `Of<T>()` gives the same table under another entity, so code that holds one table reaches every type in it: `shop.Of<Cart>()` is `client.Table<Cart>("Shop")`, on any table, typed or not, and keeps its name whatever `T` declares. It is cheap enough to call inline, as the [design patterns](patterns.md) do. `Index(...)` reads an index of the table through a type of its own, which has no writes.
 
 > [!NOTE]
-> `DYNA221` and `DYNA224` check a query against the keys of what it reads only when `Index(...)` is in the chain of the query. They pass over a query of an index kept in a field or a variable, such as `byStatus`. See [Commands](diagnostics.md#commands) on the diagnostics page.
+> `DYNA221` and `DYNA224` check a query against the keys of what it reads when `Index(...)` is in the chain of the query, or in a variable that holds that index and nothing else, such as `byStatus`: a local not written again, a `readonly` field or a get-only property. They pass over a variable that can hold another index. See [Commands](diagnostics.md#commands) on the diagnostics page.
 
 ### Declaring the table
 

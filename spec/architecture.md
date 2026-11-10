@@ -436,7 +436,7 @@ Analyzers ship in the generator dll. `DynaSharpTypes` tells what DynaSharp decla
 | `DYNA206` | `EntityCommandAnalyzer` | `WriteState.Settle`, which throws for the same put | |
 | `DYNA207` | `EntityCommandAnalyzer` | `EntityTableExtensions.Index`, which throws for the same name | |
 | `DYNA208`, `DYNA209` | `ProjectionAnalyzer`, on the model | `MissingBehavior.Throw`, what generated reads restore from a key, `ConverterModel.CountsAsMissing` and `AnswersMissing` for the run-time converters, `TableModel.AddRequiredNames` | Every test that projects an entity and reads it from a backend |
-| `DYNA221`, `DYNA222` | `QueryKeyAnalyzer`, on the model | DynamoDB, which rejects a filter on a key of the read, and `KeyEncoding.IsLossless`. The index comes from `Index(name)` with a constant | |
+| `DYNA221`, `DYNA222` | `QueryKeyAnalyzer`, on the model | DynamoDB, which rejects a filter on a key of the read, and `KeyEncoding.IsLossless`. The index comes from `Index(name)` with a constant, in the chain or as the one value of a local, a `readonly` field or a get-only property (`OnlyValue`) | |
 | `DYNA223` | `UpdatePathAnalyzer` | `ExpressionWriter`, which sends every action as it comes, `WriteRules.SetIfNotNull` and `Set`, which turn a null into nothing or a `REMOVE`, and DynamoDB, which rejects overlapping paths | |
 | `DYNA224` | `QueryKeyAnalyzer` | `EntityTableExtensions.ThrowIfOtherAttribute`, by `KeyModel.BuilderName` | `QueryKeyCheckTests` |
 | `DYNA225` | `EntityCommandAnalyzer` | `TableSchema.Add`, by the key names of the table and the first included entity | |
