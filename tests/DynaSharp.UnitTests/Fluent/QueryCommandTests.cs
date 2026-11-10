@@ -6,6 +6,9 @@ using static DynaSharp.Expr;
 using static DynaSharp.UnitTests.Fluent.PageJson;
 using static DynaSharp.UnitTests.Http.RetryTestSupport;
 
+// These tests name attributes outside the entity on purpose, to see what the request holds.
+#pragma warning disable DYNA213
+
 namespace DynaSharp.UnitTests.Fluent;
 
 public sealed partial class QueryCommandTests

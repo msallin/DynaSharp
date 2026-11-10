@@ -189,7 +189,9 @@ public sealed class UpdateCreatedItemTests(Backend backend)
         var visits = sandbox.Shop.Of<DailyVisits>();
 
         // Act
+#pragma warning disable DYNA213 // The attribute is outside the entity on purpose.
         await visits.Update(DailyVisits.Keys.Of(Home, Day)).Set($"{Attr("copy")} = if_not_exists({Attr("_type")}, {"NONE"})").SendAsync();
+#pragma warning restore DYNA213
         var stored = await sandbox.ReadAsync(DailyVisits.Keys.Pk.Format(Home), DailyVisits.Keys.Sk.Format(Day));
 
         // Assert

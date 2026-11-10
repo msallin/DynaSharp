@@ -141,7 +141,7 @@ public sealed class HandleOwnerAnalyzerTests
     [Arguments("""derived.Scan().Filter(Base.Attrs.Size.Gt(1));""")]
     [Arguments("""bases.Scan().Filter(Derived.Attrs.Extra.Eq("x"));""")]
     [Arguments("""addresses.Scan().Filter(Address.Attrs.City.Eq("x"));""")]
-    [Arguments("""invoices.Scan().Filter(Attr("Seats").Gt(1));""")]
+    [Arguments("""invoices.Scan().Filter(Attr("pk").Gt(1));""")]
     [Arguments("""var seats = Subscription.Attrs.Seats; invoices.Scan().Filter(seats.Gt(1));""")]
     [Arguments("""Mine.Filter(Subscription.Attrs.Seats);""")]
     [Arguments("""Mine.Audited(invoices.Update(Invoice.Keys.Of("a")), Subscription.Attrs.Seats);""")]

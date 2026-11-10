@@ -4,6 +4,9 @@ using DynaSharp.Testing;
 using DynaSharp.UnitTests.Serialization;
 using static DynaSharp.Expr;
 
+// These tests name attributes outside the entity on purpose, to see what the request holds.
+#pragma warning disable DYNA213
+
 namespace DynaSharp.UnitTests.Mapping.KeyEntities;
 
 /// <summary>The generated <c>Attrs</c> handles, run: what they address, and what they write into a command. The entities are in <c>KeyModels.cs</c>.</summary>

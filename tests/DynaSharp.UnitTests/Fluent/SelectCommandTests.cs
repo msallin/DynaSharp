@@ -4,6 +4,9 @@ using DynaSharp.Testing;
 using DynaSharp.UnitTests.Mapping.KeyEntities;
 using static DynaSharp.Expr;
 
+// These tests name attributes outside the entity on purpose, to see what the request holds.
+#pragma warning disable DYNA213
+
 namespace DynaSharp.UnitTests.Fluent;
 
 /// <summary><c>Select(handle)</c>: one attribute of a read, without the entity. The bodies and the responses are written by hand from <c>api.md</c>.</summary>

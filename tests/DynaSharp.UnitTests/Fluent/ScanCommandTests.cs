@@ -5,6 +5,9 @@ using static DynaSharp.Expr;
 using static DynaSharp.UnitTests.Fluent.PageJson;
 using static DynaSharp.UnitTests.Http.RetryTestSupport;
 
+// These tests name attributes outside the entity on purpose, to see what the request holds.
+#pragma warning disable DYNA213
+
 namespace DynaSharp.UnitTests.Fluent;
 
 // Query and Scan share what follows pages, so QueryCommandTests pins that. What is here is what a scan has for itself, and the proof that each of its terminals

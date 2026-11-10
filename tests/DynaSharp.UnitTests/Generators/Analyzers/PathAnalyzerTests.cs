@@ -204,6 +204,44 @@ public sealed class PathAnalyzerTests
     }
 
     [Test]
+    [Arguments("""_ = orders.Scan().Filter(Attr([|"Totl"|]).Gt(1)).ToRequestJson();""", "Totl")]
+    [Arguments("""_ = orders.Query(Order.Keys.Pk.Of("u")).Filter(Order.Attrs.Status.Eq("x").And(Attr([|"Totl.x"|]).Exists())).ToRequestJson();""", "Totl.x")]
+    [Arguments("""_ = orders.Scan().Filter($"{Attr([|"Totl"|])} > {1}").ToRequestJson();""", "Totl")]
+    [Arguments("""_ = update.If(new Attr([|"Totl"|]).Exists()).ToRequestJson();""", "Totl")]
+    [Arguments("""_ = update.Add(Attr<int>([|"Totl"|]), 1).ToRequestJson();""", "Totl")]
+    [Arguments("""_ = orders.Get(Order.Keys.Of("u", "o")).Select(Attr<int>([|"Totl"|])).ToRequestJson();""", "Totl")]
+    public async Task Analyze_AttrInAnArgumentOfATypedCommandThatMatchesNoAttribute_Warns(string statement, string path)
+    {
+        // Arrange (Attr has no command of its own: the command is the one its condition, filter or projection goes to)
+        var source = AnalyzerRun.Member(Fields + "public static void Run() { " + statement + " }");
+
+        // Act
+        var report = await Orders.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, $"DYNA213 Warning: Path '{path}' matches no attribute of 'Order'. Check the spelling, unless the attribute is outside the entity."));
+    }
+
+    [Test]
+    [Arguments("""_ = orders.Scan().Filter(Attr("Total").Gt(1).And(Attr("ttl").Exists()).And(Attr("pk").Exists())).ToRequestJson();""")]
+    [Arguments("""_ = orders.Scan().Filter(Attr("ShipTo.Stret").Exists()).ToRequestJson();""")]
+    [Arguments("""_ = shop.Scan().Filter(Attr("Totl").Exists()).ToRequestJson();""")]
+    [Arguments("""_ = orders.Scan().Filter(Rename(Attr("Totl")).Exists()).ToRequestJson();""")]
+    [Arguments("""var total = Attr("Totl"); _ = total.Exists();""")]
+    public async Task Analyze_AttrThatMatchesOrHasNoTypedCommand_ReportsNothing(string statement)
+    {
+        // Arrange (a key and a nested path match, a table without a schema has no attributes to check, and a method of your own or a variable leaves the command unknown)
+        var source = AnalyzerRun.Member(Fields + "private static Attr Rename(Attr attribute) => attribute;\npublic static void Run() { " + statement + " }");
+
+        // Act
+        var report = await Orders.ReportAsync(source);
+
+        // Assert
+        await Assert.That(Orders.CompilerErrors(source)).IsEmpty();
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
     public async Task Analyze_InvalidPathOnATransactionStep_ReportsTheString()
     {
         // Arrange

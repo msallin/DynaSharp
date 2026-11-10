@@ -357,6 +357,7 @@ public sealed class SuggestedEditCodeFixTests
     [Test]
     [Arguments("""_ = orders.Update(key).Set("Totl", 1m);""", "Use \"Total\"", """_ = orders.Update(key).Set("Total", 1m);""")]
     [Arguments("""_ = orders.Update(key).Remove("shipto.street");""", "Use \"ship-to.street\"", """_ = orders.Update(key).Remove("ship-to.street");""")]
+    [Arguments("""_ = orders.Scan().Filter(Attr("Totl").Gt(1m)).ToRequestJson();""", "Use \"Total\"", """_ = orders.Scan().Filter(Attr("Total").Gt(1m)).ToRequestJson();""")]
     public async Task Fix_PathOfAStringLiteral_OffersTheAttributeOfAClosSpelling(string statement, string title, string expected)
     {
         // Arrange

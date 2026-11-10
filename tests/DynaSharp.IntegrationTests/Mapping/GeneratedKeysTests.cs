@@ -550,7 +550,9 @@ public sealed class GeneratedKeysTests(Backend backend)
         var path = "audit";
 
         // Act
+#pragma warning disable DYNA213 // The attribute is outside the entity on purpose.
         await shop.Orders.Update(Order.Keys.Of("alice", Noon, First)).Set(path, "x").If(Attr("audit").NotExists()).Add(Order.Attrs.Quantity, 1).SendAsync();
+#pragma warning restore DYNA213
         var stored = (await shop.Shop.Get(Order.Keys.Pk.Format("alice"), Order.Keys.Sk.Format(Noon, First)).Consistent().SendAsync()).Item!;
 
         // Assert

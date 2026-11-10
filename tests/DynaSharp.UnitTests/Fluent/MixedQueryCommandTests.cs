@@ -4,6 +4,9 @@ using static DynaSharp.Expr;
 using static DynaSharp.UnitTests.Fluent.Mix.MixJson;
 using static DynaSharp.UnitTests.Fluent.PageJson;
 
+// These tests name attributes outside the entity on purpose, to see what the request holds.
+#pragma warning disable DYNA213
+
 namespace DynaSharp.UnitTests.Fluent;
 
 public sealed class MixedQueryCommandTests

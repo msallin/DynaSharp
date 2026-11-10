@@ -361,10 +361,10 @@ In an interpolated expression such as `$"{Attr("status")} = {"open"}"`, the text
 
 - **Fix.** Fix the expression, or if DynamoDB accepts it, suppress the warning and report the case.
 
-`DYNA213` (warning): a constant path on a command of a mapped type starts with a name the type does not have, such as `orders.Update(key).Set("Totl", 1)`, or a bare name starts a path in an expression's text, `orders.Scan().Filter($"Totl > {1}")`. Under `Naming` of `[assembly: DynamoDbDefaults]` the attribute has the converted name, so `"Total"` is reported where the item holds `total`.
+`DYNA213` (warning): a constant path on a command of a mapped type starts with a name the type does not have, such as `orders.Update(key).Set("Totl", 1)`, or a bare name starts a path in an expression's text, `orders.Scan().Filter($"Totl > {1}")`. `Attr("Totl")` and `Attr<int>("Totl")` count where they go into a condition, a filter, an update or a `Select` of such a command, through the calls of DynaSharp that build it: `orders.Scan().Filter(Attr("Totl").Gt(1))`, `orders.Update(key).If(Order.Attrs.Status.Eq(open).And(Attr("Totl").Exists()))`, `$"{Attr("Totl")} > {1}"`. Under `Naming` of `[assembly: DynamoDbDefaults]` the attribute has the converted name, so `"Total"` is reported where the item holds `total`.
 
 - **Fix.** Check the spelling. An attribute outside the entity is legitimate: suppress the warning there, or pass the path in a variable. The code fix offers each attribute of the type one or two letters off, in a string literal, and in the text where the name can stand bare.
-- **Not reported.** A path in a variable. In the text only a path's first name counts, so `ShipTo.Stret` is not checked, nor is the text of a transaction step, which has no type, or of your own method that takes the expression.
+- **Not reported.** A path in a variable, and an `Attr(...)` in a variable or passed through a method of your own before it reaches the command. In the text only a path's first name counts, so `ShipTo.Stret` is not checked, nor is the text of a transaction step, which has no type, or of your own method that takes the expression.
 
 `DYNA214` (warning): a constant path is not a path. A path is names joined by dots, with list indexes in brackets, such as `a.b[2].c`, so `a..b` and `a[` are not. The same path throws `ArgumentException` when the command is built. An attribute whose name holds a dot or a bracket cannot be addressed by a path at all.
 
