@@ -125,7 +125,7 @@ public sealed class SuggestedEditCodeFixTests
         var ids = fix.FixableDiagnosticIds;
 
         // Assert
-        await Assert.That(ids).IsEquivalentTo(["DYNA204", "DYNA206", "DYNA207", "DYNA208", "DYNA213", "DYNA224", "DYNA227", "DYNA233", "DYNA235", "DYNA242"]);
+        await Assert.That(ids).IsEquivalentTo(["DYNA204", "DYNA206", "DYNA207", "DYNA208", "DYNA213", "DYNA224", "DYNA227", "DYNA233", "DYNA235", "DYNA241", "DYNA242"]);
     }
 
     [Test]
@@ -571,6 +571,47 @@ public sealed class SuggestedEditCodeFixTests
 
         // Assert
         await Assert.That(await CheckAsync(fixedSource, new TypeArgumentAnalyzer())).IsEqualTo((string.Empty, 0));
+    }
+
+    [Test]
+    [Arguments("""_ = orders.Update(key).Set(Order.Attrs.Total, 1m).ToRequestJson();""", """_ = orders.Update(key).IfExists().Set(Order.Attrs.Total, 1m).ToRequestJson();""")]
+    [Arguments("_ = client.TransactWrite()\n    .Update(orders, key)\n    .Set(Order.Attrs.Total, 1m).ToRequestJson();", "_ = client.TransactWrite()\n    .Update(orders, key)\n    .IfExists()\n    .Set(Order.Attrs.Total, 1m).ToRequestJson();")]
+    public async Task Fix_UpdateThatCanCreateAnUnreadableItem_AddsIfExists(string statement, string expected)
+    {
+        // Arrange
+        var source = Run(statement);
+
+        // Act
+        var fixes = await FixesAsync(source, "DYNA241", new UnreadableUpdateAnalyzer());
+
+        // Assert
+        await Assert.That(fixes).IsEquivalentTo([("Add IfExists()", Run(expected))]);
+    }
+
+    [Test]
+    public async Task Fix_UpdateThatCanCreateAnUnreadableItem_LeavesNoDiagnosticAndCompiles()
+    {
+        // Arrange
+        var source = Run("""_ = orders.Update(key).Set(Order.Attrs.Total, 1m).ToRequestJson();""");
+
+        // Act
+        var fixedSource = (await FixesAsync(source, "DYNA241", new UnreadableUpdateAnalyzer())).Single().Text;
+
+        // Assert
+        await Assert.That(await CheckAsync(fixedSource, new UnreadableUpdateAnalyzer())).IsEqualTo((string.Empty, 0));
+    }
+
+    [Test]
+    public async Task Fix_UpdateThatCreatesTheItemOnPurpose_OffersNothing()
+    {
+        // Arrange (IfExists would contradict IfNotExists)
+        var source = Run("""_ = orders.Update(key).IfNotExists().Set(Order.Attrs.Total, 1m).ToRequestJson();""");
+
+        // Act
+        var fixes = await FixesAsync(source, "DYNA241", new UnreadableUpdateAnalyzer());
+
+        // Assert
+        await Assert.That(fixes).IsEmpty();
     }
 
     [Test]

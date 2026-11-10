@@ -30,7 +30,7 @@ Which write to take:
 | Patch, or create | `Update(key).Set(...)` | Changes what it names | Creates it from the key and what it names |
 | Patch what is there | `Update(key).Set(...).IfExists()` | Changes what it names | `ConditionalCheckFailedException` |
 
-An `Update` that creates an item leaves out the inputs of the key unless `.StoreKeyInputs()` writes them. A `[Version]` adds a condition of its own, see [Optimistic locking](#optimistic-locking).
+An `Update` that creates an item leaves out the inputs of the key unless `.StoreKeyInputs()` writes them, and every other attribute it does not set. A read of the entity throws `DynamoDbMappingException` for a `required` member that is missing, so an update that may create the item sets each of them, or calls `IfExists()`: [`DYNA241`](diagnostics.md#commands) warns of one that does neither. A `[Version]` adds a condition of its own, see [Optimistic locking](#optimistic-locking).
 
 ## UpdateItem
 
@@ -54,7 +54,7 @@ await customers.Update(Customer.Keys.Of("alice"))
     .SendAsync(ct);
 ```
 
-On an entity with a discriminator, every update also writes `_type = if_not_exists(_type, "CUSTOMER")`, so an item that an update creates reads back as its entity.
+On an entity with a discriminator, every update also writes `_type = if_not_exists(_type, "CUSTOMER")`, so an item that an update creates reads back as its entity, once it holds every `required` member.
 
 ## DeleteItem
 
@@ -227,7 +227,7 @@ A counter on a versioned item, bumped with `Add` and `IgnoreVersion()`, needs no
 var members = client.Table<ClubMember>();
 await client.TransactWrite()
     .Put(orders, order)
-    .Update(members, ClubMember.Keys.Of("alice")).Add(ClubMember.Attrs.Visits, 1).IgnoreVersion()
+    .Update(members, ClubMember.Keys.Of("alice")).Add(ClubMember.Attrs.Visits, 1).IgnoreVersion().IfExists()
     .SendAsync(ct);
 ```
 
@@ -282,7 +282,7 @@ A transaction cancelled only for throttling (`TransactionFailure.Throttled` on e
 `ToRequestJson` renders what a chain would send, without sending it. It ends the chain as `SendAsync` does, so a command is rendered or sent, not both.
 
 ```csharp
-string json = products.Update(Product.Keys.Of("KB-01")).Set(Product.Attrs.Price, 79.00m).ToRequestJson();
+string json = products.Update(Product.Keys.Of("KB-01")).Set(Product.Attrs.Price, 79.00m).IfExists().ToRequestJson();
 ```
 
 Every command has it but a parallel scan. A batch renders its first request, and `CreateTable()` the body of its `CreateTable` without the calls around it. `CreateTable()` is an ordinary class, so it stays usable after rendering:

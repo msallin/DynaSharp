@@ -258,7 +258,9 @@ public partial class TableBenchmarks
 
     [Benchmark]
     [BenchmarkCategory("UpdateItem")]
+#pragma warning disable DYNA241 // A canned response stands for the item, which holds every member.
     public async Task<bool> Update_ReturnNewTyped() => (await _newItemTyped.Update(new BenchOrder.Key(PartitionKey, SortKey)).Set(Currency, "EUR").ReturnNew()).HasItem;
+#pragma warning restore DYNA241
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("DeleteItem")]

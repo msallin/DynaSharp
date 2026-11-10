@@ -76,7 +76,7 @@ public sealed class UniquenessConstraintTests(Backend backend)
         await sandbox.Client.TransactWrite()
             .Delete(emails, EmailClaim.Keys.Of(Mail)).If(EmailClaim.Attrs.Owner.Eq("alice"))
             .Unique(emails, new EmailClaim { Address = New, Owner = "alice" }, out _)
-            .Update(sandbox.Shop.Of<Registrant>(), Registrant.Keys.Of("alice")).Set(Registrant.Attrs.Email, New)
+            .Update(sandbox.Shop.Of<Registrant>(), Registrant.Keys.Of("alice")).Set(Registrant.Attrs.Email, New).IfExists()
             .SendAsync();
         var outcome = await RegisterAsync(sandbox, new Registrant { Id = "bob", Email = Mail, Handle = "bobby" });
 

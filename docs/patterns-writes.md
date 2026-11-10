@@ -107,7 +107,7 @@ var mails = shop.Of<MailClaim>();
 await client.TransactWrite()
     .Delete(mails, MailClaim.Keys.Of("alice@example.ch")).If(MailClaim.Attrs.Owner.Eq("alice"))
     .Unique(mails, new MailClaim { Address = "alice@example.org", Owner = "alice" }, out _)
-    .Update(shop.Of<Registrant>(), Registrant.Keys.Of("alice")).Set(Registrant.Attrs.Email, "alice@example.org")
+    .Update(shop.Of<Registrant>(), Registrant.Keys.Of("alice")).Set(Registrant.Attrs.Email, "alice@example.org").IfExists()
     .SendAsync(ct);
 ```
 

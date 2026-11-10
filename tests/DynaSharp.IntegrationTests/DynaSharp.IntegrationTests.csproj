@@ -4,6 +4,8 @@
     <OutputType>Exe</OutputType>
     <!-- Every test has a table of its own, so the entities of this project never share one. -->
     <NoWarn>$(NoWarn);DYNA026</NoWarn>
+    <!-- Tests update items they put first, and some create an item by an update on purpose to see what it holds. -->
+    <NoWarn>$(NoWarn);DYNA241</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

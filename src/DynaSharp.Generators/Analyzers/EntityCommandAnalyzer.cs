@@ -169,6 +169,59 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
         return type.Name == verb + "Command" ? type.TypeArguments[0] as INamedTypeSymbol : type.Name == verb + "Step" ? EntityOfStep(receiver, verb) : null;
     }
 
+    /// <summary>
+    /// Whether a method is <c>Table&lt;T&gt;.Update(key)</c>, <c>Table&lt;T&gt;.Delete(key)</c>, or a step of a transaction that takes a table and a key. Those that take the values of a key are on a table
+    /// without a schema, which has no model.
+    /// </summary>
+    /// <param name="method">The method.</param>
+    /// <returns>Whether it is a write by a key the generator built.</returns>
+    internal static bool IsWriteByKey(IMethodSymbol method) =>
+        method.Name is UpdateVerb or DeleteVerb
+        && WritesByKey.Contains(method.ContainingType.Name + "." + method.Name)
+        && method.Parameters.Any(static parameter => parameter.Name == KeyParameter);
+
+    /// <summary>The call that takes this value as its receiver: one it is the instance of, or an extension method it is the first argument of. A value that is an argument is no instance.</summary>
+    /// <param name="operation">The value, such as a call on a chain.</param>
+    /// <returns>The call, or null where the value goes anywhere else.</returns>
+    internal static IInvocationOperation? NextCall(IOperation operation) => operation.Parent switch
+    {
+        IInvocationOperation call => call,
+        IArgumentOperation argument => argument.Parent is IInvocationOperation call && ReceiverOf(call) == operation ? call : null,
+        _ => null,
+    };
+
+    /// <summary>Whether the member hands a command of this type on, by a return, an argument or a store into anything but a local, so that a clause can still follow there.</summary>
+    /// <param name="invocation">A call that gives the command.</param>
+    /// <returns>Whether code outside the member can add to it.</returns>
+    internal static bool LeavesMember(IInvocationOperation invocation)
+    {
+        IOperation root = invocation;
+        while (root.Parent is { } parent)
+        {
+            root = parent;
+        }
+
+        var batch = invocation.Type;
+        return root.Descendants().Any(operation => operation switch
+        {
+            IReturnOperation returned => Is(returned.ReturnedValue, batch),
+            IArgumentOperation argument => Is(argument.Value, batch) && !IsReceiverOfTheLibrary(argument),
+            ISimpleAssignmentOperation assignment => Is(assignment.Value, batch) && assignment.Target is not ILocalReferenceOperation,
+            _ => false,
+        });
+    }
+
+    /// <summary>A call after this one in its chain, on a line of its own with the indent of this one where the chain has one call per line.</summary>
+    /// <param name="call">The call, a member access.</param>
+    /// <param name="next">The call to add, as written after the dot.</param>
+    /// <returns>The text to insert after the call.</returns>
+    internal static string NextCall(InvocationExpressionSyntax call, string next)
+    {
+        var dot = ((MemberAccessExpressionSyntax)call.Expression).OperatorToken;
+        var lineEnd = dot.GetPreviousToken().TrailingTrivia.LastOrDefault(static trivia => trivia.IsKind(SyntaxKind.EndOfLineTrivia));
+        return lineEnd == default ? "." + next : lineEnd.ToFullString() + dot.LeadingTrivia.ToFullString() + "." + next;
+    }
+
     private static void Analyze(OperationAnalysisContext context, ModelCatalog models)
     {
         var invocation = (IInvocationOperation)context.Operation;
@@ -271,12 +324,6 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
         context.ReportDiagnostic(Diagnostic.Create(Descriptors.VersionedBatchWrite, name.GetLocation(), entity.Name));
     }
 
-    // Table<T>.Update(key) and Table<T>.Delete(key), and the steps of a transaction that take a table and a key. Those that take the values of a key are on a table without a schema, which has no version.
-    private static bool IsWriteByKey(IMethodSymbol method) =>
-        method.Name is UpdateVerb or DeleteVerb
-        && WritesByKey.Contains(method.ContainingType.Name + "." + method.Name)
-        && method.Parameters.Any(static parameter => parameter.Name == KeyParameter);
-
     // orders.Update(key).Set(...): a key carries no version, so WriteRules.ExpectVersion leaves it to the chain, and WriteState.Settle throws at the terminal unless IfVersion or IgnoreVersion
     // came. A command is decided as a batch is, by its type in all of the member. A step is decided by its own clauses up to the next verb, because every update of a transaction is an UpdateStep.
     private static void AnalyzeWriteByKey(OperationAnalysisContext context, IInvocationOperation invocation, ModelCatalog models)
@@ -326,14 +373,6 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
         return true;
     }
 
-    // The call that takes this value as its receiver: one it is the instance of, or an extension method it is the first argument of. A value that is an argument is no instance.
-    private static IInvocationOperation? NextCall(IOperation operation) => operation.Parent switch
-    {
-        IInvocationOperation call => call,
-        IArgumentOperation argument => argument.Parent is IInvocationOperation call && ReceiverOf(call) == operation ? call : null,
-        _ => null,
-    };
-
     // A write of a batch returns the batch: an instance method of BatchWriteCommand<T>, or an extension method such as DeleteAll(entities) of EntityTableExtensions.
     private static bool IsBatchWrite(IInvocationOperation invocation) =>
         invocation.Type is INamedTypeSymbol { Name: BatchWriteCommand, Arity: 1 } && BatchWrites.Contains(invocation.TargetMethod.Name);
@@ -361,25 +400,6 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
         return false;
     }
 
-    // Whether the member hands a batch of this type on, by a return, an argument or a store into anything but a local, so that IgnoreVersion can still follow there.
-    private static bool LeavesMember(IInvocationOperation invocation)
-    {
-        IOperation root = invocation;
-        while (root.Parent is { } parent)
-        {
-            root = parent;
-        }
-
-        var batch = invocation.Type;
-        return root.Descendants().Any(operation => operation switch
-        {
-            IReturnOperation returned => Is(returned.ReturnedValue, batch),
-            IArgumentOperation argument => Is(argument.Value, batch) && !IsReceiverOfTheLibrary(argument),
-            ISimpleAssignmentOperation assignment => Is(assignment.Value, batch) && assignment.Target is not ILocalReferenceOperation,
-            _ => false,
-        });
-    }
-
     // batch.DeleteAll(entities) is an extension method of the library, whose first argument is the batch it extends and goes nowhere else.
     private static bool IsReceiverOfTheLibrary(IArgumentOperation argument) =>
         argument.Parent is IInvocationOperation { TargetMethod.IsExtensionMethod: true } call && DynaSharpTypes.IsDeclaredByDynaSharp(call.TargetMethod.ContainingType) && argument.Parameter!.Ordinal == 0;
@@ -402,14 +422,6 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
             ];
             context.ReportDiagnostic(SuggestedEdit.Create(Descriptors.IfNotExistsOnVersionedPut, name.GetLocation(), edits, entity.Name));
         }
-    }
-
-    // A call after this one in its chain, on a line of its own with the indent of this one where the chain has one call per line.
-    private static string NextCall(InvocationExpressionSyntax call, string next)
-    {
-        var dot = ((MemberAccessExpressionSyntax)call.Expression).OperatorToken;
-        var lineEnd = dot.GetPreviousToken().TrailingTrivia.LastOrDefault(static trivia => trivia.IsKind(SyntaxKind.EndOfLineTrivia));
-        return lineEnd == default ? "." + next : lineEnd.ToFullString() + dot.LeadingTrivia.ToFullString() + "." + next;
     }
 
     private static IOperation? ItemOfPut(IInvocationOperation invocation)
