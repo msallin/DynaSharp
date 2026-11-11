@@ -196,31 +196,31 @@ One client and one pipeline, with four ways in. Use the highest level that fits,
 
 ## Benchmarks
 
-Allocations are exact. Times depend on the machine: they are the means of one run on an idle 8-core AMD EPYC with .NET 11 RC 3, each within 3 %. A KB is 1,024 bytes. All clients run on the same canned responses with no network, so these numbers show the client's own cost. [Performance](https://msallin.github.io/DynaSharp/performance.html) explains why the rows differ and how to run them.
+Allocations are exact. Times depend on the machine: they are the means of one run on an idle 8-core AMD EPYC with .NET 11 (SDK 11.0.100), each within 3 %. A KB is 1,024 bytes. All clients run on the same canned responses with no network, so these numbers show the client's own cost. [Performance](https://msallin.github.io/DynaSharp/performance.html) explains why the rows differ and how to run them.
 
 Time per call, mapped APIs, in µs:
 
 | Call | DynaSharp | EfficientDynamoDb | AWS `DynamoDBContext` |
 |---|---|---|---|
-| GetItem | 5.5 | 15.7 | 31.8 |
-| PutItem | 4.9 | 15.5 | 31.2 |
-| Query, 100 items | 126 | 139 | 878 |
+| GetItem | 4.9 | 14.0 | 24.9 |
+| PutItem | 4.5 | 13.6 | 25.5 |
+| Query, 100 items | 113 | 119 | 701 |
 
 Bytes allocated per call, mapped APIs:
 
 | Call | DynaSharp | EfficientDynamoDb | AWS `DynamoDBContext` |
 |---|---|---|---|
-| GetItem | 2,384 | 5,456 | 40,778 |
-| PutItem | 1,528 | 4,632 | 44,403 |
-| Query, 100 items | 81,120 | 91,329 | 990,973 |
+| GetItem | 2,384 | 5,456 | 36,041 |
+| PutItem | 1,528 | 4,632 | 39,667 |
+| Query, 100 items | 81,120 | 91,329 | 986,217 |
 
 Low-level APIs, in KB:
 
 | Call | DynaSharp request API | EfficientDynamoDb | AWS SDK |
 |---|---|---|---|
-| GetItem | 2.55 | 6.69 | 30.49 |
-| PutItem | 1.60 | 4.52 | 26.68 |
-| Query, 100 items | 98.03 | 201.74 | 379.07 |
+| GetItem | 2.55 | 6.69 | 25.86 |
+| PutItem | 1.60 | 4.52 | 22.06 |
+| Query, 100 items | 98.03 | 201.74 | 374.44 |
 
 Inside DynaSharp, by API level, in bytes:
 

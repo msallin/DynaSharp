@@ -6,7 +6,7 @@
     <PublishAot>true</PublishAot>
     <TrimmerSingleWarn>false</TrimmerSingleWarn>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <!-- Executables have no consumers for an XML doc file; publishing it also trips an SDK copy bug. -->
+    <!-- Executables have no consumers for an XML doc file. -->
     <PublishDocumentationFile>false</PublishDocumentationFile>
     <!-- Listed so the lock file covers the AOT compiler packages for every platform we build on. -->
     <RuntimeIdentifiers>linux-x64;linux-arm64;win-x64;osx-arm64</RuntimeIdentifiers>
