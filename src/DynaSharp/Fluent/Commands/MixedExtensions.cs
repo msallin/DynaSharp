@@ -30,7 +30,7 @@ public static class MixedExtensions
         return new(new QueryCommand<Mixed<T1, T2>>(state, state.Table));
     }
 
-    /// <inheritdoc cref="Of{T1, T2}(QueryCommand{Item})"/>
+    /// <inheritdoc cref="Of{T1, T2}(QueryCommand{Item})" path="/*[not(self::typeparam)]"/>
     /// <typeparam name="T1">The first type. A type without a discriminator is a compile error.</typeparam>
     /// <typeparam name="T2">The second type.</typeparam>
     /// <typeparam name="T3">The third type.</typeparam>
@@ -43,7 +43,7 @@ public static class MixedExtensions
         return new(new QueryCommand<Mixed<T1, T2, T3>>(state, state.Table));
     }
 
-    /// <inheritdoc cref="Of{T1, T2}(QueryCommand{Item})"/>
+    /// <inheritdoc cref="Of{T1, T2}(QueryCommand{Item})" path="/*[not(self::typeparam)]"/>
     /// <typeparam name="T1">The first type. A type without a discriminator is a compile error.</typeparam>
     /// <typeparam name="T2">The second type.</typeparam>
     /// <typeparam name="T3">The third type.</typeparam>
@@ -76,7 +76,7 @@ public static class MixedExtensions
         return new(new ScanCommand<Mixed<T1, T2>>(state, state.Table));
     }
 
-    /// <inheritdoc cref="Of{T1, T2}(ScanCommand{Item})"/>
+    /// <inheritdoc cref="Of{T1, T2}(ScanCommand{Item})" path="/*[not(self::typeparam)]"/>
     /// <typeparam name="T1">The first type. A type without a discriminator is a compile error.</typeparam>
     /// <typeparam name="T2">The second type.</typeparam>
     /// <typeparam name="T3">The third type.</typeparam>
@@ -89,7 +89,7 @@ public static class MixedExtensions
         return new(new ScanCommand<Mixed<T1, T2, T3>>(state, state.Table));
     }
 
-    /// <inheritdoc cref="Of{T1, T2}(ScanCommand{Item})"/>
+    /// <inheritdoc cref="Of{T1, T2}(ScanCommand{Item})" path="/*[not(self::typeparam)]"/>
     /// <typeparam name="T1">The first type. A type without a discriminator is a compile error.</typeparam>
     /// <typeparam name="T2">The second type.</typeparam>
     /// <typeparam name="T3">The third type.</typeparam>

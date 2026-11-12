@@ -45,9 +45,16 @@ jobs:
       - run: dotnet build src/DynaSharp.Testing -c Release --no-restore
       - run: dotnet build src/DynaSharp.Coordination -c Release --no-restore
 
-      # The metadata step warns that the Of overloads of MixedExtensions document T1 and T2 twice: DocFX adds what <inheritdoc/> brings to
-      # what the member says itself. The pages build with warnings as errors, so a broken link between them fails here.
-      - run: dotnet docfx metadata docs/docfx.json
+      # Both steps fail on a warning. The metadata step accepts --warningsAsErrors but still succeeds (DocFX 2.81), so its count is read instead (the line is coloured, so not anchored):
+      # a duplicate tag that <inheritdoc/> adds to what the member says itself, for example. A broken link between the pages fails the build step.
+      - name: API metadata without warnings
+        shell: bash
+        run: |
+          dotnet docfx metadata docs/docfx.json | tee "$RUNNER_TEMP/metadata.log"
+          if grep -qE '(^|[^0-9])[1-9][0-9]* warning\(s\)' "$RUNNER_TEMP/metadata.log"; then
+            echo "::error::docfx metadata warned, see above"
+            exit 1
+          fi
       - run: dotnet docfx build docs/docfx.json --warningsAsErrors
 
       # The help links of the analyzers point at these anchors, and binaries that have shipped cannot change them.
