@@ -396,8 +396,7 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// start is read from now on, and a shard closed at the start has nothing to read from now on, but is watched for children as a shard read to its end is, unless
     /// its children listed at the start opened more than a minute before: a split in progress at the start can list its second child only later. A shard read to its
     /// end starts its children, which <see cref="DescribeStreamAsync"/> lists with a <see cref="ShardFilter"/> of <see cref="ShardFilterType.ChildShards"/>. A child
-    /// whose id says it opened less than 23 hours ago, which is when its records start to be trimmed, is read from the trim horizon; an older one, or one whose id
-    /// tells no time, with <see cref="ShardIteratorType.AtSequenceNumber"/> at the <see cref="SequenceNumberRange.StartingSequenceNumber"/> of its range, so that
+    /// is read with <see cref="ShardIteratorType.AtSequenceNumber"/> at the <see cref="SequenceNumberRange.StartingSequenceNumber"/> of its range, so that
     /// records of it trimmed before its turn came throw instead of being passed over; without a starting sequence number it is read from the trim horizon. A shard
     /// counts as one of the children only if its <see cref="Shard.ParentShardId"/> names the parent, also when the service ignores the filter.
     /// </para>

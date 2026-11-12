@@ -427,8 +427,8 @@ public sealed class StreamTests(Backend backend)
     [Test]
     public async Task GetShardIterator_AtTheStartingSequenceNumberOfAShard_ReadsFromItsFirstRecord()
     {
-        // Arrange: ReadStreamAsync reads a child that opened 23 hours ago or more at the starting sequence number of its range, so that trimmed records throw, and
-        // this shows whether DynamoDB reads from there without a false TrimmedDataAccessException. The first iterators are taken while the shards are empty, the
+        // Arrange: ReadStreamAsync reads every child at the starting sequence number of its range, so that trimmed records throw, and this shows that DynamoDB
+        // reads from there without a false TrimmedDataAccessException (real-aws.yml run 43286397640). The first iterators are taken while the shards are empty, the
         // second ones after the write; one table and one item, so it is cheap on real DynamoDB, which is where it counts.
         Gaps.SkipIfMissing(backend, Gap.StartingSequenceNumberOfAnEmptyShard);
         Gaps.SkipIfMissing(backend, Gap.ReadAtTheStartingSequenceNumber);

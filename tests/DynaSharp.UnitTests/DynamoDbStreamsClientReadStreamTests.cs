@@ -610,13 +610,11 @@ public sealed class DynamoDbStreamsClientReadStreamTests
     }
 
     [Test]
-    [Arguments(0, "TRIM_HORIZON")]
-    [Arguments((23 * 60) - 1, "TRIM_HORIZON")]
-    [Arguments(23 * 60, "AT_SEQUENCE_NUMBER:" + ShardStart)]
-    [Arguments(30 * 60, "AT_SEQUENCE_NUMBER:" + ShardStart)]
-    public async Task ReadStreamAsync_ChildOpenedThatLongAgo_StartsAtTheTrimHorizonOnlyWhileNothingCanBeTrimmed(int minutesAgo, string position)
+    [Arguments(0)]
+    [Arguments(30 * 60)]
+    public async Task ReadStreamAsync_ChildOpenedThatLongAgo_StartsAtItsFirstSequenceNumber(int minutesAgo)
     {
-        // Arrange: the id of a shard of DynamoDB holds the Unix milliseconds it opened at
+        // Arrange: DynamoDB reads a shard from its first record at its starting sequence number, and answers TrimmedDataAccessException there once records are gone
         var now = new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero);
         var child = $"shardId-{now.AddMinutes(-minutesAgo).ToUnixTimeMilliseconds():D20}-0000000a";
         var script = new StreamScript();
@@ -630,7 +628,7 @@ public sealed class DynamoDbStreamsClientReadStreamTests
         await streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync();
 
         // Assert
-        await Assert.That(Positions(script.Handler).Last()).IsEqualTo($"{child}:{position}");
+        await Assert.That(Positions(script.Handler).Last()).IsEqualTo($"{child}:AT_SEQUENCE_NUMBER:{ShardStart}");
     }
 
     [Test]
@@ -641,40 +639,22 @@ public sealed class DynamoDbStreamsClientReadStreamTests
     [Arguments("shardId-00000999999999999999-0000000a")]
     [Arguments("shardId-00000001767225600000")]
     [Arguments("shardId-1")]
-    public async Task ReadStreamAsync_ChildWhoseIdTellsNoTime_StartsAtItsFirstSequenceNumber(string child)
+    [Arguments("shardId-00000253402300799999-0000000a")]
+    public async Task ReadStreamAsync_LatestAndAClosedShardWhoseChildTellsNoPastTime_LooksForMoreChildren(string child)
     {
-        // Arrange
+        // Arrange: an id of another form tells no time, and 253402300799999, the last Unix millisecond of the year 9999, one after now; either counts as a split now
         var script = new StreamScript();
-        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p")));
-        script.ClosedShard("p", "p-1");
-        script.Answer("children:p", Description(StreamStatus.Disabled, null, Closed(child, "p")));
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p"), Open(child, "p")));
+        script.Answer("children:p", Description(StreamStatus.Disabled, null, Open(child, "p")));
         script.ClosedShard(child, "c-1");
         using var streams = TestClient.CreateStreams(script.Handler, new ManualTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)));
 
         // Act
-        await streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync();
+        await streams.ReadStreamAsync(FromTrimHorizon() with { ShardIteratorType = ShardIteratorType.Latest }).ToListAsync();
 
         // Assert
-        await Assert.That(Positions(script.Handler).Last()).IsEqualTo($"{child}:AT_SEQUENCE_NUMBER:{ShardStart}");
-    }
-
-    [Test]
-    public async Task ReadStreamAsync_ChildOpenedAtTheLastMillisecondATimeCanHold_StartsAtTheTrimHorizon()
-    {
-        // Arrange: 253402300799999 is the last Unix millisecond of the year 9999, and a child that opened after now has lost nothing
-        const string child = "shardId-00000253402300799999-0000000a";
-        var script = new StreamScript();
-        script.Answer("list:", Description(StreamStatus.Enabled, null, Closed("p")));
-        script.ClosedShard("p", "p-1");
-        script.Answer("children:p", Description(StreamStatus.Disabled, null, Closed(child, "p")));
-        script.ClosedShard(child, "c-1");
-        using var streams = TestClient.CreateStreams(script.Handler, new ManualTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)));
-
-        // Act
-        await streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync();
-
-        // Assert
-        await Assert.That(Positions(script.Handler).Last()).IsEqualTo($"{child}:TRIM_HORIZON");
+        await Assert.That(script.Handler.Requests.Count(static sent => sent.Operation == "DescribeStream" && sent.BodyJson.TryGetProperty("ShardFilter", out var filter)
+            && filter.GetProperty("ShardId").GetString() == "p")).IsEqualTo(1);
     }
 
     [Test]

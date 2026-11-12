@@ -38,8 +38,6 @@ internal sealed class StreamMerge
     private static readonly TimeSpan MoreChildrenLookDelay = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan MoreChildrenWindow = TimeSpan.FromMinutes(1);
 
-    // An hour below the 24 hours DynamoDB keeps a record, for the clock of this process and for a trim that comes early.
-    private static readonly TimeSpan YoungShardAge = TimeSpan.FromHours(23);
     private static readonly long MaxUnixMilliseconds = DateTimeOffset.MaxValue.ToUnixTimeMilliseconds();
 
     private readonly Channel<ShardChangeRecord> _records = Channel.CreateBounded<ShardChangeRecord>(HandoverOptions);
@@ -279,20 +277,14 @@ internal sealed class StreamMerge
         }
     }
 
-    // A child must not lose records to the trim horizon unnoticed. Every record of a shard is younger than the shard, and DynamoDB keeps a record 24 hours, so a
-    // child that opened less than YoungShardAge ago has lost nothing yet, and its trim horizon is its first record. Its id tells when it opened, as DynamoDB's
-    // read (shardId-00000001414562045508-2bac9cd2, Unix milliseconds). An older child, or one whose id tells nothing, is read at the starting sequence number
-    // of its range, where DynamoDB answers TrimmedDataAccessException if records before the trim horizon are gone. That is not the rule for every child, because
-    // a store may number the records of a shard from above its starting number and then answer so although nothing is gone, as DynamoDB Local does: a reader a
-    // day behind is where that can show. Without a starting sequence number, which an emulator leaves out of an empty shard, the trim horizon is the start.
+    // A child must not lose records to the trim horizon unnoticed, so it is read at the starting sequence number of its range, where DynamoDB answers
+    // TrimmedDataAccessException if records before the trim horizon are gone, and reads from the first record otherwise (StreamTests on real DynamoDB, run
+    // 43286397640). DynamoDB Local answers so although nothing is gone when records of other streams took the numbers between a shard's start and its first
+    // record. Without a starting sequence number, which an emulator leaves out of an empty shard, the trim horizon is the start.
     private void LaunchChild(Shard child, ActivityContext parentShard)
     {
         var closed = IsClosed(child);
-        if (OpenedAt(child.ShardId!) is { } opened && _core.TimeProvider.GetUtcNow() - opened < YoungShardAge)
-        {
-            Launch(child.ShardId!, closed, ShardIteratorType.TrimHorizon, null, parentShard);
-        }
-        else if (child.SequenceNumberRange?.StartingSequenceNumber is { Length: > 0 } start)
+        if (child.SequenceNumberRange?.StartingSequenceNumber is { Length: > 0 } start)
         {
             Launch(child.ShardId!, closed, ShardIteratorType.AtSequenceNumber, start, parentShard);
         }
