@@ -209,7 +209,7 @@ public sealed class LockTable
         using var activity = CoordinationTelemetry.Start(CoordinationTelemetry.TryAcquireSpan, Table.Name, name);
         try
         {
-            var attempt = await AttemptAsync(name, leaseDuration, cancellationToken).ConfigureAwait(false);
+            var attempt = await AttemptAsync(name, leaseDuration, new Claim(), cancellationToken).ConfigureAwait(false);
             CoordinationTelemetry.Acquire(activity, attempt.Lease, attempt.TakeOver);
             return attempt.Lease;
         }
@@ -262,7 +262,7 @@ public sealed class LockTable
     public Task<Lease?> TryAcquireAsync(string name, TimeSpan leaseDuration, TimeSpan wait, CancellationToken cancellationToken = default)
     {
         Validate(name, leaseDuration, wait);
-        return ContendAsync(name, leaseDuration, Limit(wait), null, timeoutThrows: false, cancellationToken);
+        return ContendAsync(name, leaseDuration, Limit(wait), new Claim(), null, timeoutThrows: false, cancellationToken);
     }
 
     /// <summary>
@@ -293,7 +293,7 @@ public sealed class LockTable
     public async Task<Lease> AcquireAsync(string name, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
     {
         Validate(name, leaseDuration);
-        return (await ContendAsync(name, leaseDuration, null, null, timeoutThrows: true, cancellationToken).ConfigureAwait(false))!;
+        return (await ContendAsync(name, leaseDuration, null, new Claim(), null, timeoutThrows: true, cancellationToken).ConfigureAwait(false))!;
     }
 
     /// <summary>
@@ -330,7 +330,7 @@ public sealed class LockTable
     public async Task<Lease> AcquireAsync(string name, TimeSpan leaseDuration, TimeSpan wait, CancellationToken cancellationToken = default)
     {
         Validate(name, leaseDuration, wait);
-        return (await ContendAsync(name, leaseDuration, Limit(wait), null, timeoutThrows: true, cancellationToken).ConfigureAwait(false))!;
+        return (await ContendAsync(name, leaseDuration, Limit(wait), new Claim(), null, timeoutThrows: true, cancellationToken).ConfigureAwait(false))!;
     }
 
     /// <summary>
@@ -354,9 +354,10 @@ public sealed class LockTable
     /// token the work gets is cancelled when the caller cancels or the lease is lost, so work that honours it stops in time.
     /// </para>
     /// <para>
-    /// <b>How the work ends.</b> The work ends in one of three ways. If the lease was lost, whatever the work returned or threw, this contends again. If the caller cancelled,
-    /// the lease is released and this throws <see cref="OperationCanceledException"/>, whatever the work returned or threw. If the work returned or threw on its own, the lease is released and this
-    /// returns or throws that exception: a leader that is done hands the lock on. A service that should lead for as long as it runs calls this in a loop,
+    /// <b>How the work ends.</b> The work ends in one of three ways. If the caller cancelled, the lease is released and this throws <see cref="OperationCanceledException"/>,
+    /// whatever the work returned or threw. If the work returned while its token was not cancelled, it is done, also when the lease ends a moment later: the lease is released and this
+    /// returns. Otherwise, if the lease was lost, whatever the work returned or threw after its token was cancelled, this contends again, and the work runs again in the next term. If the
+    /// work threw on its own, the lease is released and this throws that exception: a leader that is done hands the lock on. A service that should lead for as long as it runs calls this in a loop,
     /// as the guide shows for a <c>BackgroundService</c>.
     /// </para>
     /// <para>
@@ -364,6 +365,8 @@ public sealed class LockTable
     /// <see langword="true"/>, a <see cref="TimeoutException"/>, an <see cref="HttpRequestException"/> or a <see cref="CredentialsUnavailableException"/>, after the retries of the client, is counted, and
     /// this contends again after a third of the lease. Only the first failure of a row is logged as a warning, and the next try that DynamoDB answers as an information, so an outage
     /// of an hour logs two lines and not one per try. Any other error ends it, <see cref="ResourceNotFoundException"/> included. An acquire whose answer came only after a whole lease starts no term, and this contends again.
+    /// The tries after a failure write the owner id of the first, so an acquire that DynamoDB applied but whose answer was lost is found as this process's own on the next try, with its lease
+    /// counted from the first, instead of leaving the lock taken until that lease runs out.
     /// </para>
     /// <para>
     /// <b>Fencing.</b> Work that does not honour the token runs on after the lease is lost, and another process may then be leader at the same time. Writes that must not
@@ -419,11 +422,12 @@ public sealed class LockTable
     /// <param name="name">The name of the lock.</param>
     /// <param name="leaseDuration">How long the lease lasts without a renewal.</param>
     /// <param name="wait">How long to wait, or <see langword="null"/> for as long as it takes.</param>
+    /// <param name="claim">The owner id the tries write, a new one for each acquire, or the one of an earlier acquire that failed, see <see cref="Claim"/>.</param>
     /// <param name="answered">Called after each try that DynamoDB answered, with the lock free or held, or <see langword="null"/>.</param>
     /// <param name="timeoutThrows">Whether a wait that is over throws <see cref="TimeoutException"/>, in the span of an acquire, or returns <see langword="null"/>, in the span of a try.</param>
     /// <param name="cancellationToken">Ends the wait.</param>
     /// <returns>The lease, or <see langword="null"/> when the wait is over and <paramref name="timeoutThrows"/> is <see langword="false"/>.</returns>
-    internal async Task<Lease?> ContendAsync(string name, TimeSpan leaseDuration, TimeSpan? wait, Action? answered, bool timeoutThrows, CancellationToken cancellationToken)
+    internal async Task<Lease?> ContendAsync(string name, TimeSpan leaseDuration, TimeSpan? wait, Claim claim, Action? answered, bool timeoutThrows, CancellationToken cancellationToken)
     {
         using var activity = CoordinationTelemetry.Start(timeoutThrows ? CoordinationTelemetry.AcquireSpan : CoordinationTelemetry.TryAcquireSpan, Table.Name, name);
         try
@@ -431,7 +435,7 @@ public sealed class LockTable
             var started = Time.GetTimestamp();
             while (true)
             {
-                var attempt = await AttemptAsync(name, leaseDuration, cancellationToken).ConfigureAwait(false);
+                var attempt = await AttemptAsync(name, leaseDuration, claim, cancellationToken).ConfigureAwait(false);
                 answered?.Invoke();
                 if (attempt.Lease is { } lease)
                 {
@@ -503,10 +507,11 @@ public sealed class LockTable
         attribute is LockItem.Type or LockItem.Owner or LockItem.RecordVersion or LockItem.FencingToken or LockItem.LeaseDuration or LockItem.HolderLabel
         || attribute == table.PartitionKeyName || attribute == table.SortKeyName;
 
-    private async Task<Attempt> AttemptAsync(string name, TimeSpan leaseDuration, CancellationToken cancellationToken)
+    private async Task<Attempt> AttemptAsync(string name, TimeSpan leaseDuration, Claim claim, CancellationToken cancellationToken)
     {
         var partitionKey = LockItem.PartitionKey(name);
         var sortKey = LockItem.SortKeyOf(Table);
+        var owner = claim.Owner;
 
         // A contender that has seen a holder reads before it writes, so that waiting for a live holder costs no failed conditional write.
         Sighting? due = null;
@@ -516,6 +521,12 @@ public sealed class LockTable
             var item = await Table.Get(partitionKey, sortKey).Consistent().ItemAsync(cancellationToken).ConfigureAwait(false);
             if (LockItem.HolderOf(item, name, Table.Name) is { } holder)
             {
+                // The write of an earlier try of this claim that failed, applied after all: the lock is this claim's.
+                if (holder.Owner == owner)
+                {
+                    return Acquired(name, owner, holder.FencingToken, leaseDuration, claim.FirstUnanswered!.Value, null);
+                }
+
                 if (holder.RecordVersion != sighting.RecordVersion || Time.GetElapsedTime(sighting.Timestamp) < sighting.LeaseDuration)
                 {
                     return Refused(name, holder);
@@ -526,7 +537,6 @@ public sealed class LockTable
             }
         }
 
-        var owner = LockItem.NewId();
         var sent = Time.GetTimestamp();
         try
         {
@@ -553,13 +563,19 @@ public sealed class LockTable
             // The item that failed the condition comes with the answer; a service that does not send it, such as an emulator, costs a read. A transaction
             // that holds the item, such as a holder's IsHeld, is a refusal too, and the read says by whom; it changes no record version, so the watch of
             // the holder goes on as it was. The client retries a request whose response was lost, and the retry fails the condition that its first
-            // attempt met, or meets a transaction: then the owner is this one, and the lock is ours. If that attempt was due to take over, it counts as a
-            // takeover from the holder the read before it found, since the item it wrote over is gone.
+            // attempt met, or meets a transaction: then the owner is this one, and the lock is ours, from the first write of the claim that may have been
+            // applied. If that attempt was due to take over, it counts as a takeover from the holder the read before it found, since the item it wrote over is gone.
             var item = (exception as ConditionalCheckFailedException)?.Item ?? await Table.Get(partitionKey, sortKey).Consistent().ItemAsync(cancellationToken).ConfigureAwait(false);
             var holder = LockItem.HolderOf(item, name, Table.Name);
             return holder?.Owner == owner
-                ? Acquired(name, owner, holder.FencingToken, leaseDuration, sent, due is null ? null : new(due, previousHolder))
+                ? Acquired(name, owner, holder.FencingToken, leaseDuration, claim.FirstUnanswered ?? sent, due is null ? null : new(due, previousHolder))
                 : Refused(name, holder);
+        }
+        catch (Exception)
+        {
+            // No answer says whether DynamoDB applied the write, so the claim remembers it was sent.
+            claim.Unanswered(sent);
+            throw;
         }
     }
 
@@ -644,4 +660,25 @@ public sealed class LockTable
 
     /// <summary>A takeover: the sighting that made it due, and the label of the holder it took the lock from.</summary>
     private sealed record TakeOver(Sighting From, string? PreviousHolder);
+
+    /// <summary>
+    /// The owner id that the tries of an acquire write. A write that DynamoDB applied, but whose answer was lost after the retries of the client, leaves the lock to this
+    /// owner; <see cref="Leadership"/> keeps the claim for its next try, which then finds the lock its own instead of waiting a whole lease for it. A claim that
+    /// handed out a lease is not used again: a new term writes a new owner, so its fencing token is a new one.
+    /// </summary>
+    internal sealed class Claim
+    {
+        /// <summary>Gets the owner id.</summary>
+        public string Owner { get; } = LockItem.NewId();
+
+        /// <summary>
+        /// Gets when the first write of the claim that went unanswered was sent, on the monotonic clock, or <see langword="null"/>: a lease found in the item counts from there, which is
+        /// never later than the write that DynamoDB applied. An item that names the owner was written by one of those, since a write that was answered ended the claim with a lease.
+        /// </summary>
+        public long? FirstUnanswered { get; private set; }
+
+        /// <summary>Records a write that went unanswered.</summary>
+        /// <param name="sent">When it was sent.</param>
+        public void Unanswered(long sent) => FirstUnanswered ??= sent;
+    }
 }

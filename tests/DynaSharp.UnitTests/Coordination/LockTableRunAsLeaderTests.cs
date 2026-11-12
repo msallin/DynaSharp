@@ -507,6 +507,67 @@ public sealed class LockTableRunAsLeaderTests
     }
 
     [Test]
+    public async Task RunAsLeaderAsync_AcquireAppliedButItsAnswerLost_LeadsOnTheLockItWrote()
+    {
+        // Arrange: DynamoDB applies the first acquire, but the answer is an error, so the election tries again
+        using var bench = new LockHarness();
+        bench.Intercept = AppliedThenFailed(bench, takeOver: false);
+        var terms = new List<long>();
+        Task Work(Lease lease, CancellationToken stop)
+        {
+            terms.Add(lease.FencingToken);
+            return Task.CompletedTask;
+        }
+
+        // Act
+        await bench.RunAsync(Completion(bench.Locks.RunAsLeaderAsync("leader", Lease, Work)), TimeSpan.FromSeconds(1));
+
+        // Assert: the retry writes the same owner, finds the lock its own and leads on the token the first write raised, without a takeover
+        await Assert.That((string.Join(",", terms), bench.LockLogs.Count(static entry => entry.EventId.Id == 41))).IsEqualTo(("1", 0));
+    }
+
+    [Test]
+    public async Task RunAsLeaderAsync_TakeOverAppliedButItsAnswerLost_LeadsOnTheLockItWrote()
+    {
+        // Arrange: another process holds the lock and stops renewing; the takeover is applied, but the answer is an error
+        using var bench = new LockHarness();
+        await using var held = await bench.OtherProcess(new ManualTimeProvider()).AcquireAsync("leader", Lease);
+        bench.Intercept = AppliedThenFailed(bench, takeOver: true);
+        var terms = new List<long>();
+        Task Work(Lease lease, CancellationToken stop)
+        {
+            terms.Add(lease.FencingToken);
+            return Task.CompletedTask;
+        }
+
+        // Act
+        await bench.RunAsync(Completion(bench.Locks.RunAsLeaderAsync("leader", Lease, Work)), TimeSpan.FromSeconds(1));
+
+        // Assert: the read before the retry finds this process the owner
+        await Assert.That(string.Join(",", terms)).IsEqualTo("2");
+    }
+
+    [Test]
+    public async Task RunAsLeaderAsync_AcquireAppliedAndItsErrorCameAfterTheLease_ReleasesTheLockAndContendsAgain()
+    {
+        // Arrange: the lease that the lost write took counts from that write, and has ended once the error comes
+        using var bench = new LockHarness();
+        bench.Intercept = AppliedThenFailed(bench, takeOver: false, answeredAfter: Lease);
+        var terms = new List<long>();
+        Task Work(Lease lease, CancellationToken stop)
+        {
+            terms.Add(lease.FencingToken);
+            return Task.CompletedTask;
+        }
+
+        // Act
+        await bench.RunAsync(Completion(bench.Locks.RunAsLeaderAsync("leader", Lease, Work)), TimeSpan.FromSeconds(1));
+
+        // Assert: no term on the ended lease, no wait for it either: its release frees the lock for the next acquire
+        await Assert.That((string.Join(",", terms), bench.LockLogs.Count(static entry => entry.EventId.Id is 41 or 45))).IsEqualTo(("2", 1));
+    }
+
+    [Test]
     public async Task RunAsLeaderAsync_TableMissing_Throws()
     {
         // Arrange
@@ -590,6 +651,25 @@ public sealed class LockTableRunAsLeaderTests
         // Assert
         await Assert.That(bench.LockLogs.Single(static entry => entry.EventId.Id == 46).Message).IsEqualTo(
             $"This process no longer leads on lock leader in table {bench.TableName} (cancelled, holder label (null)).");
+    }
+
+    // Lets the fake apply the first acquire that raises the fencing token (a takeover, or one of a free lock), then answers it with an error that the election retries.
+    private static Func<RecordedRequest, CancellationToken, Task<StubResponse?>> AppliedThenFailed(LockHarness bench, bool takeOver, TimeSpan answeredAfter = default)
+    {
+        var lost = false;
+        return (request, _) =>
+        {
+            var body = System.Text.Encoding.UTF8.GetString(request.Body.Span);
+            if (!lost && request.Operation == "UpdateItem" && body.Contains("ADD", StringComparison.Ordinal) && body.Contains(" OR ", StringComparison.Ordinal) == takeOver)
+            {
+                lost = true;
+                bench.Fake.Answer(request);
+                bench.Clock.Advance(answeredAfter);
+                return Task.FromResult<StubResponse?>(StubResponse.DynamoDbError("InternalServerError", "Try again.", HttpStatusCode.InternalServerError));
+            }
+
+            return Task.FromResult<StubResponse?>(null);
+        };
     }
 
     private static async Task<bool> Completion(Task task)

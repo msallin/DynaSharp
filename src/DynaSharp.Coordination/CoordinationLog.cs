@@ -4,7 +4,7 @@ namespace DynaSharp.Coordination;
 
 /// <summary>
 /// Log messages of the locks and of <see cref="LockTable.RunAsLeaderAsync"/>, all in the category of <see cref="LockTable"/>. Only what no caller sees is logged: what the
-/// heartbeat does in the background, a takeover, a release or a contention that failed, and the terms of a leader. A holder is the
+/// heartbeat does in the background (a loss that <see cref="Lease.RenewAsync"/> finds is its answer), a takeover, a release or a contention that failed, and the terms of a leader. A holder is the
 /// <see cref="LockTableOptions.HolderLabel"/>, null without one. Event ids are stable and follow those of the client; add new messages with the next free id.
 /// </summary>
 internal static partial class CoordinationLog

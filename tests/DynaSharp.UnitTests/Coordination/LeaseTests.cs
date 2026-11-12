@@ -396,6 +396,22 @@ public sealed class LeaseTests
     }
 
     [Test]
+    public async Task RenewAsync_TakenOver_CountsTheLossWithoutALog()
+    {
+        // Arrange: the loss is the answer of the call, so only the metric records it
+        using var bench = new LockHarness();
+        using var metrics = MeasurementCapture<long>.ForTable(bench.TableName, "dynasharp.lock.losses");
+        await using var lease = await bench.Locks.TryAcquireAsync("job", Lease);
+        bench.Steal("job", "thief");
+
+        // Act
+        await lease!.RenewAsync();
+
+        // Assert
+        await Assert.That((metrics.Single().TagText, bench.LockLogs.Count(static entry => entry.EventId.Id == 40))).IsEqualTo(($"db.collection.name={bench.TableName},dynasharp.lock.loss_reason=taken_over", 0));
+    }
+
+    [Test]
     public async Task RenewAsync_AlreadyLost_ReturnsFalseWithoutARequest()
     {
         // Arrange

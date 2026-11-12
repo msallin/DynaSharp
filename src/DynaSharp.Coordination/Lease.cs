@@ -78,7 +78,7 @@ public sealed class Lease : IAsyncDisposable
         _renewedAt = sent;
         _ended = new CancellationTokenSource(Left(sent), locks.Time);
         Ended = _ended.Token;
-        _ended.Token.UnsafeRegister(static lease => ((Lease)lease!).Lose(LossReasons.Expired), this);
+        _ended.Token.UnsafeRegister(static lease => ((Lease)lease!).Lose(LossReasons.Expired, log: true), this);
 
         // The heartbeat outlives the call that acquired the lease, so it must not keep that call's span as its parent, nor its async locals alive, for
         // the lifetime of the lease. Its first wait is armed here, so the heartbeat is running when the acquire returns.
@@ -164,7 +164,7 @@ public sealed class Lease : IAsyncDisposable
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, Ended);
         try
         {
-            return await RenewOnceAsync(linked.Token).ConfigureAwait(false);
+            return await RenewOnceAsync(logLoss: false, linked.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (Ended.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
@@ -243,7 +243,7 @@ public sealed class Lease : IAsyncDisposable
         {
             try
             {
-                return await RenewOnceAsync(Ended).ConfigureAwait(false);
+                return await RenewOnceAsync(logLoss: true, Ended).ConfigureAwait(false);
             }
             catch (Exception exception) when (exception is not (OperationCanceledException or ResourceNotFoundException))
             {
@@ -254,7 +254,8 @@ public sealed class Lease : IAsyncDisposable
         }
     }
 
-    private async Task<bool> RenewOnceAsync(CancellationToken cancellationToken)
+    // A loss that RenewAsync finds is its caller's answer, false or the exception, so only the heartbeat logs one: logs are for what no caller sees.
+    private async Task<bool> RenewOnceAsync(bool logLoss, CancellationToken cancellationToken)
     {
         if (Ended.IsCancellationRequested)
         {
@@ -272,17 +273,17 @@ public sealed class Lease : IAsyncDisposable
         catch (ConditionalCheckFailedException exception)
         {
             // The item that failed the condition comes with the answer: none means it was deleted, which also starts its fencing token at 1 again.
-            Fail(activity, exception, exception.Item is null ? LossReasons.Deleted : LossReasons.TakenOver);
+            Fail(activity, exception, exception.Item is null ? LossReasons.Deleted : LossReasons.TakenOver, logLoss);
             return false;
         }
         catch (ResourceNotFoundException exception)
         {
-            Fail(activity, exception, LossReasons.TableNotFound);
+            Fail(activity, exception, LossReasons.TableNotFound, logLoss);
             throw;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            Fail(activity, exception, null);
+            Fail(activity, exception, null, logLoss);
             throw;
         }
     }
@@ -308,13 +309,13 @@ public sealed class Lease : IAsyncDisposable
             .ConfigureAwait(false);
 
     // Records a renewal that failed, and loses the lease for a reason.
-    private void Fail(Activity? activity, Exception exception, string? reason)
+    private void Fail(Activity? activity, Exception exception, string? reason, bool log)
     {
         CoordinationTelemetry.Fail(activity, exception);
         CoordinationTelemetry.Renew(this, CoordinationTelemetry.ErrorTypeOf(exception));
         if (reason is not null)
         {
-            Lose(reason);
+            Lose(reason, log);
         }
     }
 
@@ -344,7 +345,7 @@ public sealed class Lease : IAsyncDisposable
     }
 
     // The first reason wins, and a lease that was released is not lost.
-    private void Lose(string reason)
+    private void Lose(string reason, bool log)
     {
         if (Volatile.Read(ref _state) == Released || Interlocked.CompareExchange(ref _lossReason, reason, null) is not null)
         {
@@ -352,7 +353,11 @@ public sealed class Lease : IAsyncDisposable
         }
 
         CoordinationTelemetry.Lose(this, reason);
-        CoordinationLog.LeaseLost(Locks.Logger, Name, Locks.Table.Name, reason);
+        if (log)
+        {
+            CoordinationLog.LeaseLost(Locks.Logger, Name, Locks.Table.Name, reason);
+        }
+
         _ = _ended.CancelAsync();
     }
 

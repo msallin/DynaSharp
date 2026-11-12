@@ -16,12 +16,15 @@ internal static class Leadership
     {
         var outage = new Outage(locks, name);
         Action answered = outage.End;
+
+        // The claim outlives a failed acquire, whose write DynamoDB may have applied, and ends with the lease it hands out.
+        var claim = new LockTable.Claim();
         while (true)
         {
             Lease lease;
             try
             {
-                lease = (await locks.ContendAsync(name, leaseDuration, null, answered, timeoutThrows: true, cancellationToken).ConfigureAwait(false))!;
+                lease = (await locks.ContendAsync(name, leaseDuration, null, claim, answered, timeoutThrows: true, cancellationToken).ConfigureAwait(false))!;
             }
             catch (Exception exception) when (!cancellationToken.IsCancellationRequested && IsTransient(exception))
             {
@@ -30,6 +33,8 @@ internal static class Leadership
                 await Task.Delay(delay, locks.Time, cancellationToken).ConfigureAwait(false);
                 continue;
             }
+
+            claim = new LockTable.Claim();
 
             // An acquire whose answer came after a whole lease hands out a lease that has ended: no term starts on it.
             if (lease.Ended.IsCancellationRequested)
@@ -67,6 +72,7 @@ internal static class Leadership
     {
         CoordinationLog.Elected(locks.Logger, lease.Name, locks.Table.Name, lease.FencingToken, locks.Options.HolderLabel);
         var returned = false;
+        var done = false;
         try
         {
             using (var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lease.Ended))
@@ -77,6 +83,10 @@ internal static class Leadership
                 try
                 {
                     await work(lease, stop.Token).ConfigureAwait(false);
+
+                    // Work that returned before its token was cancelled finished, also if the lease ends right after: running it again would repeat it.
+                    // Work that returned after may have stopped early because of the token, so a loss makes it run again.
+                    done = !stop.Token.IsCancellationRequested;
                 }
                 catch (Exception exception) when (cancellationToken.IsCancellationRequested || lease.Ended.IsCancellationRequested)
                 {
@@ -96,23 +106,25 @@ internal static class Leadership
 
             cancellationToken.ThrowIfCancellationRequested();
             returned = true;
-            return lease.Ended.IsCancellationRequested;
+
+            // Work that did not finish here saw its token cancelled, or threw after, and the caller did not cancel: the lease was lost.
+            return !done;
         }
         finally
         {
-            var end = EndOf(lease, returned, cancellationToken);
+            var end = EndOf(lease, returned, done, cancellationToken);
             CoordinationLog.TermEnded(locks.Logger, lease.Name, locks.Table.Name, end, locks.Options.HolderLabel);
         }
     }
 
-    private static string EndOf(Lease lease, bool returned, CancellationToken cancellationToken)
+    private static string EndOf(Lease lease, bool returned, bool done, CancellationToken cancellationToken)
     {
         if (cancellationToken.IsCancellationRequested)
         {
             return TermEnd.Cancelled;
         }
 
-        if (lease.Ended.IsCancellationRequested)
+        if (!done && lease.Ended.IsCancellationRequested)
         {
             return TermEnd.LeaseLost;
         }

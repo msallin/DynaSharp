@@ -31,6 +31,7 @@ recorded requests; `WireProtocol` for the headers; `TableSchema`; the internal c
 **`DynaSharp.Coordination`.** The loop of `RunAsLeaderAsync` is the internal `Leadership`, which sets `Lease.Current`, an `AsyncLocal`, for the work of a term inside the
 async method of the term, which keeps the change from its caller. `LockItem` is the stored format; `CoordinationTelemetry` and `CoordinationLog` the spans, counters and logs. `LockTable` keeps sightings in a
 `ConcurrentDictionary` by lock name; one older than ten leases counts as none, and `SweepSightings` removes those at most once every 10 seconds on the client's clock.
+An acquire writes the owner id of a `LockTable.Claim`, which also remembers when its first unanswered write was sent; `Leadership` keeps one claim across the retries after a transient failure and starts a new one with each lease, so an applied write whose answer was lost is found as its own.
 `LockTableTesting` waits for a refusal through an internal hook of `LockTable`. It reads `Table<T>.Client.Options` for the `TimeProvider` and `LoggerFactory`, so `LockTable`
 takes a table alone; `Client.Table(name, pk, sk)` opens the table of `LockTable.For` and `LockTable.Open`, and `Table<Item>.CreateTable()` is `LockTable.CreateTable`. It and
 `DynaSharp.Testing` do not reference each other, so a test of a lock table on the fake creates it from `LockTable.CreateTable()` or with `LockTable.PartitionKeyName`.

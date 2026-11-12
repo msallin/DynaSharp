@@ -209,11 +209,11 @@ await locks.RunAsLeaderAsync("order-sweeper", TimeSpan.FromSeconds(30), async (l
 
 The token the work gets is cancelled when the caller cancels or the lease is lost. A term ends in one of three ways:
 
-- The lease is lost: whatever the work returned or threw, the election waits for it and contends again.
 - The caller cancels: the lease is released, and `RunAsLeaderAsync` throws `OperationCanceledException`, whatever the work returned or threw.
-- The work returns or throws on its own: the lease is released, and `RunAsLeaderAsync` returns or throws that exception. A leader that is done hands the lock on.
+- The work returns while its token is not cancelled: it is done, also if the lease ends a moment later. The lease is released and `RunAsLeaderAsync` returns. A leader that is done hands the lock on.
+- The lease is lost: whatever the work returned or threw after its token was cancelled, the election waits for it and contends again, and the work runs again in the next term. Work that throws on its own, before that, releases the lease, and `RunAsLeaderAsync` throws that exception.
 
-An acquire that fails with a transient error, after the retries of the client, is logged, and the election contends again after a third of the lease; credentials that are not there yet count as transient. During a long outage that is a failure every third of a lease, so only the first one logs a warning (44), and the next answer of DynamoDB, the lock found free or held, logs an information (49) with how long it took and how many retries; the metric `dynasharp.lock.contention_retries` counts every one. Any other error ends it. A lease that has ended by the time its acquire answers starts no term, and the election contends again. The lease duration is also about how long the work of a leader that crashed stays undone.
+An acquire that fails with a transient error, after the retries of the client, is logged, and the election contends again after a third of the lease; credentials that are not there yet count as transient. During a long outage that is a failure every third of a lease, so only the first one logs a warning (44), and the next answer of DynamoDB, the lock found free or held, logs an information (49) with how long it took and how many retries; the metric `dynasharp.lock.contention_retries` counts every one. Any other error ends it. The tries after a failure write the owner id of the first, so an acquire that DynamoDB applied but whose answer was lost is found as this process's own, with its lease counted from the first try, instead of leaving the lock taken for a lease. A lease that has ended by the time its acquire answers starts no term: it is released, and the election contends again. The lease duration is also about how long the work of a leader that crashed stays undone.
 
 Work that ignores the token runs on after the lease is lost, and another process may lead at the same time. Writes that must not happen then go through `IsHeld`, or carry the fencing token to a system that checks it.
 
@@ -317,7 +317,7 @@ The log category is `DynaSharp.Coordination.LockTable`, and it logs what no call
 
 | Id | Level | Event |
 |---|---|---|
-| 40 | Warning | A lease was lost, with the reason |
+| 40 | Warning | A lease was lost, with the reason. A loss that `RenewAsync` finds is its answer, `false` or the exception, and is not logged |
 | 41 | Information | A lock was taken over from a holder that stopped renewing it, with the holder labels of both |
 | 42 | Warning | A renewal of the heartbeat failed and is tried again after a wait, until the lease runs out |
 | 43 | Warning | A release failed; the lock is free once its lease runs out |
