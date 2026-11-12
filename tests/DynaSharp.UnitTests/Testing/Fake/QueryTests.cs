@@ -1,4 +1,5 @@
 using System.Net;
+using DynaSharp.Testing;
 
 namespace DynaSharp.UnitTests.Testing.Fake;
 
@@ -155,9 +156,12 @@ public sealed class QueryTests
     [Arguments("sk <= :end", 5, 3, 2, true)]
     [Arguments("sk <= :end", 2, 3, 2, false)]
     [Arguments("sk BETWEEN :end AND :end", 5, 3, 1, false)]
+    [Arguments("sk > :end", 5, 3, 2, false)]
+    [Arguments("sk < :end", 5, 3, 2, false)]
+    [Arguments("sk >= :end", 5, 3, 3, false)]
     public async Task Handle_LimitAtTheLastItemOfTheSortKeyCondition_LeavesOutLastEvaluatedKey(string sortKeyCondition, int items, int end, int limit, bool expected)
     {
-        // Arrange: real DynamoDB ends such a page without a key, also with items of the partition beyond the condition (FidelityTests, run 42356511937)
+        // Arrange: real DynamoDB ends such a page without a key, whatever the operator, also with items of the partition beyond the condition (FidelityTests, questions 9 and 13)
         var fake = ReadTables.ShopWith(("a", items));
 
         // Act
@@ -182,6 +186,34 @@ public sealed class QueryTests
 
         // Act
         var body = FakeCalls.Ok(fake, "Query", ByPartition + $$$$$""","Limit":2,"Select":"{{{{{select}}}}}"}""");
+
+        // Assert
+        await Assert.That(body.TryGetProperty("LastEvaluatedKey", out _)).IsTrue();
+    }
+
+    [Test]
+    public async Task Handle_LimitAtTheItemOfAPartitionOfATableWithoutASortKey_LeavesOutLastEvaluatedKey()
+    {
+        // Arrange: such a partition holds one item, and real DynamoDB ends the page without a key (FidelityTests, question 13)
+        var fake = new FakeDynamoDb();
+        fake.CreateTable("Plain", "pk");
+        FakeCalls.Ok(fake, "PutItem", """{"TableName":"Plain","Item":{"pk":{"S":"a"}}}""");
+
+        // Act
+        var body = FakeCalls.Ok(fake, "Query", """{"TableName":"Plain","KeyConditionExpression":"pk = :pk","ExpressionAttributeValues":{":pk":{"S":"a"}},"Limit":1}""");
+
+        // Assert
+        await Assert.That(body.TryGetProperty("LastEvaluatedKey", out _)).IsFalse();
+    }
+
+    [Test]
+    public async Task Handle_LimitAtTheLastItemOfAGlobalIndexWithoutASortKey_SendsLastEvaluatedKey()
+    {
+        // Arrange: a partition of a global index can hold many items, so its end is that of a partition key alone
+        var fake = ReadTables.ShopWith(("a", 2));
+
+        // Act
+        var body = FakeCalls.Ok(fake, "Query", """{"TableName":"Shop","IndexName":"ByCustomer","KeyConditionExpression":"customer = :c","ExpressionAttributeValues":{":c":{"S":"k"}},"Limit":2}""");
 
         // Assert
         await Assert.That(body.TryGetProperty("LastEvaluatedKey", out _)).IsTrue();

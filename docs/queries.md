@@ -211,7 +211,7 @@ do
 while (page.HasMore);
 ```
 
-A page can be empty and still have more, so the loop asks `HasMore` and not `Items.Count`. A filter can leave a page empty, and when the items end exactly at the `Limit`, DynamoDB still returns a `LastEvaluatedKey`: that page says `HasMore`, and the page after it is empty and the last.
+A page can be empty and still have more, so the loop asks `HasMore` and not `Items.Count`. A filter can leave a page empty, and when the items end exactly at the `Limit`, DynamoDB may still return a `LastEvaluatedKey` (it does not for a key condition on the sort key): that page says `HasMore`, and the page after it is empty and the last.
 
 ## Paging for web APIs
 

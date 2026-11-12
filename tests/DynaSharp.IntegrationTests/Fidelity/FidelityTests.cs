@@ -8,7 +8,7 @@ namespace DynaSharp.IntegrationTests.Fidelity;
 
 /// <summary>
 /// The questions about DynamoDB that <c>FakeDynamoDb</c>, DynamoDB Local and Dynoxide answered differently (<c>spec/tasks.md</c>, "Fidelity of the fake"), asked of real DynamoDB on the raw wire.
-/// Each test asserts what real DynamoDB answered in <c>real-aws.yml</c> run 42356511937, questions 11 and 12 in run 42785127527; where a run left the rule open, the test accepts the answers seen and records
+/// Each test asserts what real DynamoDB answered in <c>real-aws.yml</c> run 42356511937, questions 11 and 12 in run 42785127527, question 13 in runs 43286714921 and 43288107804; where a run left the rule open, the test accepts the answers seen and records
 /// which one came. Either way the answer is written to the output of the test and, when <c>DYNASHARP_FIDELITY_REPORT</c> names a file, to that file as one JSON line.
 /// </summary>
 /// <remarks>
@@ -26,6 +26,8 @@ public sealed class FidelityTests(Backend backend)
     private const string KeysOnlyIndex = "by-g";
 
     private const string KeyMismatch = "ValidationError: The provided key element does not match the schema";
+
+    private const string NoKeyThrice = "LastEvaluatedKey absent, LastEvaluatedKey absent, LastEvaluatedKey absent";
 
     private const string Overflow = "ValidationError: Number overflow. Attempting to store a number with magnitude larger than supported range";
 
@@ -259,7 +261,7 @@ public sealed class FidelityTests(Backend backend)
     }
 
     // Question 9: a page that Limit ends at the last item of a key condition with a sort key part has no LastEvaluatedKey, also with items of the partition beyond it. With
-    // a condition on the partition key alone, run 42356511937 had the key for one item and Limit 1, and none for two items, Limit 2 and COUNT, so those cases are recorded.
+    // a condition on the partition key alone the answer differs between tables of one shape, so those cases are recorded.
     [Test]
     [Arguments(1, 1, 1, "ALL_ATTRIBUTES")]
     [Arguments(1, 1, 1, "COUNT")]
@@ -281,12 +283,14 @@ public sealed class FidelityTests(Backend backend)
         await Assert.That(outcome).IsEqualTo("LastEvaluatedKey absent");
     }
 
-    // Question 9, the partition key alone: recorded until the rule is clear.
+    // Question 9, the partition key alone: recorded, since no request decides it (question 13).
     [Test]
     [Arguments(1, 1, "ALL_ATTRIBUTES")]
     [Arguments(1, 1, "COUNT")]
     [Arguments(2, 2, "ALL_ATTRIBUTES")]
     [Arguments(2, 2, "COUNT")]
+    [Arguments(3, 3, "ALL_ATTRIBUTES")]
+    [Arguments(3, 3, "COUNT")]
     public async Task Query_LimitAtTheLastItemOfThePartition_IsRecorded(int items, int limit, string select)
     {
         // Arrange
@@ -294,12 +298,19 @@ public sealed class FidelityTests(Backend backend)
         var table = await SeedForQueryAsync(sandbox, items);
         var json = QueryJson(table, "pk = :pk", """{":pk":{"S":"a"}}""", limit, select);
 
-        // Act
-        var response = (await sandbox.Emulator.Raw.SendAsync("Query", json)).EnsureSuccess();
-        var outcome = Record($"9 query of pk = :pk over {items} items with Limit {limit} and {select}", LastKey(response), response, null);
+        // Act: three sends on the same table, so an answer that changes between sends shows.
+        var answers = new List<string>();
+        RawResponse response = null!;
+        for (var send = 0; send < 3; send++)
+        {
+            response = (await sandbox.Emulator.Raw.SendAsync("Query", json)).EnsureSuccess();
+            answers.Add(LastKey(response));
+        }
+
+        var outcome = Record($"9 query of pk = :pk over {items} items with Limit {limit} and {select}", string.Join(", ", answers), response, null);
 
         // Assert
-        await Assert.That(outcome).IsIn("LastEvaluatedKey present", "LastEvaluatedKey absent");
+        await Assert.That(outcome).IsNotEmpty();
     }
 
     // Question 10: the reason of a failed ConditionCheck has no period at the end.
@@ -395,6 +406,88 @@ public sealed class FidelityTests(Backend backend)
 
         // Assert
         await Assert.That(outcome).IsEqualTo(Expected);
+    }
+
+    // Question 13: where Limit ends a page at the last item a query matches, every key condition with a sort key part leaves out LastEvaluatedKey, whatever its operator,
+    // direction or filter (run 43286714921). The partition holds a1, a2, b1, b2 (string sort key); each query is sent three times on the same table, as the run did.
+    [Test]
+    [Arguments("sk <= a2, Limit 2", "pk = :pk AND sk <= :x", """{":pk":{"S":"a"},":x":{"S":"a2"}}""", 2, true, null)]
+    [Arguments("sk < b1, Limit 2", "pk = :pk AND sk < :x", """{":pk":{"S":"a"},":x":{"S":"b1"}}""", 2, true, null)]
+    [Arguments("begins_with a, Limit 2", "pk = :pk AND begins_with(sk, :x)", """{":pk":{"S":"a"},":x":{"S":"a"}}""", 2, true, null)]
+    [Arguments("BETWEEN a1 AND a2, Limit 2", "pk = :pk AND sk BETWEEN :x AND :y", """{":pk":{"S":"a"},":x":{"S":"a1"},":y":{"S":"a2"}}""", 2, true, null)]
+    [Arguments("sk > a2, Limit 2", "pk = :pk AND sk > :x", """{":pk":{"S":"a"},":x":{"S":"a2"}}""", 2, true, null)]
+    [Arguments("sk >= b1, Limit 2", "pk = :pk AND sk >= :x", """{":pk":{"S":"a"},":x":{"S":"b1"}}""", 2, true, null)]
+    [Arguments("sk >= b1, Limit 2, descending", "pk = :pk AND sk >= :x", """{":pk":{"S":"a"},":x":{"S":"b1"}}""", 2, false, null)]
+    [Arguments("sk <= a2, Limit 2, descending", "pk = :pk AND sk <= :x", """{":pk":{"S":"a"},":x":{"S":"a2"}}""", 2, false, null)]
+    [Arguments("sk <= a2, Limit 2, filter keeps all", "pk = :pk AND sk <= :x", """{":pk":{"S":"a"},":x":{"S":"a2"}}""", 2, true, "attribute_not_exists(v)")]
+    [Arguments("sk <= a2, Limit 2, filter drops all", "pk = :pk AND sk <= :x", """{":pk":{"S":"a"},":x":{"S":"a2"}}""", 2, true, "attribute_exists(v)")]
+    public async Task Query_LimitAtTheLastMatchOfASortKeyCondition_LeavesOutLastEvaluatedKey(string name, string condition, string values, int limit, bool forward, string? filter)
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync(new TableSpec(SortKeyType: KeyAttributeType.String));
+        foreach (var sk in (string[])["a1", "a2", "b1", "b2"])
+        {
+            (await sandbox.Emulator.Raw.SendAsync("PutItem", $$$$$"""{"TableName":"{{{{{table}}}}}","Item":{"pk":{"S":"a"},"sk":{"S":"{{{{{sk}}}}}"}}}""")).EnsureSuccess();
+        }
+
+        var filterMember = filter is null ? string.Empty : $$$$$""","FilterExpression":"{{{{{filter}}}}}" """;
+        var json = $$$$$"""
+            {"TableName":"{{{{{table}}}}}","KeyConditionExpression":"{{{{{condition}}}}}","ExpressionAttributeValues":{{{{{values}}}}},"Limit":{{{{{limit}}}}},"ScanIndexForward":{{{{{(forward ? "true" : "false")}}}}},"ConsistentRead":true{{{{{filterMember}}}}}}
+            """;
+
+        // Act
+        var answers = new List<string>();
+        RawResponse response = null!;
+        for (var send = 0; send < 3; send++)
+        {
+            response = (await sandbox.Emulator.Raw.SendAsync("Query", json)).EnsureSuccess();
+            answers.Add(LastKey(response));
+        }
+
+        var outcome = Record($"13 query of {name}", string.Join(", ", answers), response, NoKeyThrice);
+
+        // Assert
+        await Assert.That(outcome).IsEqualTo(NoKeyThrice);
+    }
+
+    // Question 13, the partition key alone of a table with a sort key: one table answers the same to each send, but tables of one shape answer differently (runs 42356511937,
+    // 43286714921 and 43288107804 saw both answers for each shape), so no request decides it and each case is asked of three tables and recorded. The fake sends the key.
+    [Test]
+    [Arguments("4 items, Limit 4", true, 4, 4, true, "ALL_ATTRIBUTES")]
+    [Arguments("4 items, Limit 4, descending", true, 4, 4, false, "ALL_ATTRIBUTES")]
+    [Arguments("4 items, Limit 4, COUNT", true, 4, 4, true, "COUNT")]
+    [Arguments("1 item, Limit 1", true, 1, 1, true, "ALL_ATTRIBUTES")]
+    [Arguments("without a sort key, 1 item, Limit 1", false, 1, 1, true, "ALL_ATTRIBUTES")]
+    [Arguments("without a sort key, 1 item, Limit 1, COUNT", false, 1, 1, true, "COUNT")]
+    public async Task Query_LimitAtTheLastItemOfThePartitionInThreeTables_LeavesOutLastEvaluatedKeyWithoutASortKey(string name, bool sortKey, int items, int limit, bool forward, string select)
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var tables = new List<string>();
+        for (var table = 0; table < 3; table++)
+        {
+            tables.Add(sortKey ? await SeedForQueryAsync(sandbox, items) : await sandbox.CreateTableAsync());
+            if (!sortKey)
+            {
+                (await sandbox.Emulator.Raw.SendAsync("PutItem", $$$$$"""{"TableName":"{{{{{tables[^1]}}}}}","Item":{"pk":{"S":"a"}}}""")).EnsureSuccess();
+            }
+        }
+
+        // Act
+        var answers = new List<string>();
+        RawResponse response = null!;
+        foreach (var table in tables)
+        {
+            var json = QueryJson(table, "pk = :pk", """{":pk":{"S":"a"}}""", limit, select).Replace("\"ConsistentRead\"", $"\"ScanIndexForward\":{(forward ? "true" : "false")},\"ConsistentRead\"", StringComparison.Ordinal);
+            response = (await sandbox.Emulator.Raw.SendAsync("Query", json)).EnsureSuccess();
+            answers.Add(LastKey(response));
+        }
+
+        var outcome = Record($"13 query of the partition key alone in three tables, {name}", string.Join(", ", answers), response, sortKey ? null : NoKeyThrice);
+
+        // Assert
+        await Assert.That(sortKey ? answers.All(static answer => answer is "LastEvaluatedKey present" or "LastEvaluatedKey absent") : outcome == NoKeyThrice).IsTrue();
     }
 
     // One item for each failing update: a number of 38 digits, and nothing else that the updates reach. The other item is the one the condition check reads.

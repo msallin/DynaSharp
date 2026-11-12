@@ -20,6 +20,9 @@ internal sealed record PageOptions(int? Limit, Func<Item, bool>? Filter, Func<It
     /// <summary>Gets a value indicating whether the read is a <c>Query</c>, whose filter must not read what the index does not project.</summary>
     public bool IsQuery { get; init; }
 
-    /// <summary>Gets a value indicating whether the read is a <c>Query</c> whose key condition has a part for the sort key, which ends a page at its last item without <c>LastEvaluatedKey</c>.</summary>
-    public bool HasSortKeyCondition { get; init; }
+    /// <summary>
+    /// Gets a value indicating whether the read is a <c>Query</c> that ends a page at its last item without <c>LastEvaluatedKey</c>: one whose key condition has a part for the sort key,
+    /// or one of a table without a sort key.
+    /// </summary>
+    public bool KnowsItsEnd { get; init; }
 }

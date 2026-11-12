@@ -11,9 +11,10 @@ namespace DynaSharp.Testing.Fake;
 /// <remarks>
 /// <para>
 /// <c>LastEvaluatedKey</c> is the key of the last item read when the page stopped at <c>Limit</c> or at 1 MB, also when nothing follows: the next page is then empty and the end.
-/// It holds the key of the table, and for a read of an index the key of the index as well. A <c>Query</c> whose key condition has a part for the sort key leaves it out when
-/// <c>Limit</c> ends the page at the last item the condition matches, as real DynamoDB does (<c>FidelityTests</c>, run 42356511937). With a condition on the partition key alone
-/// DynamoDB sent it in one case of that run and left it out in another, so the fake keeps sending it there.
+/// It holds the key of the table, and for a read of an index the key of the index as well. A <c>Query</c> whose key condition has a part for the sort key, whatever its
+/// operator, direction or filter, leaves it out when <c>Limit</c> ends the page at the last item the condition matches, and so does a <c>Query</c> of a table without a sort key,
+/// as real DynamoDB does (<c>FidelityTests</c> question 13, runs 43286714921 and 43288107804). With a condition on the partition key alone of a table with a sort key, DynamoDB
+/// answers the same to each query of one table, but tables of one shape answer differently, so no request decides it: the fake sends it there, the answer of most tables.
 /// </para>
 /// <para>
 /// <c>Select</c> without a value is <c>ALL_ATTRIBUTES</c> for a table, <c>ALL_PROJECTED_ATTRIBUTES</c> for an index and <c>SPECIFIC_ATTRIBUTES</c> with a projection. A local index
@@ -85,7 +86,7 @@ internal static class PageBuilder
 
             if (scanned == options.Limit || bytes >= MaxPageBytes)
             {
-                var atTheEndOfTheRange = scanned == options.Limit && options.HasSortKeyCondition && !pending.MoveNext();
+                var atTheEndOfTheRange = scanned == options.Limit && options.KnowsItsEnd && !pending.MoveNext();
                 lastEvaluatedKey = atTheEndOfTheRange ? null : KeyOf(entry, options);
                 break;
             }

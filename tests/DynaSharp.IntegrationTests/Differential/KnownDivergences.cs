@@ -62,7 +62,7 @@ internal static class KnownDivergences
     private const string DynoxideSize = "Dynoxide rejects a bare size as a reserved word where it stands as a name, which real DynamoDB, the fake and DynamoDB Local take.";
 
     private const string DynamoDbLocalLastPage =
-        "DynamoDB Local leaves out the LastEvaluatedKey of a query page that a Limit ends at the last item of a key condition on the partition key alone; the fake sends it there, as real DynamoDB did in one of two cases.";
+        "DynamoDB Local leaves out the LastEvaluatedKey of a query page that a Limit ends at the last item of a key condition on the partition key alone; the fake sends it there, as real DynamoDB does on most tables and not on others (FidelityTests question 13).";
 
     private const string EmulatorLastPage =
         "Both emulators send the LastEvaluatedKey of a query page that a Limit ends at the last item of a key condition with a sort key part (DynamoDB Local for some operators), and an empty page follows; real DynamoDB and the fake leave it out.";
