@@ -5,3 +5,4 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
+DYNA124 | DynaSharp.Keys | Error | Enum without members in a key

@@ -8,7 +8,7 @@ namespace DynaSharp.IntegrationTests.Fidelity;
 
 /// <summary>
 /// The questions about DynamoDB that <c>FakeDynamoDb</c>, DynamoDB Local and Dynoxide answered differently (<c>spec/tasks.md</c>, "Fidelity of the fake"), asked of real DynamoDB on the raw wire.
-/// Each test asserts what real DynamoDB answered in <c>real-aws.yml</c> run 42356511937, questions 11 and 12 in run 42785127527, question 13 in runs 43286714921 and 43288107804; where a run left the rule open, the test accepts the answers seen and records
+/// Each test asserts what real DynamoDB answered in <c>real-aws.yml</c> run 42356511937, questions 11 and 12 in run 42785127527, question 13 in runs 43286714921 and 43288107804, question 14 in run 43290677245; where a run left the rule open, the test accepts the answers seen and records
 /// which one came. Either way the answer is written to the output of the test and, when <c>DYNASHARP_FIDELITY_REPORT</c> names a file, to that file as one JSON line.
 /// </summary>
 /// <remarks>
@@ -255,6 +255,31 @@ public sealed class FidelityTests(Backend backend)
         // Act
         var response = await sandbox.Emulator.Raw.SendAsync(operation, request.ToJsonString());
         var outcome = Record($"8 bare size: {operation} {name}", Outcome(response), response, expected);
+
+        // Assert
+        await Assert.That(outcome).IsEqualTo(expected);
+    }
+
+    // Question 14: a bare name that starts with an underscore is a syntax error, also after a dot ("Invalid ProjectionExpression: Syntax error; token: \"_\", near: \"_a\"", run
+    // 43290677245), and one with an underscore inside is a name. DynamoDB Local answers so too; Dynoxide takes the name.
+    [Test]
+    [Arguments("PutItem", "_a in a condition", """{"ConditionExpression":"attribute_not_exists(_a)","Item":{"pk":{"S":"a"}}}""", "ValidationException")]
+    [Arguments("UpdateItem", "SET _a", """{"UpdateExpression":"SET _a = :v","ExpressionAttributeValues":{":v":{"S":"x"}},"Key":{"pk":{"S":"a"}}}""", "ValidationException")]
+    [Arguments("GetItem", "_a in a projection", """{"ProjectionExpression":"_a","Key":{"pk":{"S":"a"}}}""", "ValidationException")]
+    [Arguments("GetItem", "_type in a projection", """{"ProjectionExpression":"_type","Key":{"pk":{"S":"a"}}}""", "ValidationException")]
+    [Arguments("GetItem", "m._a in a projection", """{"ProjectionExpression":"m._a","Key":{"pk":{"S":"a"}}}""", "ValidationException")]
+    [Arguments("GetItem", "a_b in a projection", """{"ProjectionExpression":"a_b","Key":{"pk":{"S":"a"}}}""", "OK")]
+    public async Task Expression_BareNameStartingWithAnUnderscore_IsASyntaxError(string operation, string name, string members, string expected)
+    {
+        // Arrange
+        await using var sandbox = await Sandbox.StartAsync(backend);
+        var table = await sandbox.CreateTableAsync();
+        var request = JsonNode.Parse(members)!.AsObject();
+        request["TableName"] = table;
+
+        // Act
+        var response = await sandbox.Emulator.Raw.SendAsync(operation, request.ToJsonString());
+        var outcome = Record($"14 bare name with an underscore: {operation} {name}", Outcome(response), response, expected);
 
         // Assert
         await Assert.That(outcome).IsEqualTo(expected);

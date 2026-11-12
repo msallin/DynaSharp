@@ -928,6 +928,42 @@ public sealed class KeyDiagnosticsTests
     }
 
     [Test]
+    [Arguments("[KeyOnly] public Nothing Status { get; set; }")]
+    [Arguments("public Nothing Status => default;")]
+    public async Task Build_KeyOfAnEnumWithoutMembersByName_ReportsDyna124(string property)
+    {
+        // Arrange (a key writes an enum by the name of a member, and this one has none; DYNA024 sees only what is stored as an attribute)
+        var source = $$"""
+            public enum Nothing { }
+            [DynamoDbEntity, Discriminator("E"), PartitionKey([|"A#{Status}"|])]
+            public partial class E { {{property}} }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, "DYNA124 Error: Enum 'Shop.Nothing' has no members, so a key that holds it by member name throws for every value. Add a member, or use d<w>."));
+    }
+
+    [Test]
+    public async Task Build_KeyOfAnEnumWithoutMembersByValue_ReportsNothing()
+    {
+        // Arrange (d1 writes the value, which every enum has)
+        const string Source = """
+            public enum Nothing { }
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("A#{Status:d1}")]
+            public partial class E { [KeyOnly] public Nothing Status { get; set; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
     public async Task Build_EnumNamesThatAreNotOneToOneWithAValueFormat_ReportsNothing()
     {
         // Arrange

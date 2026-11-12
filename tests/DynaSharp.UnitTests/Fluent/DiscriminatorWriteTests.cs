@@ -296,8 +296,10 @@ public sealed class DiscriminatorWriteTests
         // Arrange (an unused name is an error of its own)
         using var fixture = new Fixture();
 
-        // Act
+        // Act (DynamoDB refuses a bare _type, which DYNA212 says; only the rendering is under test)
+#pragma warning disable DYNA212
         var json = fixture.Customers.Update(Customer.Keys.Of("a")).Set($"_type = {"OTHER"}").ToRequestJson();
+#pragma warning restore DYNA212
 
         // Assert
         await Assert.That(json).IsEqualTo(Start + ""","UpdateExpression":"SET _type = :v0","ExpressionAttributeValues":{":v0":{"S":"OTHER"}}}""");

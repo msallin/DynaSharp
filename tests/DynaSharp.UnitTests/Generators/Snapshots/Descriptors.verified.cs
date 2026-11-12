@@ -53,6 +53,7 @@ DYNA120 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
 DYNA121 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
 DYNA122 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
 DYNA123 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
+DYNA124 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
 DYNA201 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA202 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA203 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
@@ -159,6 +160,7 @@ DYNA120 | Warning | DynaSharp.Keys | Raw value is strict in another template | '
 DYNA121 | Info | DynaSharp.Keys | Raw value reaches a strict template through a getter | '{0}' is raw in '{1}', and '{2}', computed from it, is strict in '{3}', so a value with a delimiter of the second ('{4}') throws KeyFormatException there, unless the getter of '{2}' takes the delimiter out
 DYNA122 | Warning | DynaSharp.Keys | Constant that no key can hold | The value of '{0}' {1}, so this call throws KeyFormatException every time
 DYNA123 | Info | DynaSharp.Keys | Raw table key input without [KeyOnly] | '{0}' is raw in the table key '{1}' and has no [KeyOnly], so a Put stores it as an attribute of its own as well, while an Update does not write it, and only the items a Put wrote hold it. Mark it [KeyOnly] if the key is all the item needs; a read restores it from the key.
+DYNA124 | Error | DynaSharp.Keys | Enum without members in a key | Enum '{0}' has no members, so a key that holds it by member name throws for every value. Add a member, or use d<w>.
 DYNA201 | Warning | DynaSharp.Commands | Command outlives its expression | A DynaSharp command is built and sent in one expression. Compute values first, or move the chain into a method.
 DYNA202 | Warning | DynaSharp.Commands | Read command is not awaited | A read is not awaited; end the chain with ItemsAsync, ValuesAsync or another terminal it has
 DYNA203 | Error | DynaSharp.Commands | Command is discarded | This DynaSharp command is discarded, so it is never sent, and the handle it came from is used up. Send it, or use what the call returns.

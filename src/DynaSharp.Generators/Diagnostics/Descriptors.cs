@@ -414,6 +414,15 @@ internal static class Descriptors
         true,
         helpLinkUri: KeyHelp);
 
+    public static readonly DiagnosticDescriptor EnumWithoutMembersInKey = new(
+        "DYNA124",
+        "Enum without members in a key",
+        "Enum '{0}' has no members, so a key that holds it by member name throws for every value. Add a member, or use d<w>.",
+        KeyGrammar,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: KeyHelp);
+
     public static readonly DiagnosticDescriptor CommandOutlivesExpression = new(
         "DYNA201",
         "Command outlives its expression",
@@ -784,7 +793,7 @@ internal static class Descriptors
         LanguageVersionTooLow, InaccessibleType, InvalidKeyType, InvalidIndex, NullableContextDisabled, NoDiscriminator, IgnoredPlainKey,
         InvalidDiscriminator, VersionInKey, EnumWithoutMembers, NamedLikeGeneratedClass, DuplicateDiscriminator, InvalidDefaultConverter, InvalidOmitEmpty, EntityInsideEntity, UnnamedComputedSource, IneffectiveEnumAttribute, TemplateSyntax, LiteralNotAscii, UnknownProperty, UnsupportedKeyInput, FormatDoesNotFit, FormatOutOfRange,
         NoLiteralBetween, NullableInput, NumberWithoutFixedFormat, InvalidKeyOnly, SparseWithoutNullableInput, RepeatedPlaceholder,
-        MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter, TruncatedTimestampEndsTableKey, EmptyDefaultOfKey, RawNotLast, InvalidComputedFrom, RawBesideStrict, RawThroughGetter, ConstantNoKeyHolds, RawWithoutKeyOnly,
+        MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter, TruncatedTimestampEndsTableKey, EmptyDefaultOfKey, RawNotLast, InvalidComputedFrom, RawBesideStrict, RawThroughGetter, ConstantNoKeyHolds, RawWithoutKeyOnly, EnumWithoutMembersInKey,
         CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber, NestedConflictRetry, VersionReadBeforeRetry, WriteOfComputedInputSource,
         ReservedWordInExpression, FilterOnLosslessKey, FilterOnLossyKey, OverlappingUpdatePaths, KeyOfAnotherAttribute, IncludedKeyDiffers, IndexKeyWithoutAllInputs, ValueWithoutFound,
         KeyOfAnotherEntity, NotAnEntity, ValueOfAnotherType, AddWithoutNumberOrSet, ItemMethodOnRead,

@@ -9,7 +9,7 @@ namespace DynaSharp.Generators;
 
 /// <summary>
 /// The fixes that rewrite one placeholder of a key template, each with what the generator computed: DYNA102 a property of a close spelling, DYNA104 each format of the type that holds every
-/// value, DYNA108 <c>d&lt;w&gt;</c> and <c>n&lt;i&gt;</c> with the digits of the type's maximum or <c>plain</c>, DYNA113 <c>d&lt;w&gt;</c> with the digits of the largest member, and DYNA116
+/// value, DYNA108 <c>d&lt;w&gt;</c> and <c>n&lt;i&gt;</c> with the digits of the type's maximum or <c>plain</c>, DYNA113 <c>d&lt;w&gt;</c> with the digits of the largest member, DYNA124 <c>d1</c>, and DYNA116
 /// the placeholder without its format. A template that is no string literal, such as a constant, is not offered one.
 /// </summary>
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(KeyPlaceholderCodeFix))]
@@ -18,7 +18,7 @@ internal sealed class KeyPlaceholderCodeFix : TextEditCodeFix
 {
     /// <inheritdoc/>
     public override ImmutableArray<string> FixableDiagnosticIds { get; } =
-        [Descriptors.UnknownProperty.Id, Descriptors.FormatDoesNotFit.Id, Descriptors.NumberWithoutFixedFormat.Id, Descriptors.EnumNamesNotUnique.Id, Descriptors.TruncatedTimestampEndsTableKey.Id];
+        [Descriptors.UnknownProperty.Id, Descriptors.FormatDoesNotFit.Id, Descriptors.NumberWithoutFixedFormat.Id, Descriptors.EnumNamesNotUnique.Id, Descriptors.EnumWithoutMembersInKey.Id, Descriptors.TruncatedTimestampEndsTableKey.Id];
 
     /// <summary>The equivalence key of a replacement: by its rank for a spelling, closest first, and by the kind of its format for the others, <c>DYNA108.d</c>, <c>DYNA104.yyyy-MM</c>, <c>DYNA116.none</c>.</summary>
     /// <param name="id">The rule.</param>

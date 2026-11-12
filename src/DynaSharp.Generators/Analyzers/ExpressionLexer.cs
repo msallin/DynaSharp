@@ -6,8 +6,8 @@ namespace DynaSharp.Generators;
 /// Parts:  "size(" {Attr("tags")} ") &lt; 10"
 /// Tokens: size ( hole ) &lt; 10
 /// </code>
-/// A word is ASCII: DynamoDB Local and dynoxide both reject anything else in a raw name. A leading underscore stays a word, although DynamoDB
-/// Local rejects it, because dynoxide does not and a missed error costs less here than a false one.
+/// A word is ASCII: DynamoDB Local and dynoxide both reject anything else in a raw name. A word that starts with an underscore is invalid, as real DynamoDB
+/// answers a syntax error for <c>_a</c> and <c>m._a</c> (FidelityTests question 14), although dynoxide takes it; a placeholder such as <c>#_a</c> may start with one.
 /// </summary>
 internal static class ExpressionLexer
 {
@@ -122,7 +122,7 @@ internal static class ExpressionLexer
         }
 
         SkipWord(text, ref position);
-        return TokenKind.Word;
+        return first == '_' ? TokenKind.Invalid : TokenKind.Word;
     }
 
     // A lone # or : is no placeholder, and DynamoDB rejects it as a character.

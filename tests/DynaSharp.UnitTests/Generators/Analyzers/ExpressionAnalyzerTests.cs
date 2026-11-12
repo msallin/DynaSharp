@@ -703,7 +703,7 @@ public sealed class ExpressionAnalyzerTests
     [Test]
     [Arguments("""orders.Scan().Filter($"Market = {"eu"} AND UserId = {"u"}");""")]
     [Arguments("""orders.Scan().Filter($"attribute_exists(ShipTo.Stret) AND size(Tags) > {1}");""")]
-    [Arguments("""orders.Scan().Filter($"pk = {1} AND sk = {1} AND gsi1pk = {1} AND _type = {1}");""")]
+    [Arguments("""orders.Scan().Filter($"pk = {1} AND sk = {1} AND gsi1pk = {1}");""")]
     [Arguments("""update.Set($"Tags = list_append(Tags, {1})");""")]
     [Arguments("""shop.Query("a").Of<Order, Invoice>().Filter($"Refund > {1} AND Market = {"eu"}");""")]
     [Arguments("""shop.Scan().Filter($"Nope = {1}");""")]
@@ -718,6 +718,19 @@ public sealed class ExpressionAnalyzerTests
 
         // Assert
         await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Analyze_BareNameStartingWithAnUnderscore_ReportsASyntaxError()
+    {
+        // Arrange (real DynamoDB answers a syntax error for a bare _type, FidelityTests question 14; the discriminator goes in a hole, {Attr("_type")})
+        var source = AnalyzerRun.Member(OrderFields + "public static void Run() { " + """orders.Scan().Filter($"_type = {1}");""" + " }");
+
+        // Act
+        var report = await WithOrders.ReportAsync(source);
+
+        // Assert
+        await Assert.That(report).Contains("DYNA212 Warning [", StringComparison.Ordinal).And.Contains("]: The expression is not valid: unexpected '_type'", StringComparison.Ordinal);
     }
 
     [Test]

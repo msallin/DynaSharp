@@ -148,6 +148,8 @@ public sealed class ExpressionParserTests
     [Arguments("a = ", "the expression ends too early")]
     [Arguments("a[b] = c", "a list index is a number")]
     [Arguments("a[0 = c", "a list index is not closed")]
+    [Arguments("attribute_exists(_a)", "unexpected '_a'")]
+    [Arguments("m._a = b", "unexpected '_a'")]
     public async Task Check_InvalidCondition_SaysWhat(string expression, string reason)
     {
         // Arrange
@@ -163,6 +165,7 @@ public sealed class ExpressionParserTests
     [Test]
     [Arguments("SET a = size(b)", "'size' is not allowed in an update")]
     [Arguments("SET a b", "a SET action needs =")]
+    [Arguments("SET _type = a", "unexpected '_type'")]
     [Arguments("ADD a b", "ADD and DELETE need a value after the path")]
     [Arguments("REMOVE a REMOVE b", "the REMOVE section can only be used once")]
     [Arguments("a = b", "unexpected 'a'")]

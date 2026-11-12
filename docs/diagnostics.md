@@ -176,6 +176,10 @@ The source generator reports these on key templates. The grammar is under [Key g
 - **Fix.** Mark the property `[KeyOnly]`, as in [Keys that hold your delimiter](adopting.md#keys-that-hold-your-delimiter); the code fix adds it. It then has no handle, so a condition or a filter cannot name it.
 - **Not reported.** A raw placeholder of an index, which the table key does not hold, and a computed input, which `[KeyOnly]` does not take. Information only, because an adopted table whose items hold the attribute needs it: there `[KeyOnly]` would make a `Put` drop it, so suppress the message instead.
 
+`DYNA124` (error): a placeholder without a format of an enum that has no members, such as `{Status}` with `public enum Status { }`. Without a format a key holds an enum by the name of a member, and this one has none, so every write throws. `DYNA024` reports a stored property of such an enum; this rule also sees a `[KeyOnly]` property and a getter that only the key holds.
+
+- **Fix.** Add a member, or write the value with `d<w>`: `{Status:d1}`, which the code fix writes.
+
 ## Commands
 
 A command such as `PutCommand<T>` is a `ref struct` over pooled state, so build and send it in one expression.

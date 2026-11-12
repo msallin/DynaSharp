@@ -147,6 +147,7 @@ public sealed class KeyPlaceholderCodeFixTests
     [Arguments("[System.Flags] public enum Status { A = 1, B = 2, C = 4, D = 8 }", "{Status:x}", "DYNA104", "Change to {Status:d2}")]
     [Arguments("[System.Flags] public enum Status { A = 1, B = 2, C = 4, D = 8 }", "{Status}", "DYNA113", "Change to {Status:d2}")]
     [Arguments("public enum Status { A = 1, B = 1, C = 120 }", "{Status}", "DYNA113", "Change to {Status:d3}")]
+    [Arguments("public enum Status { }", "{Status}", "DYNA124", "Change to {Status:d1}")]
     public async Task RegisterCodeFixes_EnumWhoseNamesAreNotOneToOne_OffersTheDigitsOfItsLargestValue(string declaration, string placeholder, string id, string expected)
     {
         // Arrange
@@ -299,7 +300,7 @@ public sealed class KeyPlaceholderCodeFixTests
         var ids = fix.FixableDiagnosticIds;
 
         // Assert
-        await Assert.That(ids).IsEquivalentTo(["DYNA102", "DYNA104", "DYNA108", "DYNA113", "DYNA116"]);
+        await Assert.That(ids).IsEquivalentTo(["DYNA102", "DYNA104", "DYNA108", "DYNA113", "DYNA116", "DYNA124"]);
     }
 
     private static CodeFixRun Run(string id) => new(new KeyPlaceholderCodeFix(), id);
