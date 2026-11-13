@@ -259,9 +259,11 @@ Every table has it, whatever type it was opened for, because the reading needs o
 ```csharp
 await foreach (var change in orders.ReadChangesAsync<Customer, Order>(streams, ShardIteratorType.Latest, cancellationToken: ct))
 {
-    if (change is Change<Customer> signedUp)
+    switch (change)
     {
-        Console.WriteLine($"customer {signedUp.Kind}");
+        case Change<Customer> signedUp:
+            Console.WriteLine($"customer {signedUp.Kind}");
+            break;
     }
 }
 ```

@@ -9,8 +9,6 @@ dotnet_diagnostic.CA2007.severity = none
 dotnet_diagnostic.CA1303.severity = none
 # CA1515: the model reads as what a data layer exposes, which is public.
 dotnet_diagnostic.CA1515.severity = none
-# CA1508: its flow analysis predates C# 15 unions and reports each arm of a switch over a Mixed as always true.
-dotnet_diagnostic.CA1508.severity = none
 
 # The model reads best in one place. SA1601: the types that need no words have none.
 [ShopModel.cs]

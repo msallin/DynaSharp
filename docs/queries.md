@@ -147,9 +147,9 @@ The changes of a table of several entities are typed the same way, by the discri
 
 `Mixed<T1, T2>` of a mixed read and `MixedChange<T1, T2>` of [typed changes](streams.md#typed-changes), with up to four types, are C# 15 unions of their types:
 
-- A `switch` over one names each type, without a discard arm, and the compiler warns with `CS8509` when one is missing. A type added to `Of<...>()` later shows every place that does not handle it yet.
+- A `switch` expression over one names each type, without a discard arm, and the compiler warns with `CS8509` when one is missing. A type added to `Of<...>()` later shows every place that does not handle it yet. A `switch` statement is not checked that way, and one that returns in every case still needs a `throw` after it (`CS0161`), so a method that returns a value uses a `switch` expression.
 - `item is Order placed` asks for one type. A `Customer` or an `Order` converts to a `Mixed<Customer, Order>`, which is how a test builds the input of code that handles items: `Mixed<Customer, Order> item = customer;`, or `new Mixed<Customer, Order>(customer)` in C# 14.
-- `CA1508` of the .NET analyzers, on with `AnalysisLevel` `latest-all`, predates unions and may report the arms of such a `switch` as always true; switch it off where it does.
+- `CA1508` of the .NET analyzers, on with `AnalysisLevel` `latest-all`, predates unions: it reports `item is Order placed` as always true, and the arms of a `switch` expression too when its method also branches elsewhere, as in an `if`. A `switch` statement and `TryGetValue` are not reported, nor is a `switch` expression that is all its method does, as `Describe` below. Switch the rule off where it reports.
 - The `default` value holds nothing. It matches the `null` pattern, `HasValue` is `false`, and a `switch` without a `null` arm throws `SwitchExpressionException` on it. A read never gives one.
 
 ```csharp
