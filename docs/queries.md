@@ -151,6 +151,7 @@ The changes of a table of several entities are typed the same way, by the discri
 - `item is Order placed` asks for one type. A `Customer` or an `Order` converts to a `Mixed<Customer, Order>`, which is how a test builds the input of code that handles items: `Mixed<Customer, Order> item = customer;`, or `new Mixed<Customer, Order>(customer)` in C# 14.
 - `CA1508` of the .NET analyzers, on with `AnalysisLevel` `latest-all`, predates unions: it reports `item is Order placed` as always true, and the arms of a `switch` expression too when its method also branches elsewhere, as in an `if`. A `switch` statement and `TryGetValue` are not reported, nor is a `switch` expression that is all its method does, as `Describe` below. Switch the rule off where it reports.
 - The `default` value holds nothing. It matches the `null` pattern, `HasValue` is `false`, and a `switch` without a `null` arm throws `SwitchExpressionException` on it. A read never gives one.
+- Two values are equal when they hold items of the same type that are equal by the `Equals` of that type, and two `default` values are equal, so `item == customer` compares with an expected item in C# 15. `ToString()` is the text of the item, empty for `default`.
 
 ```csharp
 static string Describe(Mixed<Customer, Order> item) => item switch

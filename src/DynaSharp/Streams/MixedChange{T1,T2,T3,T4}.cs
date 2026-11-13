@@ -11,7 +11,7 @@ namespace DynaSharp.Streams;
 /// <typeparam name="T3">The third type.</typeparam>
 /// <typeparam name="T4">The fourth type.</typeparam>
 [Union]
-public readonly struct MixedChange<T1, T2, T3, T4> : IChangeTypes<MixedChange<T1, T2, T3, T4>>
+public readonly struct MixedChange<T1, T2, T3, T4> : IChangeTypes<MixedChange<T1, T2, T3, T4>>, IEquatable<MixedChange<T1, T2, T3, T4>>
     where T1 : IDynamoDbDiscriminated<T1>
     where T2 : IDynamoDbDiscriminated<T2>
     where T3 : IDynamoDbDiscriminated<T3>
@@ -92,6 +92,18 @@ public readonly struct MixedChange<T1, T2, T3, T4> : IChangeTypes<MixedChange<T1
     /// <summary>Gets a value indicating whether it holds a change, which is <see langword="false"/> only for the default value.</summary>
     /// <value><see langword="true"/> if it holds a change.</value>
     public bool HasValue => _type != 0;
+
+    /// <summary>Tells whether two values hold changes of the same type that are equal, or are both the default value.</summary>
+    /// <param name="left">The first value.</param>
+    /// <param name="right">The second value.</param>
+    /// <returns><see langword="true"/> if they are equal.</returns>
+    public static bool operator ==(MixedChange<T1, T2, T3, T4> left, MixedChange<T1, T2, T3, T4> right) => left.Equals(right);
+
+    /// <summary>Tells whether two values hold changes of different types, or changes that are not equal, or only one of them is the default value.</summary>
+    /// <param name="left">The first value.</param>
+    /// <param name="right">The second value.</param>
+    /// <returns><see langword="true"/> if they are not equal.</returns>
+    public static bool operator !=(MixedChange<T1, T2, T3, T4> left, MixedChange<T1, T2, T3, T4> right) => !left.Equals(right);
 
     /// <inheritdoc/>
     static int IChangeTypes<MixedChange<T1, T2, T3, T4>>.FindType(Item? image) => ChangeTyping.FindType(Mixed<T1, T2, T3, T4>.Schema, image);
@@ -197,6 +209,24 @@ public readonly struct MixedChange<T1, T2, T3, T4> : IChangeTypes<MixedChange<T1
                 throw Empty();
         }
     }
+
+    /// <summary>Tells whether this value holds a change of the same type as <paramref name="other"/> and an equal one, by the value equality of <see cref="Change{T}"/>; two default values are equal.</summary>
+    /// <param name="other">The other value.</param>
+    /// <returns><see langword="true"/> if they are equal.</returns>
+    public bool Equals(MixedChange<T1, T2, T3, T4> other) => _type == other._type && Equals(Value, other.Value);
+
+    /// <summary>Tells whether <paramref name="obj"/> is a <see cref="MixedChange{T1, T2, T3, T4}"/> equal to this one.</summary>
+    /// <param name="obj">The object.</param>
+    /// <returns><see langword="true"/> if it is an equal value.</returns>
+    public override bool Equals(object? obj) => obj is MixedChange<T1, T2, T3, T4> other && Equals(other);
+
+    /// <summary>Gets a hash code from the type of the change and the change.</summary>
+    /// <returns>The hash code.</returns>
+    public override int GetHashCode() => HashCode.Combine(_type, Value);
+
+    /// <summary>Gets the text of the change it holds, its own <c>ToString()</c>.</summary>
+    /// <returns>The text of the change, which holds its values; empty for the default value, as for a <see cref="Nullable{T}"/> without a value.</returns>
+    public override string ToString() => _type == 0 ? string.Empty : Value!.ToString()!;
 
     private static InvalidOperationException Empty() =>
         new("This MixedChange is a default value, which holds nothing. Changes of a typed read always hold one of their types.");

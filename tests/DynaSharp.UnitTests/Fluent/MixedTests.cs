@@ -404,6 +404,136 @@ public sealed class MixedTests
         await Assert.That(string.Join(" | ", diagnostics)).IsEqualTo(expected);
     }
 
+    [Test]
+    public async Task Equals_ItemOfEveryTypeOfEveryArity_IsEqualToAnEqualItemOfThatTypeOnly()
+    {
+        // Arrange
+        var cases = Cases();
+
+        // Act
+        var answers = cases.Select(static each => (each.Value.Equals(each.Copy), each.Value.Equals(each.Changed), each.Value.Equals(each.Other), each.Value.Equals(each.Empty)));
+
+        // Assert
+        await Assert.That(answers.All(static answer => answer == (true, false, false, false))).IsTrue();
+    }
+
+    [Test]
+    public async Task Equals_TwoDefaultValues_AreEqual()
+    {
+        // Arrange
+        var (two, three, four) = (default(Mixed<Alpha, Beta>), default(Mixed<Alpha, Beta, Gamma>), default(Mixed<Alpha, Beta, Gamma, Delta>));
+
+        // Act
+        var answers = (two.Equals(default(Mixed<Alpha, Beta>)), three.Equals(default(Mixed<Alpha, Beta, Gamma>)), four.Equals(default(Mixed<Alpha, Beta, Gamma, Delta>)));
+
+        // Assert
+        await Assert.That(answers).IsEqualTo((true, true, true));
+    }
+
+    [Test]
+    public async Task EqualsObject_AnotherObject_IsFalse()
+    {
+        // Arrange
+        var alpha = new Alpha { Pk = "a", Sk = "1" };
+
+        // Act
+        var answers = (new Mixed<Alpha, Beta>(alpha).Equals((object)alpha), new Mixed<Alpha, Beta, Gamma>(alpha).Equals((object?)null), new Mixed<Alpha, Beta, Gamma, Delta>(alpha).Equals("a"));
+
+        // Assert
+        await Assert.That(answers).IsEqualTo((false, false, false));
+    }
+
+    [Test]
+    public async Task Operators_EveryArity_CompareAsEquals()
+    {
+        // Arrange
+        var alpha = new Alpha { Pk = "a", Sk = "1" };
+        var copy = alpha with { };
+
+        // Act
+        var answers = (
+            new Mixed<Alpha, Beta>(alpha) == new Mixed<Alpha, Beta>(copy), new Mixed<Alpha, Beta>(alpha) != default,
+            new Mixed<Alpha, Beta, Gamma>(alpha) == new Mixed<Alpha, Beta, Gamma>(copy), new Mixed<Alpha, Beta, Gamma>(alpha) != default,
+            new Mixed<Alpha, Beta, Gamma, Delta>(alpha) == new Mixed<Alpha, Beta, Gamma, Delta>(copy), new Mixed<Alpha, Beta, Gamma, Delta>(alpha) != default);
+
+        // Assert
+        await Assert.That(answers).IsEqualTo((true, true, true, true, true, true));
+    }
+
+    [Test]
+    public async Task GetHashCode_ItemOfEveryTypeOfEveryArity_IsThatOfAnEqualValue()
+    {
+        // Arrange
+        var cases = Cases();
+
+        // Act
+        var same = cases.All(static each => each.Value.GetHashCode() == each.Copy.GetHashCode());
+
+        // Assert
+        await Assert.That(same).IsTrue();
+    }
+
+    [Test]
+    public async Task GetHashCode_DefaultValueOfEveryArity_IsZero()
+    {
+        // Arrange
+        var (two, three, four) = (default(Mixed<Alpha, Beta>), default(Mixed<Alpha, Beta, Gamma>), default(Mixed<Alpha, Beta, Gamma, Delta>));
+
+        // Act
+        var hashes = (two.GetHashCode(), three.GetHashCode(), four.GetHashCode());
+
+        // Assert
+        await Assert.That(hashes).IsEqualTo((0, 0, 0));
+    }
+
+    [Test]
+    public async Task ToString_ItemOfEveryTypeOfEveryArity_IsTheTextOfTheItem()
+    {
+        // Arrange
+        var cases = Cases();
+
+        // Act
+        var texts = cases.Select(static each => each.Value.ToString() == each.Text);
+
+        // Assert
+        await Assert.That(texts.All(static same => same)).IsTrue();
+    }
+
+    [Test]
+    public async Task ToString_DefaultValueOfEveryArity_IsEmpty()
+    {
+        // Arrange
+        var (two, three, four) = (default(Mixed<Alpha, Beta>), default(Mixed<Alpha, Beta, Gamma>), default(Mixed<Alpha, Beta, Gamma, Delta>));
+
+        // Act
+        var texts = (two.ToString(), three.ToString(), four.ToString());
+
+        // Assert
+        await Assert.That(texts).IsEqualTo((string.Empty, string.Empty, string.Empty));
+    }
+
+    // A value of each type of each arity, an equal copy, one with an item of the same type that differs, one of another type, the default value, and the text of the item.
+    private static List<(object Value, object Copy, object Changed, object Other, object Empty, string Text)> Cases()
+    {
+        var alpha = new Alpha { Pk = "a", Sk = "1" };
+        var beta = new Beta { Pk = "a", Sk = "2", Amount = 7 };
+        var gamma = new Gamma { Pk = "a", Sk = "3" };
+        var delta = new Delta { Pk = "a", Sk = "4" };
+        var (otherAlpha, otherBeta, otherGamma, otherDelta) = (alpha with { Sk = "9" }, beta with { Amount = 8 }, gamma with { Sk = "9" }, delta with { Sk = "9" });
+        return
+        [
+            (new Mixed<Alpha, Beta>(alpha), new Mixed<Alpha, Beta>(alpha with { }), new Mixed<Alpha, Beta>(otherAlpha), new Mixed<Alpha, Beta>(beta), default(Mixed<Alpha, Beta>), alpha.ToString()),
+            (new Mixed<Alpha, Beta>(beta), new Mixed<Alpha, Beta>(beta with { }), new Mixed<Alpha, Beta>(otherBeta), new Mixed<Alpha, Beta>(alpha), default(Mixed<Alpha, Beta>), beta.ToString()),
+            (new Mixed<Alpha, Beta, Gamma>(alpha), new Mixed<Alpha, Beta, Gamma>(alpha with { }), new Mixed<Alpha, Beta, Gamma>(otherAlpha), new Mixed<Alpha, Beta, Gamma>(gamma), default(Mixed<Alpha, Beta, Gamma>), alpha.ToString()),
+            (new Mixed<Alpha, Beta, Gamma>(beta), new Mixed<Alpha, Beta, Gamma>(beta with { }), new Mixed<Alpha, Beta, Gamma>(otherBeta), new Mixed<Alpha, Beta, Gamma>(alpha), default(Mixed<Alpha, Beta, Gamma>), beta.ToString()),
+            (new Mixed<Alpha, Beta, Gamma>(gamma), new Mixed<Alpha, Beta, Gamma>(gamma with { }), new Mixed<Alpha, Beta, Gamma>(otherGamma), new Mixed<Alpha, Beta, Gamma>(beta), default(Mixed<Alpha, Beta, Gamma>), gamma.ToString()),
+            (new Mixed<Alpha, Beta, Gamma, Delta>(alpha), new Mixed<Alpha, Beta, Gamma, Delta>(alpha with { }), new Mixed<Alpha, Beta, Gamma, Delta>(otherAlpha), new Mixed<Alpha, Beta, Gamma, Delta>(delta), default(Mixed<Alpha, Beta, Gamma, Delta>), alpha.ToString()),
+            (new Mixed<Alpha, Beta, Gamma, Delta>(beta), new Mixed<Alpha, Beta, Gamma, Delta>(beta with { }), new Mixed<Alpha, Beta, Gamma, Delta>(otherBeta), new Mixed<Alpha, Beta, Gamma, Delta>(gamma), default(Mixed<Alpha, Beta, Gamma, Delta>), beta.ToString()),
+            (new Mixed<Alpha, Beta, Gamma, Delta>(gamma), new Mixed<Alpha, Beta, Gamma, Delta>(gamma with { }), new Mixed<Alpha, Beta, Gamma, Delta>(otherGamma), new Mixed<Alpha, Beta, Gamma, Delta>(alpha), default(Mixed<Alpha, Beta, Gamma, Delta>), gamma.ToString()),
+            (new Mixed<Alpha, Beta, Gamma, Delta>(delta), new Mixed<Alpha, Beta, Gamma, Delta>(delta with { }), new Mixed<Alpha, Beta, Gamma, Delta>(otherDelta), new Mixed<Alpha, Beta, Gamma, Delta>(beta), default(Mixed<Alpha, Beta, Gamma, Delta>), delta.ToString()),
+        ];
+    }
+
     private static Exception? Failure(Action action)
     {
         try

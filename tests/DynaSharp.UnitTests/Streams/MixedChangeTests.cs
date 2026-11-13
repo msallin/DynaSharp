@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using DynaSharp.Mapping;
 using DynaSharp.Streams;
 using DynaSharp.UnitTests.Fluent.Mix;
 using static DynaSharp.UnitTests.Streams.TypedChanges;
@@ -12,6 +13,8 @@ public sealed class MixedChangeTests
     private static readonly Item BetaImage = Item.From(BetaValue());
     private static readonly Item GammaImage = Item.From(new Gamma { Pk = "a", Sk = "1" });
     private static readonly Item DeltaImage = Item.From(new Delta { Pk = "a", Sk = "1" });
+
+    private static readonly ChangeRecord SharedRecord = new();
 
     [Test]
     public async Task TryGetValue_TwoTypes_SaysWhichTypeTheChangeIs()
@@ -354,6 +357,125 @@ public sealed class MixedChangeTests
         // Assert
         await Assert.That(string.Join(" | ", diagnostics)).IsEqualTo(expected);
     }
+
+    [Test]
+    public async Task Equals_ChangeOfEveryTypeOfEveryArity_IsEqualToAnEqualChangeOfThatTypeOnly()
+    {
+        // Arrange
+        var cases = Cases();
+
+        // Act
+        var answers = cases.Select(static each => (each.Value.Equals(each.Copy), each.Value.Equals(each.Changed), each.Value.Equals(each.Other), each.Value.Equals(each.Empty)));
+
+        // Assert
+        await Assert.That(answers.All(static answer => answer == (true, false, false, false))).IsTrue();
+    }
+
+    [Test]
+    public async Task Equals_TwoDefaultValues_AreEqual()
+    {
+        // Arrange
+        var (two, three, four) = (default(MixedChange<Alpha, Beta>), default(MixedChange<Alpha, Beta, Gamma>), default(MixedChange<Alpha, Beta, Gamma, Delta>));
+
+        // Act
+        var answers = (two.Equals(default(MixedChange<Alpha, Beta>)), three.Equals(default(MixedChange<Alpha, Beta, Gamma>)), four.Equals(default(MixedChange<Alpha, Beta, Gamma, Delta>)));
+
+        // Assert
+        await Assert.That(answers).IsEqualTo((true, true, true));
+    }
+
+    [Test]
+    public async Task EqualsObject_AnotherObject_IsFalse()
+    {
+        // Arrange
+        var change = Insert(new Alpha { Pk = "a", Sk = "1" });
+
+        // Act
+        var answers = (new MixedChange<Alpha, Beta>(change).Equals((object)change), new MixedChange<Alpha, Beta, Gamma>(change).Equals((object?)null), new MixedChange<Alpha, Beta, Gamma, Delta>(change).Equals("a"));
+
+        // Assert
+        await Assert.That(answers).IsEqualTo((false, false, false));
+    }
+
+    [Test]
+    public async Task Operators_EveryArity_CompareAsEquals()
+    {
+        // Arrange
+        var alpha = new Alpha { Pk = "a", Sk = "1" };
+
+        // Act
+        var answers = (
+            new MixedChange<Alpha, Beta>(Insert(alpha)) == new MixedChange<Alpha, Beta>(Insert(alpha)), new MixedChange<Alpha, Beta>(Insert(alpha)) != default,
+            new MixedChange<Alpha, Beta, Gamma>(Insert(alpha)) == new MixedChange<Alpha, Beta, Gamma>(Insert(alpha)), new MixedChange<Alpha, Beta, Gamma>(Insert(alpha)) != default,
+            new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(alpha)) == new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(alpha)), new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(alpha)) != default);
+
+        // Assert
+        await Assert.That(answers).IsEqualTo((true, true, true, true, true, true));
+    }
+
+    [Test]
+    public async Task GetHashCode_ChangeOfEveryTypeOfEveryArity_IsThatOfAnEqualValue()
+    {
+        // Arrange
+        var cases = Cases();
+
+        // Act
+        var same = cases.All(static each => each.Value.GetHashCode() == each.Copy.GetHashCode());
+
+        // Assert
+        await Assert.That(same).IsTrue();
+    }
+
+    [Test]
+    public async Task ToString_ChangeOfEveryTypeOfEveryArity_IsTheTextOfTheChange()
+    {
+        // Arrange
+        var cases = Cases();
+
+        // Act
+        var texts = cases.Select(static each => each.Value.ToString() == each.Text);
+
+        // Assert
+        await Assert.That(texts.All(static same => same)).IsTrue();
+    }
+
+    [Test]
+    public async Task ToString_DefaultValueOfEveryArity_IsEmpty()
+    {
+        // Arrange
+        var (two, three, four) = (default(MixedChange<Alpha, Beta>), default(MixedChange<Alpha, Beta, Gamma>), default(MixedChange<Alpha, Beta, Gamma, Delta>));
+
+        // Act
+        var texts = (two.ToString(), three.ToString(), four.ToString());
+
+        // Assert
+        await Assert.That(texts).IsEqualTo((string.Empty, string.Empty, string.Empty));
+    }
+
+    // A value of each type of each arity, one with an equal change, one with a change of the same type that differs, one of another type, the default value, and the text of the change.
+    private static List<(object Value, object Copy, object Changed, object Other, object Empty, string Text)> Cases()
+    {
+        var alpha = new Alpha { Pk = "a", Sk = "1" };
+        var beta = new Beta { Pk = "a", Sk = "2", Amount = 7 };
+        var gamma = new Gamma { Pk = "a", Sk = "3" };
+        var delta = new Delta { Pk = "a", Sk = "4" };
+        return
+        [
+            (new MixedChange<Alpha, Beta>(Insert(alpha)), new MixedChange<Alpha, Beta>(Insert(alpha)), new MixedChange<Alpha, Beta>(Insert(alpha) with { Kind = OperationType.Remove }), new MixedChange<Alpha, Beta>(Insert(beta)), default(MixedChange<Alpha, Beta>), Insert(alpha).ToString()),
+            (new MixedChange<Alpha, Beta>(Insert(beta)), new MixedChange<Alpha, Beta>(Insert(beta)), new MixedChange<Alpha, Beta>(Insert(beta with { Amount = 8 })), new MixedChange<Alpha, Beta>(Insert(alpha)), default(MixedChange<Alpha, Beta>), Insert(beta).ToString()),
+            (new MixedChange<Alpha, Beta, Gamma>(Insert(alpha)), new MixedChange<Alpha, Beta, Gamma>(Insert(alpha)), new MixedChange<Alpha, Beta, Gamma>(Insert(alpha with { Sk = "9" })), new MixedChange<Alpha, Beta, Gamma>(Insert(gamma)), default(MixedChange<Alpha, Beta, Gamma>), Insert(alpha).ToString()),
+            (new MixedChange<Alpha, Beta, Gamma>(Insert(beta)), new MixedChange<Alpha, Beta, Gamma>(Insert(beta)), new MixedChange<Alpha, Beta, Gamma>(Insert(beta with { Amount = 8 })), new MixedChange<Alpha, Beta, Gamma>(Insert(alpha)), default(MixedChange<Alpha, Beta, Gamma>), Insert(beta).ToString()),
+            (new MixedChange<Alpha, Beta, Gamma>(Insert(gamma)), new MixedChange<Alpha, Beta, Gamma>(Insert(gamma)), new MixedChange<Alpha, Beta, Gamma>(Insert(gamma with { Sk = "9" })), new MixedChange<Alpha, Beta, Gamma>(Insert(beta)), default(MixedChange<Alpha, Beta, Gamma>), Insert(gamma).ToString()),
+            (new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(alpha)), new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(alpha)), new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(alpha with { Sk = "9" })), new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(delta)), default(MixedChange<Alpha, Beta, Gamma, Delta>), Insert(alpha).ToString()),
+            (new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(beta)), new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(beta)), new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(beta with { Amount = 8 })), new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(gamma)), default(MixedChange<Alpha, Beta, Gamma, Delta>), Insert(beta).ToString()),
+            (new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(gamma)), new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(gamma)), new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(gamma with { Sk = "9" })), new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(alpha)), default(MixedChange<Alpha, Beta, Gamma, Delta>), Insert(gamma).ToString()),
+            (new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(delta)), new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(delta)), new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(delta with { Sk = "9" })), new MixedChange<Alpha, Beta, Gamma, Delta>(Insert(beta)), default(MixedChange<Alpha, Beta, Gamma, Delta>), Insert(delta).ToString()),
+        ];
+    }
+
+    // An insert of the item, with one record for every change, so that two inserts of equal items are equal changes.
+    private static Change<T> Insert<T>(T item)
+        where T : IDynamoDbDiscriminated<T> => new() { Kind = OperationType.Insert, After = item, Record = SharedRecord };
 
     private static Exception? Failure(Action action)
     {

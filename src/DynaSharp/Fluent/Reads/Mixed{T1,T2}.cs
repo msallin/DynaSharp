@@ -34,6 +34,10 @@ namespace DynaSharp;
 /// and <c>Match</c> throws <see cref="InvalidOperationException"/>. A mixed read never gives one.
 /// </para>
 /// <para>
+/// <b>Equality and text.</b> Two values are equal when they hold items of the same type that are equal by the <c>Equals</c> of that type, which compares the values
+/// of a <c>record</c>, and two default values are equal. <c>ToString()</c> is the text of the item, and empty for the default value.
+/// </para>
+/// <para>
 /// <b>Two equal types.</b> There is one constructor per type, and the type of the argument picks it, so <c>Mixed&lt;Customer, Customer&gt;</c> makes the call ambiguous, which
 /// does not compile; a read of it could not tell the items apart either, and throws <see cref="ArgumentException"/>.
 /// </para>
@@ -44,7 +48,7 @@ namespace DynaSharp;
 /// <typeparam name="T1">The first type.</typeparam>
 /// <typeparam name="T2">The second type.</typeparam>
 [Union]
-public readonly struct Mixed<T1, T2> : IMixed<Mixed<T1, T2>>
+public readonly struct Mixed<T1, T2> : IMixed<Mixed<T1, T2>>, IEquatable<Mixed<T1, T2>>
     where T1 : IDynamoDbDiscriminated<T1>
     where T2 : IDynamoDbDiscriminated<T2>
 {
@@ -100,6 +104,18 @@ public readonly struct Mixed<T1, T2> : IMixed<Mixed<T1, T2>>
     /// <summary>Gets a value indicating whether it holds an item, which is <see langword="false"/> only for the default value.</summary>
     /// <value><see langword="true"/> if it holds an item.</value>
     public bool HasValue => _type != 0;
+
+    /// <summary>Tells whether two values hold items of the same type that are equal, or are both the default value.</summary>
+    /// <param name="left">The first value.</param>
+    /// <param name="right">The second value.</param>
+    /// <returns><see langword="true"/> if they are equal.</returns>
+    public static bool operator ==(Mixed<T1, T2> left, Mixed<T1, T2> right) => left.Equals(right);
+
+    /// <summary>Tells whether two values hold items of different types, or items that are not equal, or only one of them is the default value.</summary>
+    /// <param name="left">The first value.</param>
+    /// <param name="right">The second value.</param>
+    /// <returns><see langword="true"/> if they are not equal.</returns>
+    public static bool operator !=(Mixed<T1, T2> left, Mixed<T1, T2> right) => !left.Equals(right);
 
     static void IDynamoDbDocument<Mixed<T1, T2>>.WriteAttributes(DynamoDbWriter writer, Mixed<T1, T2> entity)
     {
@@ -180,4 +196,37 @@ public readonly struct Mixed<T1, T2> : IMixed<Mixed<T1, T2>>
                 throw MixedSchema.Empty();
         }
     }
+
+    /// <summary>Tells whether this value holds an item of the same type as <paramref name="other"/> and an equal one, by the <c>Equals</c> of the item's type, such as the value equality of a <c>record</c>; two default values are equal.</summary>
+    /// <param name="other">The other value.</param>
+    /// <returns><see langword="true"/> if they are equal.</returns>
+    public bool Equals(Mixed<T1, T2> other) => _type == other._type && _type switch
+    {
+        1 => EqualityComparer<T1>.Default.Equals(_first, other._first),
+        2 => EqualityComparer<T2>.Default.Equals(_second, other._second),
+        _ => true,
+    };
+
+    /// <summary>Tells whether <paramref name="obj"/> is a <see cref="Mixed{T1, T2}"/> equal to this one.</summary>
+    /// <param name="obj">The object.</param>
+    /// <returns><see langword="true"/> if it is an equal value.</returns>
+    public override bool Equals(object? obj) => obj is Mixed<T1, T2> other && Equals(other);
+
+    /// <summary>Gets a hash code from the type of the item and the item.</summary>
+    /// <returns>The hash code, 0 for the default value.</returns>
+    public override int GetHashCode() => _type switch
+    {
+        1 => HashCode.Combine(1, _first),
+        2 => HashCode.Combine(2, _second),
+        _ => 0,
+    };
+
+    /// <summary>Gets the text of the item it holds, its own <c>ToString()</c>.</summary>
+    /// <returns>The text of the item, which holds its values; empty for the default value, as for a <see cref="Nullable{T}"/> without a value.</returns>
+    public override string ToString() => _type switch
+    {
+        1 => _first.ToString()!,
+        2 => _second.ToString()!,
+        _ => string.Empty,
+    };
 }

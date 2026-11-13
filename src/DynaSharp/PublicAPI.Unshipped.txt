@@ -17,6 +17,7 @@
 *REMOVED*DynaSharp.Streams.MixedChange<T1, T2, T3>.Is(out DynaSharp.Streams.Change<T3>? change) -> bool
 *REMOVED*DynaSharp.Streams.MixedChange<T1, T2>.Is(out DynaSharp.Streams.Change<T1>? change) -> bool
 *REMOVED*DynaSharp.Streams.MixedChange<T1, T2>.Is(out DynaSharp.Streams.Change<T2>? change) -> bool
+DynaSharp.Mixed<T1, T2, T3, T4>.Equals(DynaSharp.Mixed<T1, T2, T3, T4> other) -> bool
 DynaSharp.Mixed<T1, T2, T3, T4>.HasValue.get -> bool
 DynaSharp.Mixed<T1, T2, T3, T4>.Mixed(T1 item) -> void
 DynaSharp.Mixed<T1, T2, T3, T4>.Mixed(T2 item) -> void
@@ -27,6 +28,7 @@ DynaSharp.Mixed<T1, T2, T3, T4>.TryGetValue(out T2 value) -> bool
 DynaSharp.Mixed<T1, T2, T3, T4>.TryGetValue(out T3 value) -> bool
 DynaSharp.Mixed<T1, T2, T3, T4>.TryGetValue(out T4 value) -> bool
 DynaSharp.Mixed<T1, T2, T3, T4>.Value.get -> object?
+DynaSharp.Mixed<T1, T2, T3>.Equals(DynaSharp.Mixed<T1, T2, T3> other) -> bool
 DynaSharp.Mixed<T1, T2, T3>.HasValue.get -> bool
 DynaSharp.Mixed<T1, T2, T3>.Mixed(T1 item) -> void
 DynaSharp.Mixed<T1, T2, T3>.Mixed(T2 item) -> void
@@ -35,24 +37,58 @@ DynaSharp.Mixed<T1, T2, T3>.TryGetValue(out T1 value) -> bool
 DynaSharp.Mixed<T1, T2, T3>.TryGetValue(out T2 value) -> bool
 DynaSharp.Mixed<T1, T2, T3>.TryGetValue(out T3 value) -> bool
 DynaSharp.Mixed<T1, T2, T3>.Value.get -> object?
+DynaSharp.Mixed<T1, T2>.Equals(DynaSharp.Mixed<T1, T2> other) -> bool
 DynaSharp.Mixed<T1, T2>.HasValue.get -> bool
 DynaSharp.Mixed<T1, T2>.Mixed(T1 item) -> void
 DynaSharp.Mixed<T1, T2>.Mixed(T2 item) -> void
 DynaSharp.Mixed<T1, T2>.TryGetValue(out T1 value) -> bool
 DynaSharp.Mixed<T1, T2>.TryGetValue(out T2 value) -> bool
 DynaSharp.Mixed<T1, T2>.Value.get -> object?
+DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.Equals(DynaSharp.Streams.MixedChange<T1, T2, T3, T4> other) -> bool
 DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.HasValue.get -> bool
 DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.TryGetValue(out DynaSharp.Streams.Change<T1>? change) -> bool
 DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.TryGetValue(out DynaSharp.Streams.Change<T2>? change) -> bool
 DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.TryGetValue(out DynaSharp.Streams.Change<T3>? change) -> bool
 DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.TryGetValue(out DynaSharp.Streams.Change<T4>? change) -> bool
 DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.Value.get -> object?
+DynaSharp.Streams.MixedChange<T1, T2, T3>.Equals(DynaSharp.Streams.MixedChange<T1, T2, T3> other) -> bool
 DynaSharp.Streams.MixedChange<T1, T2, T3>.HasValue.get -> bool
 DynaSharp.Streams.MixedChange<T1, T2, T3>.TryGetValue(out DynaSharp.Streams.Change<T1>? change) -> bool
 DynaSharp.Streams.MixedChange<T1, T2, T3>.TryGetValue(out DynaSharp.Streams.Change<T2>? change) -> bool
 DynaSharp.Streams.MixedChange<T1, T2, T3>.TryGetValue(out DynaSharp.Streams.Change<T3>? change) -> bool
 DynaSharp.Streams.MixedChange<T1, T2, T3>.Value.get -> object?
+DynaSharp.Streams.MixedChange<T1, T2>.Equals(DynaSharp.Streams.MixedChange<T1, T2> other) -> bool
 DynaSharp.Streams.MixedChange<T1, T2>.HasValue.get -> bool
 DynaSharp.Streams.MixedChange<T1, T2>.TryGetValue(out DynaSharp.Streams.Change<T1>? change) -> bool
 DynaSharp.Streams.MixedChange<T1, T2>.TryGetValue(out DynaSharp.Streams.Change<T2>? change) -> bool
 DynaSharp.Streams.MixedChange<T1, T2>.Value.get -> object?
+override DynaSharp.Mixed<T1, T2, T3, T4>.Equals(object? obj) -> bool
+override DynaSharp.Mixed<T1, T2, T3, T4>.GetHashCode() -> int
+override DynaSharp.Mixed<T1, T2, T3, T4>.ToString() -> string!
+override DynaSharp.Mixed<T1, T2, T3>.Equals(object? obj) -> bool
+override DynaSharp.Mixed<T1, T2, T3>.GetHashCode() -> int
+override DynaSharp.Mixed<T1, T2, T3>.ToString() -> string!
+override DynaSharp.Mixed<T1, T2>.Equals(object? obj) -> bool
+override DynaSharp.Mixed<T1, T2>.GetHashCode() -> int
+override DynaSharp.Mixed<T1, T2>.ToString() -> string!
+override DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.Equals(object? obj) -> bool
+override DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.GetHashCode() -> int
+override DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.ToString() -> string!
+override DynaSharp.Streams.MixedChange<T1, T2, T3>.Equals(object? obj) -> bool
+override DynaSharp.Streams.MixedChange<T1, T2, T3>.GetHashCode() -> int
+override DynaSharp.Streams.MixedChange<T1, T2, T3>.ToString() -> string!
+override DynaSharp.Streams.MixedChange<T1, T2>.Equals(object? obj) -> bool
+override DynaSharp.Streams.MixedChange<T1, T2>.GetHashCode() -> int
+override DynaSharp.Streams.MixedChange<T1, T2>.ToString() -> string!
+static DynaSharp.Mixed<T1, T2, T3, T4>.operator !=(DynaSharp.Mixed<T1, T2, T3, T4> left, DynaSharp.Mixed<T1, T2, T3, T4> right) -> bool
+static DynaSharp.Mixed<T1, T2, T3, T4>.operator ==(DynaSharp.Mixed<T1, T2, T3, T4> left, DynaSharp.Mixed<T1, T2, T3, T4> right) -> bool
+static DynaSharp.Mixed<T1, T2, T3>.operator !=(DynaSharp.Mixed<T1, T2, T3> left, DynaSharp.Mixed<T1, T2, T3> right) -> bool
+static DynaSharp.Mixed<T1, T2, T3>.operator ==(DynaSharp.Mixed<T1, T2, T3> left, DynaSharp.Mixed<T1, T2, T3> right) -> bool
+static DynaSharp.Mixed<T1, T2>.operator !=(DynaSharp.Mixed<T1, T2> left, DynaSharp.Mixed<T1, T2> right) -> bool
+static DynaSharp.Mixed<T1, T2>.operator ==(DynaSharp.Mixed<T1, T2> left, DynaSharp.Mixed<T1, T2> right) -> bool
+static DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.operator !=(DynaSharp.Streams.MixedChange<T1, T2, T3, T4> left, DynaSharp.Streams.MixedChange<T1, T2, T3, T4> right) -> bool
+static DynaSharp.Streams.MixedChange<T1, T2, T3, T4>.operator ==(DynaSharp.Streams.MixedChange<T1, T2, T3, T4> left, DynaSharp.Streams.MixedChange<T1, T2, T3, T4> right) -> bool
+static DynaSharp.Streams.MixedChange<T1, T2, T3>.operator !=(DynaSharp.Streams.MixedChange<T1, T2, T3> left, DynaSharp.Streams.MixedChange<T1, T2, T3> right) -> bool
+static DynaSharp.Streams.MixedChange<T1, T2, T3>.operator ==(DynaSharp.Streams.MixedChange<T1, T2, T3> left, DynaSharp.Streams.MixedChange<T1, T2, T3> right) -> bool
+static DynaSharp.Streams.MixedChange<T1, T2>.operator !=(DynaSharp.Streams.MixedChange<T1, T2> left, DynaSharp.Streams.MixedChange<T1, T2> right) -> bool
+static DynaSharp.Streams.MixedChange<T1, T2>.operator ==(DynaSharp.Streams.MixedChange<T1, T2> left, DynaSharp.Streams.MixedChange<T1, T2> right) -> bool

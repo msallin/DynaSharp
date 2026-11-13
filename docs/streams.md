@@ -272,7 +272,7 @@ Without type arguments, `orders.ReadChangesAsync(streams, ...)` is the reading o
 
 The types are entities with a discriminator, in one attribute, and two types with the same discriminator throw `ArgumentException` at the call, as `Of<...>()` of a query does. An item that becomes another of the types at its key gives two changes, the removal first, and both come before the next record. Changes of entities that are not named are skipped. More than four entities, or a table without a model, read the records and take them apart with `As<T>()` or with `Item`.
 
-Code that handles the changes is tested without a stream: a `Change<T>` converts to the `MixedChange` of its type, and `Change<T>` is a record that a test fills in. In C# 14 the constructor of each type does the same, `new MixedChange<Customer, Order>(change)`; the type of the argument picks it. The `default` value holds nothing and matches the `null` pattern; a reading never gives one.
+Code that handles the changes is tested without a stream: a `Change<T>` converts to the `MixedChange` of its type, and `Change<T>` is a record that a test fills in. In C# 14 the constructor of each type does the same, `new MixedChange<Customer, Order>(change)`; the type of the argument picks it. The `default` value holds nothing and matches the `null` pattern; a reading never gives one. Two values are equal when they hold equal changes of the same type, as for [`Mixed`](queries.md#unions-in-c-15), and `ToString()` is the text of the change.
 
 ```csharp
 static string Describe(MixedChange<Customer, Order> change) => change switch
