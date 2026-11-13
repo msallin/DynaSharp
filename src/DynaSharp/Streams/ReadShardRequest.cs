@@ -40,4 +40,23 @@ public sealed record ReadShardRequest
     /// Zero asks again at once. The delay must stay below the 15 minutes an iterator lives, or every wait would end with an expired iterator.
     /// </remarks>
     public TimeSpan EmptyPageDelay { get; init; } = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// Gets what is called with the id of the shard when the reading may have skipped records, or <see langword="null"/> for nothing: a shard read from
+    /// <see cref="Streams.ShardIteratorType.Latest"/> whose iterator expired before it returned a record is read from <see cref="Streams.ShardIteratorType.Latest"/> again,
+    /// and what was written while the iterator was expired is not read.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Resync on it.</b> DynamoDB Streams has no position by time, so nothing reads those records afterwards: reload what the reader keeps from the table, or read from
+    /// <see cref="Streams.ShardIteratorType.TrimHorizon"/> where repeating what is kept is cheaper. An iterator expires after 15 minutes without a call, when the caller takes that
+    /// long between two records, or when a <see cref="DynamoDbStreamsClient.ReadStreamAsync"/> outage lasts that long. No other position skips: after a record the reading goes on
+    /// after it, and a position DynamoDB trimmed throws <see cref="TrimmedDataAccessException"/>.
+    /// </para>
+    /// <para>
+    /// It is called on the task of the reader, before the new iterator is taken, so keep it short, such as setting a flag or completing a <see cref="TaskCompletionSource"/>;
+    /// an exception from it ends the reading with that exception. The client also counts it in <c>dynasharp.client.stream.gaps</c> and logs a warning (event 15), with or without it.
+    /// </para>
+    /// </remarks>
+    public Action<string>? OnGap { get; init; }
 }

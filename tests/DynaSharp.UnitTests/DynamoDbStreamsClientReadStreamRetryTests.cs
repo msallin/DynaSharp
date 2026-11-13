@@ -136,6 +136,25 @@ public sealed class DynamoDbStreamsClientReadStreamRetryTests
     }
 
     [Test]
+    public async Task ReadStreamAsync_IteratorFromLatestExpiresAfterATransientFailureBeforeAnyRecord_ReportsTheGapOfTheShard()
+    {
+        // Arrange
+        var script = new StreamScript();
+        script.Answer("list:", Description(StreamStatus.Enabled, null, Open("o")));
+        script.Answer("iterator:o", StubResponse.ShardIterator("o/0"), StubResponse.ShardIterator("o/5"));
+        script.Answer("records:o/0", ServerError(), Expired());
+        script.Answer("records:o/5", StubResponse.Records(null, Insert("o-1")));
+        using var streams = TestClient.CreateStreams(script.Handler, random: FixedRandom.Zero);
+        var gaps = new List<string>();
+
+        // Act
+        await streams.ReadStreamAsync(Latest() with { OnGap = gaps.Add }).ToListAsync();
+
+        // Assert
+        await Assert.That(string.Join(",", gaps)).IsEqualTo("o");
+    }
+
+    [Test]
     public async Task ReadStreamAsync_PositionTrimmedWhenTheIteratorIsRenewedAfterATransientFailure_ThrowsTrimmedDataAccessException()
     {
         // Arrange

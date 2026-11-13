@@ -81,7 +81,7 @@ It lists the shards with `DescribeStream`, reads them at the same time, and star
 - **The end.** The loop ends when no shard is left to read, which is when the stream was switched off and every shard has been read. While the stream is on it runs until `ct` is cancelled, also on a stream just switched on that lists no shard yet: it is listed again every `EmptyPageDelay`, but at least every second, and its first shards are read from their first record.
 - **Late children.** DynamoDB can list a child a moment after its parent ended, and the Developer Guide says that a shard can split into several, without a number. So each child starts as soon as it is listed, and the reader of the parent keeps asking with `DescribeStream`: until a first child is listed, every `EmptyPageDelay` but at least every second; after it, every five seconds for one more minute, at most twelve calls. Asking ends when the stream is no longer on, since a stream switched off opens no shards. A child listed on a later look is logged, see [Observability](observability.md#logs).
 - **The pace.** Records go through a small buffer, and a shard waits while the loop is behind: a slow loop slows every shard down, and nothing piles up in memory.
-- **A failure.** A shard that fails for a moment is read on from where it stopped, see [When a shard fails](#when-a-shard-fails). Any other exception of a shard ends the loop with that exception, and the other shards are stopped and awaited before it surfaces. Nothing is skipped without an exception, `TrimmedDataAccessException` surfaces too, see [Errors](#errors), but for an outage on a shard read from `Latest` that has handed out no record yet, see [When a shard fails](#when-a-shard-fails).
+- **A failure.** A shard that fails for a moment is read on from where it stopped, see [When a shard fails](#when-a-shard-fails). Any other exception of a shard ends the loop with that exception, and the other shards are stopped and awaited before it surfaces. Nothing is skipped without an exception, `TrimmedDataAccessException` surfaces too, see [Errors](#errors), but for a shard read from `Latest` that has handed out no record yet and whose iterator expired, which `OnGap` reports, see [When records were skipped](#when-records-were-skipped).
 - **Stopping.** Leaving the loop, or cancelling `ct`, stops every shard and waits for it, so nothing runs on.
 - **Telemetry.** Each shard is a span of its own under the span of the loop, with the calls of the shard under it and a link to its parent shard, and two metrics count the shards being read and the records handed out, see [Observability](observability.md#reading-a-stream).
 - **Images.** An image is an `Item`. `change.Record.As<Order>()` reads the images of an order as a `Change<Order>`, and is null for another entity, see [Typed changes](#typed-changes). For a table without a model, [`Is<T>()`](without-a-model.md#item) and `To<T>()` take one image apart, and the getters of `Item` read it.
@@ -107,13 +107,13 @@ await foreach (var change in orders.ReadStreamAsync(streams, ShardIteratorType.L
 - **No stream.** A table whose stream is off, or that never had one, throws `InvalidOperationException` when the loop starts, with the name of the table.
 - **The view.** It is not checked: under `KeysOnly` a record has no image. `DescribeTableAsync()` of the table tells the view, in `StreamSpecification.StreamViewType`. [`ReadChangesAsync`](#typed-changes), the typed reading, checks it.
 - **The clients.** The table describes itself through its own client, so the two clients go to the same account and region, as [the options of one client make the other](#creating-the-client). The reading takes `dynamodb:DescribeTable` besides the permissions of the stream.
-- **The rest.** `emptyPageDelay` and `onJoined` are those of `ReadStreamRequest`, and everything else is as above.
+- **The rest.** `emptyPageDelay`, `onJoined` and `onGap` are those of `ReadStreamRequest`, and everything else is as above.
 
 ### When a shard fails
 
 A shard can fail for a moment: DynamoDB throttles it or answers a server error, the connection drops, an attempt times out. The client repeats such a call as it repeats any call, see [Errors and retries](errors.md#retries), and when its last attempt fails too, `ReadStreamAsync` does not end the loop. The reader of the shard waits and asks again from where it stopped, while every other shard reads on:
 
-- **The position.** A page that failed is asked for again with the same iterator, which returns the same records, and a new iterator, when the old one expired in the meantime, starts after the last record the shard handed out, or at the start of the shard when it has handed out none. So no record comes twice and none is skipped, but for one case: a shard read from `Latest` that has handed out no record yet starts at `Latest` again, because DynamoDB Streams has no position by time, and what was written while its iterator was expired is skipped. It takes an outage of about the life of an iterator on such a shard, which is idle or new. Where that matters, read from `TrimHorizon`, which repeats what is still kept, or resume a shard from the sequence number of its last record, see [Resuming one shard](#resuming-one-shard). A position that DynamoDB has trimmed in the meantime throws `TrimmedDataAccessException`, as it does at any other time.
+- **The position.** A page that failed is asked for again with the same iterator, which returns the same records, and a new iterator, when the old one expired in the meantime, starts after the last record the shard handed out, or at the start of the shard when it has handed out none. So no record comes twice and none is skipped, but for one case: a shard read from `Latest` that has handed out no record yet starts at `Latest` again, because DynamoDB Streams has no position by time, and what was written while its iterator was expired is skipped. It takes an outage of about the life of an iterator on such a shard, which is idle or new, and `OnGap` says so, see [When records were skipped](#when-records-were-skipped). A position that DynamoDB has trimmed in the meantime throws `TrimmedDataAccessException`, as it does at any other time.
 - **What counts.** What [`IsTransient`](errors.md#what-throws) says is transient, and a network failure or a timeout of an attempt. The first look for the shards of the stream is not repeated: nothing has been read then, and a setup that does not work, such as a wrong endpoint, shows at once.
 - **The wait.** From a second up, doubling, to half a minute between two tries, at random within each, on the `TimeProvider` of the client.
 - **How long.** Fifteen minutes from the failure that started it, the life of an iterator. Within them the reader resumes exactly while the iterator of the shard lives, and after the last record handed out once it expired; on a shard read from `Latest` that has handed out nothing yet an expired iterator skips, see the position above. A failure that outlasts them surfaces, and ends the loop as any other. A page that the shard returns in between starts the count again.
@@ -121,6 +121,28 @@ A shard can fail for a moment: DynamoDB throttles it or answers a server error, 
 - **Telemetry.** A warning when a shard starts to fail, once, and an information when it reads again, a counter of the retries, and the count of them on the span of the shard, see [Observability](observability.md#logs).
 
 This takes no setting. A loop that wants every failure at once reads its shards with `ReadShardAsync`, which repeats nothing beyond the attempts of the client.
+
+### When records were skipped
+
+A shard read from `Latest` whose iterator expired before it handed out a record is read from `Latest` again, since DynamoDB Streams has no position by time, and what was written while the iterator was expired is not read. An iterator expires 15 minutes after its last use: in an outage of the shard, see above, or when the loop takes that long between two records. The shard is idle or new then, so often nothing was written; the reading cannot tell. `OnGap` is the signal to resync: it gets the id of the shard, and a view that loaded the table at the start loads it again.
+
+```csharp
+var resync = 0;
+await foreach (var change in orders.ReadChangesAsync(streams, ShardIteratorType.Latest, onGap: _ => Interlocked.Exchange(ref resync, 1), cancellationToken: ct))
+{
+    if (Interlocked.Exchange(ref resync, 0) == 1)
+    {
+        Console.WriteLine("Changes may have been skipped: reloading the view from the table.");
+    }
+
+    Console.WriteLine($"{change.Kind} #{(change.After ?? change.Before)!.Number}");
+}
+```
+
+- **When it is called.** Only for a shard read from `Latest` that has handed out nothing yet, before its new iterator is taken. A shard that handed out a record goes on after the last one; a shard read from `TrimHorizon`, and every child, starts at a sequence number. Every other loss throws `TrimmedDataAccessException`, see [Errors](#errors).
+- **Where it runs.** On the task of the shard, and several shards can call it at once, so keep it short and thread-safe, as the flag above is. An exception from it ends the loop.
+- **Without it.** The client counts every such gap in `dynasharp.client.stream.gaps` and logs a warning, event 15, see [Observability](observability.md#logs), with or without the callback.
+- **Avoiding it.** `TrimHorizon` repeats what is kept instead, and [Resuming one shard](#resuming-one-shard) goes on from a stored sequence number. `ReadShardRequest.OnGap` reports the same for `ReadShardAsync`.
 
 ### Waiting until the reading holds its position
 
@@ -235,7 +257,7 @@ await foreach (Change<Order> change in shop.Of<Order>().ReadChangesAsync(streams
 ```
 
 - **The view.** The reading needs `NewAndOldImages`, and checks it in the `DescribeTable` it starts with: another view throws `InvalidOperationException` with the name of the table and the view. Under `NewImage` a removal has no image to tell its type by, so a reader of orders would miss every deleted order without a word; under `OldImage` it would miss every new one. A table with another view reads its records with `ReadStreamAsync` and types them with `As<T>()`, knowing what the table above leaves out, or turns the stream off and on again with `NewAndOldImages`, which starts a new stream.
-- **The rest.** The start, `emptyPageDelay`, `onJoined`, the stream that is read and every rule of the reading are those of `ReadStreamAsync`. An item whose type changed gives the removal of the old type, if it is the entity of the table, or the insert of the new one.
+- **The rest.** The start, `emptyPageDelay`, `onJoined`, `onGap`, the stream that is read and every rule of the reading are those of `ReadStreamAsync`. An item whose type changed gives the removal of the old type, if it is the entity of the table, or the insert of the new one.
 
 ### Several entities
 

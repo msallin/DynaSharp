@@ -275,6 +275,14 @@ internal sealed class DynamoDbPipeline : IDisposable
     /// <param name="retries">How many times the shard was tried again.</param>
     public void LogShardRecovered(string shardId, TimeSpan elapsed, int retries) => ClientLog.ShardRecovered(_logger, shardId, elapsed, retries);
 
+    /// <summary>Counts and logs that a shard read from <c>Latest</c> whose iterator expired before it handed out a record is read from <c>Latest</c> again, which skips what was written in between.</summary>
+    /// <param name="shardId">The shard.</param>
+    public void ReportStreamGap(string shardId)
+    {
+        Telemetry.CountStreamGap();
+        ClientLog.StreamGap(_logger, shardId);
+    }
+
     /// <summary>Reports that a conflict retry gave up, the one event of a conflict retry that no single call sees.</summary>
     /// <param name="conflict">The failure of the last run.</param>
     /// <param name="runs">How many runs there were.</param>

@@ -221,6 +221,87 @@ public sealed class DynamoDbStreamsClientReadShardTests
     }
 
     [Test]
+    public async Task ReadShardAsync_LatestIteratorExpiresBeforeAnyRecord_ReportsTheGapWithTheShard()
+    {
+        // Arrange
+        using var stub = new StubHandler();
+        using var streams = TestClient.CreateStreams(stub);
+        stub.Enqueue(StubResponse.ShardIterator("it-1"));
+        stub.Enqueue(StubResponse.Records("it-2"));
+        stub.Enqueue(Expired());
+        stub.Enqueue(StubResponse.ShardIterator("it-3"));
+        stub.Enqueue(StubResponse.Records(null));
+        var gaps = new List<string>();
+        var request = FromTrimHorizon() with { ShardIteratorType = ShardIteratorType.Latest, EmptyPageDelay = TimeSpan.Zero, OnGap = gaps.Add };
+
+        // Act
+        await streams.ReadShardAsync(request).ToListAsync();
+
+        // Assert
+        await Assert.That((string.Join(",", gaps), Position(stub.Requests[3]).Type)).IsEqualTo((ShardId, "LATEST"));
+    }
+
+    [Test]
+    public async Task ReadShardAsync_LatestIteratorExpiresAfterARecord_ReportsNoGap()
+    {
+        // Arrange
+        using var stub = new StubHandler();
+        using var streams = TestClient.CreateStreams(stub);
+        stub.Enqueue(StubResponse.ShardIterator("it-1"));
+        stub.Enqueue(StubResponse.Records("it-2", Insert("6")));
+        stub.Enqueue(Expired());
+        stub.Enqueue(StubResponse.ShardIterator("it-3"));
+        stub.Enqueue(StubResponse.Records(null));
+        var gaps = 0;
+        var request = FromTrimHorizon() with { ShardIteratorType = ShardIteratorType.Latest, OnGap = _ => gaps++ };
+
+        // Act
+        await streams.ReadShardAsync(request).ToListAsync();
+
+        // Assert
+        await Assert.That(gaps).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ReadShardAsync_TrimHorizonIteratorExpiresBeforeAnyRecord_ReportsNoGap()
+    {
+        // Arrange (the shard starts at its oldest record again, which repeats nothing and skips nothing)
+        using var stub = new StubHandler();
+        using var streams = TestClient.CreateStreams(stub);
+        stub.Enqueue(StubResponse.ShardIterator("it-1"));
+        stub.Enqueue(StubResponse.Records("it-2"));
+        stub.Enqueue(Expired());
+        stub.Enqueue(StubResponse.ShardIterator("it-3"));
+        stub.Enqueue(StubResponse.Records(null));
+        var gaps = 0;
+        var request = FromTrimHorizon() with { EmptyPageDelay = TimeSpan.Zero, OnGap = _ => gaps++ };
+
+        // Act
+        await streams.ReadShardAsync(request).ToListAsync();
+
+        // Assert
+        await Assert.That(gaps).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ReadShardAsync_GapCallbackThrows_EndsTheReadingWithThatException()
+    {
+        // Arrange
+        using var stub = new StubHandler();
+        using var streams = TestClient.CreateStreams(stub);
+        stub.Enqueue(StubResponse.ShardIterator("it-1"));
+        stub.Enqueue(StubResponse.Records("it-2"));
+        stub.Enqueue(Expired());
+        var request = FromTrimHorizon() with { ShardIteratorType = ShardIteratorType.Latest, EmptyPageDelay = TimeSpan.Zero, OnGap = static _ => throw new InvalidOperationException("Resync failed.") };
+
+        // Act
+        var failure = await TestClient.CaptureAsync<InvalidOperationException>(async () => await streams.ReadShardAsync(request).ToListAsync());
+
+        // Assert
+        await Assert.That((failure.Message, stub.Requests.Count)).IsEqualTo(("Resync failed.", 3));
+    }
+
+    [Test]
     public async Task ReadShardAsync_RecordsWithoutSequenceNumber_DoNotMoveThePosition()
     {
         // Arrange: the second record has no dynamodb member, the third one no SequenceNumber

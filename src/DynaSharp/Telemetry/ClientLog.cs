@@ -50,4 +50,7 @@ internal static partial class ClientLog
 
     [LoggerMessage(EventId = 14, EventName = "TableDrift", Level = LogLevel.Warning, Message = "DynamoDB table {Table} does not match what CreateTable() declares ({Count} in CreateTableResult.Drift), and is left as it is: {Drift}")]
     public static partial void DriftFound(ILogger logger, string table, int count, string drift);
+
+    [LoggerMessage(EventId = 15, EventName = "StreamGap", Level = LogLevel.Warning, Message = "DynamoDB Streams shard {ShardId} was read from Latest, and its iterator expired before it handed out a record, so it is read from Latest again: what was written in between is skipped.")]
+    public static partial void StreamGap(ILogger logger, string shardId);
 }

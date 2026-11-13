@@ -16,6 +16,7 @@ public static class TableStreamExtensions
     /// <param name="shardIteratorType">Where reading starts, see <see cref="ReadStreamRequest.ShardIteratorType"/>.</param>
     /// <param name="emptyPageDelay">The wait after an empty page, see <see cref="ReadStreamRequest.EmptyPageDelay"/>, or <see langword="null"/> for its default of one second.</param>
     /// <param name="onJoined">What is called once the reading holds a position in every shard it starts with, see <see cref="ReadStreamRequest.OnJoined"/>, or <see langword="null"/>.</param>
+    /// <param name="onGap">What is called with the id of a shard when the reading may have skipped records of it, so the caller can reload what it keeps, see <see cref="ReadStreamRequest.OnGap"/>, or <see langword="null"/>.</param>
     /// <param name="cancellationToken">Cancels the reading. A token given to <c>WithCancellation</c> works too.</param>
     /// <returns>The records of all shards, as <see cref="DynamoDbStreamsClient.ReadStreamAsync"/> returns them.</returns>
     /// <remarks>
@@ -48,12 +49,13 @@ public static class TableStreamExtensions
         ShardIteratorType shardIteratorType,
         TimeSpan? emptyPageDelay = null,
         Action? onJoined = null,
+        Action<string>? onGap = null,
         CancellationToken cancellationToken = default)
         where T : IDynamoDbDocument<T>
     {
         ArgumentNullException.ThrowIfNull(table);
         ArgumentNullException.ThrowIfNull(streams);
-        return ReadAsync(table, streams, Check(shardIteratorType, emptyPageDelay, onJoined), typed: false, cancellationToken);
+        return ReadAsync(table, streams, Check(shardIteratorType, emptyPageDelay, onJoined, onGap), typed: false, cancellationToken);
     }
 
     /// <summary>
@@ -71,6 +73,7 @@ public static class TableStreamExtensions
     /// <c>dynasharp.client.operation.skipped_items</c>. <see langword="null"/>, the default, ends the read with the <see cref="DynamoDbMappingException"/> instead. Log
     /// <see cref="ShardChangeRecord.ShardId"/>, <see cref="ShardChangeRecord.SequenceNumber"/> and <see cref="ChangeRecord.EventName"/>, not the record: it holds the values of the item.
     /// </param>
+    /// <param name="onGap">What is called with the id of a shard when the reading may have skipped records of it, so the caller can reload what it keeps, see <see cref="ReadStreamRequest.OnGap"/>, or <see langword="null"/>.</param>
     /// <param name="cancellationToken">Cancels the reading. A token given to <c>WithCancellation</c> works too.</param>
     /// <returns>The changes of the entity, in the order <see cref="DynamoDbStreamsClient.ReadStreamAsync"/> returns their records.</returns>
     /// <remarks>
@@ -106,9 +109,10 @@ public static class TableStreamExtensions
         TimeSpan? emptyPageDelay = null,
         Action? onJoined = null,
         Action<DynamoDbMappingException, ShardChangeRecord>? onMappingFailure = null,
+        Action<string>? onGap = null,
         CancellationToken cancellationToken = default)
         where T : IDynamoDbEntity<T> =>
-        StartChanges<T, SingleChange<T>, Change<T>>(table, streams, shardIteratorType, emptyPageDelay, onJoined, onMappingFailure, cancellationToken);
+        StartChanges<T, SingleChange<T>, Change<T>>(table, streams, shardIteratorType, emptyPageDelay, onJoined, onMappingFailure, onGap, cancellationToken);
 
     internal static IAsyncEnumerable<TOut> StartChanges<TTable, TTypes, TOut>(
         Table<TTable> table,
@@ -117,13 +121,14 @@ public static class TableStreamExtensions
         TimeSpan? emptyPageDelay,
         Action? onJoined,
         Action<DynamoDbMappingException, ShardChangeRecord>? onMappingFailure,
+        Action<string>? onGap,
         CancellationToken cancellationToken)
         where TTable : IDynamoDbDocument<TTable>
         where TTypes : IChangeTypes<TOut>
     {
         ArgumentNullException.ThrowIfNull(table);
         ArgumentNullException.ThrowIfNull(streams);
-        var request = Check(shardIteratorType, emptyPageDelay, onJoined);
+        var request = Check(shardIteratorType, emptyPageDelay, onJoined, onGap);
 
         // A skipped change counts once the callback has had it, as a skipped item of a query does. One delegate per call, none per record.
         Action<DynamoDbMappingException, ShardChangeRecord>? skip = null;
@@ -169,10 +174,10 @@ public static class TableStreamExtensions
         }
     }
 
-    private static ReadStreamRequest Check(ShardIteratorType shardIteratorType, TimeSpan? emptyPageDelay, Action? onJoined)
+    private static ReadStreamRequest Check(ShardIteratorType shardIteratorType, TimeSpan? emptyPageDelay, Action? onJoined, Action<string>? onGap)
     {
         // The ARN comes with the first record; the rest is checked now, as the client checks a request.
-        var request = new ReadStreamRequest { StreamArn = string.Empty, ShardIteratorType = shardIteratorType, OnJoined = onJoined };
+        var request = new ReadStreamRequest { StreamArn = string.Empty, ShardIteratorType = shardIteratorType, OnJoined = onJoined, OnGap = onGap };
         if (emptyPageDelay is { } delay)
         {
             request = request with { EmptyPageDelay = delay };

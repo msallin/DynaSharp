@@ -299,7 +299,7 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// Nothing is requested until the first record is asked for. An iterator lives 15 minutes, and a caller that takes longer between two
     /// records holds an expired one when the next page is due. The reader then takes a new iterator after the sequence number of the last
     /// record it returned, so nothing is skipped and nothing repeats. Before the first record it takes one at the position of the request
-    /// again, which for <see cref="ShardIteratorType.Latest"/> skips what was written in between. An iterator that is expired the moment it was
+    /// again, which for <see cref="ShardIteratorType.Latest"/> skips what was written in between and calls <see cref="ReadShardRequest.OnGap"/>. An iterator that is expired the moment it was
     /// taken is not renewed again: the <see cref="ExpiredIteratorException"/> surfaces.
     /// </para>
     /// <para>
@@ -417,15 +417,15 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// <see cref="DynamoDbClientOptions.TimeProvider"/>, and sends the call again: a page with the same iterator, which returns the same records, and a look for children
     /// again. An iterator that expired in the meantime is renewed after the last record the shard handed out, so nothing repeats and nothing is skipped, or at the start
     /// position of the shard when it has handed out none. For a shard read from <see cref="ShardIteratorType.Latest"/> that is <see cref="ShardIteratorType.Latest"/>
-    /// again, which skips what was written while the iterator was expired, since DynamoDB Streams has no position by time: read from
-    /// <see cref="ShardIteratorType.TrimHorizon"/>, or resume a shard after a stored sequence number with <see cref="ReadShardAsync"/>, where that matters. A position
+    /// again, which skips what was written while the iterator was expired, since DynamoDB Streams has no position by time, and calls <see cref="ReadStreamRequest.OnGap"/>
+    /// so the caller can reload what it keeps; or read from <see cref="ShardIteratorType.TrimHorizon"/>, or resume a shard after a stored sequence number with <see cref="ReadShardAsync"/>, where that matters. A position
     /// trimmed in the meantime throws <see cref="TrimmedDataAccessException"/>. The reader tries for
     /// 15 minutes from the failure that started the outage, the life of an iterator; a page or a look that succeeds ends the
     /// outage. The first listing of the shards is not tried again: nothing has been read then, and a setup that does not work shows at once.
     /// </para>
     /// <para>
     /// Any other failure, and one that outlasts the 15 minutes, ends the sequence with that exception: the other readers are stopped and awaited, and the records
-    /// still in the buffer are dropped. Apart from that case, nothing is skipped: a position older than the 24 hours that records are kept throws <see cref="TrimmedDataAccessException"/>, and so does a
+    /// still in the buffer are dropped. Apart from that case, which <see cref="ReadStreamRequest.OnGap"/> reports, also when the iterator expired because the caller was behind, nothing is skipped: a position older than the 24 hours that records are kept throws <see cref="TrimmedDataAccessException"/>, and so does a
     /// closed shard that DynamoDB removed, 24 hours after it closed, before it was read, whose records are lost. Disposing the enumerator or cancelling stops
     /// every reader and waits for it, also one that waits to try again, so none outlives the enumeration. <see cref="ReadStreamRequest.OnJoined"/> says when every
     /// shard read from the start holds its position.
@@ -435,7 +435,8 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// <c>DynamoDB Streams.ReadStream</c>, under the span that was current when the enumeration started, with the calls of the shard under it and a link to the
     /// span of its parent shard. It ends when the looks for the children of the shard end, and a shard that DynamoDB keeps open for hours makes a span of hours.
     /// The metric <c>dynasharp.client.stream.shards</c> counts the shards being read, <c>dynasharp.client.stream.records</c> the records handed out, and
-    /// <c>dynasharp.client.stream.retries</c> the retries of a shard, which its span counts in <c>dynasharp.stream.retry_count</c>. A shard
+    /// <c>dynasharp.client.stream.retries</c> the retries of a shard, which its span counts in <c>dynasharp.stream.retry_count</c>, and <c>dynasharp.client.stream.gaps</c> each gap of
+    /// <see cref="ReadStreamRequest.OnGap"/>, which also logs a warning. A shard
     /// read to its end logs its children at the debug level, and so does a child listed only on a later look. A shard that starts to fail transiently logs a
     /// warning, once, and an information when it reads again.
     /// Neither names a key, an image or the ARN of the stream.
@@ -571,6 +572,13 @@ public sealed class DynamoDbStreamsClient : IDisposable
             var page = await PageAsync(iterator, request.Limit, renewable: !fresh, run, cancellationToken).ConfigureAwait(false);
             if (page is null)
             {
+                if (last is null && request.ShardIteratorType == ShardIteratorType.Latest)
+                {
+                    // Latest again is the only position left, since DynamoDB Streams has no position by time, and it passes over what was written while the iterator was expired.
+                    _core.ReportStreamGap(request.ShardId);
+                    request.OnGap?.Invoke(request.ShardId);
+                }
+
                 iterator = await IteratorAsync(request, last, run, cancellationToken).ConfigureAwait(false);
                 fresh = true;
                 continue;

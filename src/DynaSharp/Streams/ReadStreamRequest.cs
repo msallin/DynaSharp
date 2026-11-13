@@ -53,4 +53,22 @@ public sealed record ReadStreamRequest
     /// </para>
     /// </remarks>
     public Action? OnJoined { get; init; }
+
+    /// <summary>
+    /// Gets what is called with the id of a shard when the reading may have skipped records of it, or <see langword="null"/> for nothing: a shard read from
+    /// <see cref="ShardIteratorType.Latest"/> that has handed out no record yet and whose iterator expired, in an outage or while the caller was behind, is read from
+    /// <see cref="ShardIteratorType.Latest"/> again, and what was written in between is not read.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Resync on it.</b> Nothing reads those records afterwards, so a view that follows the table reloads it, as at the start after <see cref="OnJoined"/>, or schedules a reload.
+    /// With <see cref="ShardIteratorType.TrimHorizon"/> it is never called: every shard starts at a sequence number then, and the reading goes on after the last record. Every other
+    /// loss throws <see cref="TrimmedDataAccessException"/>, see <see cref="DynamoDbStreamsClient.ReadStreamAsync"/>.
+    /// </para>
+    /// <para>
+    /// It is called on the task of the reader of that shard, as <see cref="ReadShardRequest.OnGap"/> is, and several shards can call it at the same time, so keep it short and thread-safe,
+    /// such as setting a flag; an exception from it ends the reading with that exception. The client also counts it in <c>dynasharp.client.stream.gaps</c> and logs a warning (event 15).
+    /// </para>
+    /// </remarks>
+    public Action<string>? OnGap { get; init; }
 }

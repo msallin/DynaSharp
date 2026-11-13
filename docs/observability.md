@@ -81,6 +81,7 @@ Each request is one span of kind `Client`, named after service and operation: `D
 | `dynasharp.client.stream.shards` | UpDownCounter | `{shard}` | The shards `ReadStreamAsync` is reading, up when one starts and down when it ends |
 | `dynasharp.client.stream.records` | Counter | `{record}` | Each record `ReadStreamAsync` handed out |
 | `dynasharp.client.stream.retries` | Counter | `{retry}` | Each time `ReadStreamAsync` read a shard again after a transient failure, see [Streams](streams.md#when-a-shard-fails) |
+| `dynasharp.client.stream.gaps` | Counter | `{gap}` | Each time a shard read from `Latest` was read from `Latest` again after its iterator expired before it handed out a record, which skips what was written in between, see [Streams](streams.md#when-records-were-skipped) |
 | `dynasharp.client.consumed_capacity` | Counter | `{capacity_unit}` | Capacity units DynamoDB reported, per table, indexes included. Only requests that ask, with `.ReturnCapacity()` or `ReturnConsumedCapacity`, have any |
 
 | Tag | On |
@@ -96,7 +97,7 @@ The conflict counters carry the operation that met the conflict, such as `PutIte
 
 ## Logs
 
-The client logs only what no single caller sees: its configuration, retries that ran out, a corrected clock, failed credential refreshes, an endpoint over plain http, the shards of a stream as they end or fail for a while, and a table that `CreateTable().IfNotExists()` found to differ from what the code declares, which the program that meets it is often not the one to fix. A failed request reaches its caller as an exception, and is logged only when it says something about the client, such as an empty retry quota. Event ids are stable; categories are the types:
+The client logs only what no single caller sees: its configuration, retries that ran out, a corrected clock, failed credential refreshes, an endpoint over plain http, the shards of a stream as they end, fail for a while or skip records, and a table that `CreateTable().IfNotExists()` found to differ from what the code declares, which the program that meets it is often not the one to fix. A failed request reaches its caller as an exception, and is logged only when it says something about the client, such as an empty retry quota. Event ids are stable; categories are the types:
 
 - `DynaSharp.DynamoDbClient`
 - `DynaSharp.Streams.DynamoDbStreamsClient`
@@ -118,6 +119,7 @@ The client logs only what no single caller sees: its configuration, retries that
 | 12 | Warning | `ReadStreamAsync` reads a shard again after a transient failure, once at the start of each outage of the shard | `DynamoDB Streams shard {ShardId} failed with {ErrorType} on the last attempt of a call. ReadStreamAsync reads it on from where it stopped, with a backoff, for up to {Window}, ...` |
 | 13 | Information | The shard works again after such an outage | `DynamoDB Streams shard {ShardId} is read again, {Elapsed} after it failed and after {Retries} retries.` |
 | 14 | Warning | `CreateTable().IfNotExists()` found a table that differs from what the command declares, once per command, unless `FailOnDrift()` throws it instead, see [A table that exists](tables.md#a-table-that-exists) | `DynamoDB table {Table} does not match what CreateTable() declares ({Count} in CreateTableResult.Drift), and is left as it is: {Drift}`, the descriptions of the drift |
+| 15 | Warning | A shard read from `Latest` skipped what was written while its iterator was expired, see [Streams](streams.md#when-records-were-skipped) | `DynamoDB Streams shard {ShardId} was read from Latest, and its iterator expired before it handed out a record, so it is read from Latest again: what was written in between is skipped.` |
 | 20 | Debug | The default chain chose a source | `Credentials come from the {Source}.` |
 | 21 | Warning | A refresh failed while the credentials are still good | `Refreshing the credentials from the {Source} failed in the advisory refresh period: {Reason}. ...`, with the exception |
 | 22 | Warning | A refresh failed and requests fail until one succeeds | `Refreshing the credentials from the {Source} failed in the mandatory refresh period: {Reason}. ...`, with the exception |

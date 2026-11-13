@@ -324,6 +324,14 @@ internal sealed class OperationTelemetry
         DynaSharpTelemetry.StreamRetries.Add(1, tags);
     }
 
+    /// <summary>Counts a gap of a shard read from <c>Latest</c>, under the server of the client.</summary>
+    public void CountStreamGap()
+    {
+        var tags = default(TagList);
+        AddServer(ref tags);
+        DynaSharpTelemetry.StreamGaps.Add(1, tags);
+    }
+
     // Once per shard and not per record, so a check of Enabled would save nothing worth its branch.
     private void AddShard(int delta)
     {

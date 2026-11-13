@@ -314,6 +314,7 @@ internal sealed class StreamMerge
                 ShardIteratorType = position,
                 SequenceNumber = sequenceNumber,
                 EmptyPageDelay = _request.EmptyPageDelay,
+                OnGap = _request.OnGap,
             };
             try
             {

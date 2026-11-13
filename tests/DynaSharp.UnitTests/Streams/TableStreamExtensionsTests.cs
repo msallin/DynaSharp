@@ -141,6 +141,35 @@ public sealed class TableStreamExtensionsTests
     }
 
     [Test]
+    public async Task ReadStreamAsync_IteratorFromLatestExpiresBeforeAnyRecord_ReportsTheGapAndReadsOnFromLatest()
+    {
+        // Arrange: the reader idles on an empty shard, and the clock jumps past the life of the iterator before the next page. No write comes in between,
+        // because the fake ends the wait of an idle reader at a write, which would read it before the clock moves.
+        var time = new ManualTimeProvider(Start);
+        var fake = FakeStreams.UsersOn(time);
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+        var joined = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var gap = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reading = client.Table("Users", "pk")
+            .ReadStreamAsync(streams, ShardIteratorType.Latest, onJoined: () => joined.TrySetResult(), onGap: shard => gap.TrySetResult(shard))
+            .Take(1)
+            .ToListAsync()
+            .AsTask();
+        await joined.Task;
+        await UntilAsync(() => time.NextDueIn is not null);
+        time.Advance(TimeSpan.FromMinutes(16));
+
+        // Act
+        await AdvanceUntilAsync(time, gap.Task);
+        FakeStreams.Put(fake, "after", 1);
+        await AdvanceUntilAsync(time, reading);
+
+        // Assert
+        await Assert.That(((await gap.Task).Length > 0, (await reading).Single().Record.DynamoDb!.Keys!["pk"].AsString())).IsEqualTo((true, "after"));
+    }
+
+    [Test]
     public async Task ReadStreamAsync_EmptyPageDelay_IsWaitedAfterAnEmptyPage()
     {
         // Arrange
@@ -668,6 +697,35 @@ public sealed class TableStreamExtensionsTests
     }
 
     // Pins at compile time which reading a call binds to.
+    // Moves the clock through the waits that are due until the task completes, and fails the test after ten seconds of real time instead of spinning.
+    private static async Task AdvanceUntilAsync(ManualTimeProvider time, Task done)
+    {
+        await UntilAsync(() =>
+        {
+            if (time.NextDueIn is { } dueIn)
+            {
+                time.Advance(dueIn);
+            }
+
+            return done.IsCompleted;
+        });
+        await done;
+    }
+
+    private static async Task UntilAsync(Func<bool> condition)
+    {
+        var started = TimeProvider.System.GetTimestamp();
+        while (!condition())
+        {
+            if (TimeProvider.System.GetElapsedTime(started) > TimeSpan.FromSeconds(10))
+            {
+                throw new TimeoutException("The condition did not hold within ten seconds.");
+            }
+
+            await Task.Yield();
+        }
+    }
+
     private static IAsyncEnumerable<TChange> Typed<TChange>(IAsyncEnumerable<TChange> changes) => changes;
 
     private static ArgumentException? Thrown(Action act)

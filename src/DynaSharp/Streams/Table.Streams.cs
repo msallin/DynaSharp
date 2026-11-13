@@ -28,6 +28,7 @@ public sealed partial class Table<T>
     /// <c>dynasharp.client.operation.skipped_items</c>. <see langword="null"/>, the default, ends the read with the <see cref="DynamoDbMappingException"/> instead. Log
     /// <see cref="ShardChangeRecord.ShardId"/>, <see cref="ShardChangeRecord.SequenceNumber"/> and <see cref="ChangeRecord.EventName"/>, not the record: it holds the values of the item.
     /// </param>
+    /// <param name="onGap">What is called with the id of a shard when the reading may have skipped records of it, so the caller can reload what it keeps, see <see cref="ReadStreamRequest.OnGap"/>, or <see langword="null"/>.</param>
     /// <param name="cancellationToken">Cancels the reading. A token given to <c>WithCancellation</c> works too.</param>
     /// <returns>The changes of the entities, in the order <see cref="DynamoDbStreamsClient.ReadStreamAsync"/> returns their records.</returns>
     /// <inheritdoc cref="TableStreamExtensions.ReadChangesAsync{T}" path="/remarks"/>
@@ -52,12 +53,13 @@ public sealed partial class Table<T>
         TimeSpan? emptyPageDelay = null,
         Action? onJoined = null,
         Action<DynamoDbMappingException, ShardChangeRecord>? onMappingFailure = null,
+        Action<string>? onGap = null,
         CancellationToken cancellationToken = default)
         where T1 : IDynamoDbDiscriminated<T1>
         where T2 : IDynamoDbDiscriminated<T2>
     {
         Mixed<T1, T2>.Schema.Check();
-        return TableStreamExtensions.StartChanges<T, MixedChange<T1, T2>, MixedChange<T1, T2>>(this, streams, shardIteratorType, emptyPageDelay, onJoined, onMappingFailure, cancellationToken);
+        return TableStreamExtensions.StartChanges<T, MixedChange<T1, T2>, MixedChange<T1, T2>>(this, streams, shardIteratorType, emptyPageDelay, onJoined, onMappingFailure, onGap, cancellationToken);
     }
 
     /// <summary>
@@ -76,6 +78,7 @@ public sealed partial class Table<T>
     /// <c>dynasharp.client.operation.skipped_items</c>. <see langword="null"/>, the default, ends the read with the <see cref="DynamoDbMappingException"/> instead. Log
     /// <see cref="ShardChangeRecord.ShardId"/>, <see cref="ShardChangeRecord.SequenceNumber"/> and <see cref="ChangeRecord.EventName"/>, not the record: it holds the values of the item.
     /// </param>
+    /// <param name="onGap">What is called with the id of a shard when the reading may have skipped records of it, so the caller can reload what it keeps, see <see cref="ReadStreamRequest.OnGap"/>, or <see langword="null"/>.</param>
     /// <param name="cancellationToken">Cancels the reading. A token given to <c>WithCancellation</c> works too.</param>
     /// <returns>The changes of the entities, in the order <see cref="DynamoDbStreamsClient.ReadStreamAsync"/> returns their records.</returns>
     /// <inheritdoc cref="TableStreamExtensions.ReadChangesAsync{T}" path="/remarks"/>
@@ -100,13 +103,14 @@ public sealed partial class Table<T>
         TimeSpan? emptyPageDelay = null,
         Action? onJoined = null,
         Action<DynamoDbMappingException, ShardChangeRecord>? onMappingFailure = null,
+        Action<string>? onGap = null,
         CancellationToken cancellationToken = default)
         where T1 : IDynamoDbDiscriminated<T1>
         where T2 : IDynamoDbDiscriminated<T2>
         where T3 : IDynamoDbDiscriminated<T3>
     {
         Mixed<T1, T2, T3>.Schema.Check();
-        return TableStreamExtensions.StartChanges<T, MixedChange<T1, T2, T3>, MixedChange<T1, T2, T3>>(this, streams, shardIteratorType, emptyPageDelay, onJoined, onMappingFailure, cancellationToken);
+        return TableStreamExtensions.StartChanges<T, MixedChange<T1, T2, T3>, MixedChange<T1, T2, T3>>(this, streams, shardIteratorType, emptyPageDelay, onJoined, onMappingFailure, onGap, cancellationToken);
     }
 
     /// <summary>
@@ -126,6 +130,7 @@ public sealed partial class Table<T>
     /// <c>dynasharp.client.operation.skipped_items</c>. <see langword="null"/>, the default, ends the read with the <see cref="DynamoDbMappingException"/> instead. Log
     /// <see cref="ShardChangeRecord.ShardId"/>, <see cref="ShardChangeRecord.SequenceNumber"/> and <see cref="ChangeRecord.EventName"/>, not the record: it holds the values of the item.
     /// </param>
+    /// <param name="onGap">What is called with the id of a shard when the reading may have skipped records of it, so the caller can reload what it keeps, see <see cref="ReadStreamRequest.OnGap"/>, or <see langword="null"/>.</param>
     /// <param name="cancellationToken">Cancels the reading. A token given to <c>WithCancellation</c> works too.</param>
     /// <returns>The changes of the entities, in the order <see cref="DynamoDbStreamsClient.ReadStreamAsync"/> returns their records.</returns>
     /// <inheritdoc cref="TableStreamExtensions.ReadChangesAsync{T}" path="/remarks"/>
@@ -150,6 +155,7 @@ public sealed partial class Table<T>
         TimeSpan? emptyPageDelay = null,
         Action? onJoined = null,
         Action<DynamoDbMappingException, ShardChangeRecord>? onMappingFailure = null,
+        Action<string>? onGap = null,
         CancellationToken cancellationToken = default)
         where T1 : IDynamoDbDiscriminated<T1>
         where T2 : IDynamoDbDiscriminated<T2>
@@ -157,6 +163,6 @@ public sealed partial class Table<T>
         where T4 : IDynamoDbDiscriminated<T4>
     {
         Mixed<T1, T2, T3, T4>.Schema.Check();
-        return TableStreamExtensions.StartChanges<T, MixedChange<T1, T2, T3, T4>, MixedChange<T1, T2, T3, T4>>(this, streams, shardIteratorType, emptyPageDelay, onJoined, onMappingFailure, cancellationToken);
+        return TableStreamExtensions.StartChanges<T, MixedChange<T1, T2, T3, T4>, MixedChange<T1, T2, T3, T4>>(this, streams, shardIteratorType, emptyPageDelay, onJoined, onMappingFailure, onGap, cancellationToken);
     }
 }

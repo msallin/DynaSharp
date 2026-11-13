@@ -336,6 +336,37 @@ public sealed class ReadStreamTelemetryTests
     }
 
     [Test]
+    public async Task ReadShardAsync_GapOfAShardReadFromLatest_CountsItUnderTheServer()
+    {
+        // Arrange
+        var host = TestClient.UniqueHost();
+        using var counters = MeasurementCapture<long>.ForServer(host, TelemetryNames.StreamGapsMetric);
+
+        // Act
+        await ReadLatestThatExpiresAsync(serviceUrl: new Uri($"http://{host}:8000"));
+
+        // Assert
+        await Assert.That((counters.All.Single().Value, counters.All[0].TagText, counters.All[0].Unit)).IsEqualTo((1L, $"server.address={host},server.port=8000", "{gap}"));
+    }
+
+    [Test]
+    public async Task ReadShardAsync_GapOfAShardReadFromLatest_LogsAWarningNamingTheShard()
+    {
+        // Arrange
+        var logs = new CapturingLoggerFactory();
+
+        // Act
+        await ReadLatestThatExpiresAsync(loggerFactory: logs);
+
+        // Assert
+        var entry = logs.Entries.Single(static entry => entry.EventId.Id == 15);
+        await Assert.That((entry.EventId.Name, entry.Level, entry.Message)).IsEqualTo((
+            "StreamGap",
+            LogLevel.Warning,
+            "DynamoDB Streams shard p was read from Latest, and its iterator expired before it handed out a record, so it is read from Latest again: what was written in between is skipped."));
+    }
+
+    [Test]
     public async Task ReadStreamAsync_Listener_ReportsNoKeyAndNoStream()
     {
         // Arrange
@@ -393,6 +424,20 @@ public sealed class ReadStreamTelemetryTests
         handler.Enqueue(Description());
         using var streams = TestClient.CreateStreams(handler, new ManualTimeProvider(), serviceUrl: serviceUrl, loggerFactory: loggerFactory, random: FixedRandom.Zero);
         await streams.ReadStreamAsync(FromTrimHorizon()).ToListAsync();
+        handler.ThrowIfResponsesLeft();
+    }
+
+    private static async Task ReadLatestThatExpiresAsync(Uri? serviceUrl = null, ILoggerFactory? loggerFactory = null)
+    {
+        using var handler = new StubHandler();
+        handler.Enqueue(StubResponse.ShardIterator("p/0"));
+        handler.Enqueue(StubResponse.Records("p/1"));
+        handler.Enqueue(StubResponse.DynamoDbError("ExpiredIteratorException", "Iterator expired."));
+        handler.Enqueue(StubResponse.ShardIterator("p/2"));
+        handler.Enqueue(StubResponse.Records(null));
+        using var streams = TestClient.CreateStreams(handler, new ManualTimeProvider(), serviceUrl: serviceUrl, loggerFactory: loggerFactory);
+        var request = new ReadShardRequest { StreamArn = TestClient.StreamArn, ShardId = "p", ShardIteratorType = ShardIteratorType.Latest, EmptyPageDelay = TimeSpan.Zero };
+        await streams.ReadShardAsync(request).ToListAsync();
         handler.ThrowIfResponsesLeft();
     }
 

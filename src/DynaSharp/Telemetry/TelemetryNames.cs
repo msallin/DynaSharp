@@ -17,6 +17,7 @@ internal static class TelemetryNames
     public const string StreamShardsMetric = "dynasharp.client.stream.shards";
     public const string StreamRecordsMetric = "dynasharp.client.stream.records";
     public const string StreamRetriesMetric = "dynasharp.client.stream.retries";
+    public const string StreamGapsMetric = "dynasharp.client.stream.gaps";
 
     public const string DbSystemName = "db.system.name";
     public const string DbSystemNameValue = "aws.dynamodb";

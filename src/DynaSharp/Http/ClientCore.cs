@@ -183,6 +183,10 @@ internal sealed class ClientCore : IDisposable
     /// <param name="retries">How many times the shard was tried again.</param>
     public void LogShardRecovered(string shardId, TimeSpan elapsed, int retries) => _pipeline.LogShardRecovered(shardId, elapsed, retries);
 
+    /// <summary>Reports that a shard read from <c>Latest</c> is read from <c>Latest</c> again, which skips records, see <see cref="DynamoDbPipeline.ReportStreamGap"/>.</summary>
+    /// <param name="shardId">The shard.</param>
+    public void ReportStreamGap(string shardId) => _pipeline.ReportStreamGap(shardId);
+
     /// <summary>Reports that a conflict retry gave up, see <see cref="DynamoDbPipeline.ReportConflictsExhausted"/>.</summary>
     /// <param name="conflict">The failure of the last run.</param>
     /// <param name="runs">How many runs there were.</param>
