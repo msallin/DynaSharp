@@ -84,6 +84,16 @@ public sealed class MappingAttributesTests
     }
 
     [Test]
+    public async Task DynamoDbEnumNameAttribute_Name_KeepsTheValue()
+    {
+        // Arrange, Act
+        var attribute = new DynamoDbEnumNameAttribute("APPOINTMENT");
+
+        // Assert
+        await Assert.That(attribute.Name).IsEqualTo("APPOINTMENT");
+    }
+
+    [Test]
     public async Task DynamoDbConverterAttribute_Type_KeepsTheValue()
     {
         // Arrange, Act

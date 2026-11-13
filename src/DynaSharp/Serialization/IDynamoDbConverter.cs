@@ -117,7 +117,7 @@ public interface IDynamoDbConverter<T>
     /// <remarks>
     /// <para>
     /// A lenient enum: a name the type does not have keeps the initial value. <see cref="Read"/> stays strict, because a list has positions and asks nothing. The value is parsed twice, here and in <see cref="Read"/>, and only on a property whose converter answers.
-    /// An enum that the generated converter stores by name needs none of this: <see cref="Mapping.DynamoDbEnumAttribute"/> on the enum gives that converter the same answer. This one is for an enum stored otherwise.
+    /// An enum that the generated converter stores by name, its own or a <see cref="Mapping.DynamoDbEnumNameAttribute"/>, needs none of this: <see cref="Mapping.DynamoDbEnumAttribute"/> on the enum gives that converter the same answer. This one is for an enum stored otherwise.
     /// </para>
     /// <code>
     /// public readonly record struct LenientPositionConverter : IDynamoDbConverter&lt;Position&gt;

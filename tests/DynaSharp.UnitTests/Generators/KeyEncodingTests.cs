@@ -23,7 +23,7 @@ public sealed class KeyEncodingTests
     [
         (new GuidEncoding(), "global::System.Guid"),
         (new StringEncoding(), "string"),
-        (new EnumNameEncoding("Names", "Color"), "Color"),
+        (new EnumNameEncoding("Names", "Color", new EquatableArray<string>(["Red"])), "Color"),
         (new DigitsEncoding(4, Int, "int"), "int"),
         (new DigitsEncoding(4, Long, "long"), "long"),
         (new DigitsEncoding(4, Byte, "byte"), "byte"),

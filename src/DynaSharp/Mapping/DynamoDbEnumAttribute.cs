@@ -6,7 +6,8 @@ namespace DynaSharp.Mapping;
 /// </summary>
 /// <remarks>
 /// <para>
-/// It changes reads alone. A write stores the name of the member as before, so the stored bytes are the same with and without it, and adding it or taking it off needs no migration.
+/// It changes reads alone. A write stores the name of the member as before, or its <see cref="DynamoDbEnumNameAttribute"/>, so the stored bytes are the same with and without it, and adding it or taking it off
+/// needs no migration. A name the enum does not have is one that is no stored name of its members.
 /// </para>
 /// <para>
 /// As if the attribute were not in the item means what a read does for that, which is what a converter that answers <see cref="Serialization.IDynamoDbConverter{T}.CountsAsMissing"/> gives: a property keeps its

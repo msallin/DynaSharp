@@ -389,6 +389,26 @@ public sealed class ConverterResolverTests
         await Assert.That(model.Enums.Single().CountsUnknownAsMissing).IsEqualTo(counts);
     }
 
+    [Test]
+    public async Task Resolve_EnumWithStoredNamesInAKey_GivesTheConverterTheStoredNamesAndTheKeyItsConverter()
+    {
+        // Arrange (an alias keeps its own name to read and is no canonical member; Topic has no attribute and keeps its member name)
+        var source = $$"""
+            {{Types}}
+            public enum Owner { [DynamoDbEnumName("APPOINTMENT")] Appointment, [DynamoDbEnumName("LOADING_UNIT")] LoadingUnit, Topic }
+            public enum Level { [DynamoDbEnumName("LOW")] Low = 1, [DynamoDbEnumName("LO")] Minor = 1 }
+            [DynamoDbEntity, Discriminator("M"), PartitionKey("{Owner}#{Key}")] public partial class M { public Owner Owner { get; set; } public string Key { get; set; } = "k"; public Level Level { get; set; } }
+            """;
+
+        // Act
+        var model = Analysis.Model(source, "global::Shop.M");
+
+        // Assert
+        var members = string.Join(",", model.Enums.SelectMany(static model => model.Members).Select(static member => $"{member.Identifier}={member.Name}{(member.IsCanonical ? string.Empty : "*")}"));
+        await Assert.That((members, ((PlaceholderSegment)model.Entity!.PartitionKey.Template!.Segments[0]).Encoding is EnumNameEncoding { ConverterName: "Shop_OwnerConverter" }))
+            .IsEqualTo(("Appointment=APPOINTMENT,LoadingUnit=LOADING_UNIT,Topic=Topic,Low=LOW,Minor=LO*", true));
+    }
+
     private static PropertyModel Property(string type)
     {
         var source = $$"""

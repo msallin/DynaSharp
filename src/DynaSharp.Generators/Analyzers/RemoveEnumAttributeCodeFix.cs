@@ -7,18 +7,21 @@ using Microsoft.CodeAnalysis.CodeFixes;
 namespace DynaSharp.Generators;
 
 /// <summary>
-/// The fix of DYNA033 on the attribute: the <c>[DynamoDbEnum]</c> that changes nothing goes. On a property it is offered nowhere, since the attribute works for the other properties of the enum.
-/// Only an IDE loads this class.
+/// The fix of DYNA033 and DYNA046 on the attribute: the <c>[DynamoDbEnum]</c> on the enum, or the <c>[DynamoDbEnumName]</c> on a member, that changes nothing goes. On a property it is offered nowhere,
+/// since the attribute works for the other properties of the enum. Only an IDE loads this class.
 /// </summary>
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(RemoveEnumAttributeCodeFix))]
 [Shared]
 internal sealed class RemoveEnumAttributeCodeFix : CodeFixProvider
 {
-    /// <summary>The equivalence key, the same for every enum, so a fix-all removes each.</summary>
+    /// <summary>The equivalence key of DYNA033, the same for every enum, so a fix-all removes each.</summary>
     internal const string Key = "DYNA033.Remove";
 
+    /// <summary>The equivalence key of DYNA046, the same for every member, so a fix-all removes each.</summary>
+    internal const string NameKey = "DYNA046.Remove";
+
     /// <inheritdoc/>
-    public override ImmutableArray<string> FixableDiagnosticIds { get; } = [Descriptors.IneffectiveEnumAttribute.Id];
+    public override ImmutableArray<string> FixableDiagnosticIds { get; } = [Descriptors.IneffectiveEnumAttribute.Id, Descriptors.IneffectiveEnumName.Id];
 
     /// <inheritdoc/>
     public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
@@ -36,7 +39,8 @@ internal sealed class RemoveEnumAttributeCodeFix : CodeFixProvider
             if (SourceEdits.AttributeAt(root, diagnostic.Location.SourceSpan) is { } attribute)
             {
                 var removal = SourceEdits.RemoveAttribute(text, attribute);
-                context.RegisterCodeFix(CodeAction.Create("Remove [DynamoDbEnum]", edit => SourceEdits.ApplyAsync(document, [removal], edit), Key), diagnostic);
+                var (title, key) = diagnostic.Id == Descriptors.IneffectiveEnumName.Id ? ("Remove [DynamoDbEnumName]", NameKey) : ("Remove [DynamoDbEnum]", Key);
+                context.RegisterCodeFix(CodeAction.Create(title, edit => SourceEdits.ApplyAsync(document, [removal], edit), key), diagnostic);
             }
         }
     }

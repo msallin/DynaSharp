@@ -59,7 +59,7 @@ internal static class KeyInputCatalog
 
         if (type is INamedTypeSymbol { EnumUnderlyingType: { } underlying } enumType)
         {
-            return new EnumInput(typeName, code, Integers[underlying.SpecialType], EnumRegistry.NamesAreUnique(enumType), EnumRegistry.HasNoNames(enumType), EnumRegistry.DigitsWidth(enumType), () => enums.ConverterOf(enumType));
+            return new EnumInput(typeName, code, Integers[underlying.SpecialType], EnumRegistry.NamesAreUnique(enumType), EnumRegistry.HasNoNames(enumType), EnumRegistry.DigitsWidth(enumType), new EquatableArray<string>([.. EnumRegistry.StoredNames(enumType)]), () => enums.ConverterOf(enumType));
         }
 
         return !Rejected.Contains(code) && IsFormattable(type) ? new FixedInput(typeName, new FormattableEncoding(code)) : new RejectedInput(typeName);

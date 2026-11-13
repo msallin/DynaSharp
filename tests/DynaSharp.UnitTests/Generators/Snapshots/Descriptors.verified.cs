@@ -54,6 +54,7 @@ DYNA121 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
 DYNA122 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
 DYNA123 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
 DYNA124 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
+DYNA125 | https://msallin.github.io/DynaSharp/diagnostics.html#key-templates
 DYNA201 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA202 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA203 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
@@ -101,6 +102,9 @@ DYNA239 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA041 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA042 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA043 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
+DYNA044 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
+DYNA045 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
+DYNA046 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA240 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA241 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA242 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
@@ -149,7 +153,7 @@ DYNA109 | Error | DynaSharp.Keys | [KeyOnly] is not valid here | [KeyOnly] on '{
 DYNA110 | Warning | DynaSharp.Keys | Sparse index without nullable inputs | Index '{0}' is Sparse, but no input is nullable or a string with an [OmitEmpty] of its own, so every item is indexed
 DYNA111 | Error | DynaSharp.Keys | Property is repeated in a key template | Property '{0}' appears twice in a key template
 DYNA112 | Error | DynaSharp.Keys | Key on the wrong target | A template belongs on the type, a plain key on a property
-DYNA113 | Error | DynaSharp.Keys | Enum names are not one-to-one | Enum '{0}' has [Flags] or aliased members, so its names are not one-to-one in a key. Use d<w>.
+DYNA113 | Error | DynaSharp.Keys | Enum names are not one-to-one | Enum '{0}' has [Flags], aliased members or a stored name twice, so its names are not one-to-one in a key. Use d<w>.
 DYNA114 | Error | DynaSharp.Keys | Computed property in an index template | Computed property '{0}' cannot be used in an index template, because an update cannot keep the index current. Add [ComputedFrom] naming the stored properties it reads, or use a stored property.
 DYNA115 | Info | DynaSharp.Keys | String before a delimiter in a sort key | String '{0}' is followed by '{1}' in a sort key, so values with a character below '{1}' sort out of segment order
 DYNA116 | Warning | DynaSharp.Keys | Truncated timestamp at the end of a table key | Timestamp '{0}' ends the key of the table and is truncated, so two items close in time get one key and the second replaces the first. Add a placeholder after it that breaks the tie, or drop the format: {{{0}}} keeps ticks, all seven digits.
@@ -161,6 +165,7 @@ DYNA121 | Info | DynaSharp.Keys | Raw value reaches a strict template through a 
 DYNA122 | Warning | DynaSharp.Keys | Constant that no key can hold | The value of '{0}' {1}, so this call throws KeyFormatException every time
 DYNA123 | Info | DynaSharp.Keys | Raw table key input without [KeyOnly] | '{0}' is raw in the table key '{1}' and has no [KeyOnly], so a Put stores it as an attribute of its own as well, while an Update does not write it, and only the items a Put wrote hold it. Mark it [KeyOnly] if the key is all the item needs; a read restores it from the key.
 DYNA124 | Error | DynaSharp.Keys | Enum without members in a key | Enum '{0}' has no members, so a key that holds it by member name throws for every value. Add a member, or use d<w>.
+DYNA125 | Error | DynaSharp.Keys | Enum stored name does not fit the key | Placeholder '{0}' writes the stored name '{1}' of enum '{2}', which {3}, so every key of that member throws KeyFormatException. Change the stored name, or use d<w>.
 DYNA201 | Warning | DynaSharp.Commands | Command outlives its expression | A DynaSharp command is built and sent in one expression. Compute values first, or move the chain into a method.
 DYNA202 | Warning | DynaSharp.Commands | Read command is not awaited | A read is not awaited; end the chain with ItemsAsync, ValuesAsync or another terminal it has
 DYNA203 | Error | DynaSharp.Commands | Command is discarded | This DynaSharp command is discarded, so it is never sent, and the handle it came from is used up. Send it, or use what the call returns.
@@ -208,6 +213,9 @@ DYNA239 | Error | DynaSharp.Commands | Write by key that does not say how it tre
 DYNA041 | Error | DynaSharp.Mapping | Property is outside a nullable context | '{0}' of '{1}' is declared where nullable annotations are disabled, so its type '{2}' does not say whether it can be null, and the generated code throws on a null. Enable nullable reference types where '{1}' declares it, and mark with '?' what can be null.
 DYNA042 | Error | DynaSharp.Mapping | Constructor parameter is passed by reference | Constructor parameter '{0}' is {1}, which a read cannot pass. Take it by value or as 'in', or mark another constructor with [DynamoDbConstructor].
 DYNA043 | Error | DynaSharp.Mapping | A generated class takes over a type name | '{0}' names '{1}' here, but inside '{2}' the generated {3} {2}.{0} takes that name over. Write the name in full, as {1}.
+DYNA044 | Error | DynaSharp.Mapping | Enum stored name is not one-to-one | Enum '{0}' stores '{1}' as '{2}', which is {3}, so a read of '{2}' cannot tell them apart. Give each value a stored name of its own.
+DYNA045 | Error | DynaSharp.Mapping | Enum stored name is invalid | [DynamoDbEnumName] on '{0}' {1}, which no attribute or key can hold. Give it a name of visible characters.
+DYNA046 | Warning | DynaSharp.Mapping | [DynamoDbEnumName] has no effect | [DynamoDbEnumName] on '{0}' changes nothing, because {1}
 DYNA240 | Warning | DynaSharp.Commands | Entity of the table left out of CreateTable | CreateTable() of '{0}' leaves out entities that declare the table '{1}' as well: {2}. The table is created without what they declare, such as their indexes. Add Including<T>() for each.
 DYNA241 | Warning | DynaSharp.Commands | Update may create an item the entity cannot read | If no item has this key, the Update creates one without {0}, and every read of '{1}' then throws DynamoDbMappingException. Call IfExists() to update only an item that exists, or set {0} as well.
 DYNA242 | Error | DynaSharp.Commands | Add on a time to live | '{0}' is the time to live, which DynamoDB stores as seconds since 1970, and Add cannot add to the instant it holds. Write the new expiry with Set({0}, expiry), or add seconds to the stored number with Add(Expr.Attr<long>("{1}"), seconds).

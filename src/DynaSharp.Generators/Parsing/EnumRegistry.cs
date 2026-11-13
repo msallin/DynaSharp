@@ -15,11 +15,32 @@ internal sealed class EnumRegistry
 
     private readonly Dictionary<string, EnumModel> _enums = [];
 
+    /// <summary>The members of an enum, its constants.</summary>
+    /// <param name="type">The enum.</param>
+    /// <returns>The members in declaration order.</returns>
+    public static IEnumerable<IFieldSymbol> Fields(INamedTypeSymbol type) =>
+        type.GetMembers().OfType<IFieldSymbol>().Where(static field => field.HasConstantValue);
+
+    /// <summary>Whether the stored names of an enum and its values are one-to-one, which a key needs to be read back: no <c>[Flags]</c>, no aliases, and no stored name twice.</summary>
+    /// <param name="type">The enum.</param>
+    /// <returns>True if each value has one stored name and each stored name one value.</returns>
     public static bool NamesAreUnique(INamedTypeSymbol type)
     {
         var values = new HashSet<object>();
-        return AttributeReader.Find(type, FlagsAttribute) is null && Fields(type).All(field => values.Add(field.ConstantValue!));
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        return AttributeReader.Find(type, FlagsAttribute) is null && Fields(type).All(field => values.Add(field.ConstantValue!) && names.Add(StoredName(field)));
     }
+
+    /// <summary>The name a member is stored under: the text of its <c>[DynamoDbEnumName]</c>, or its own name without one, or with one whose text is no string, which the compiler reports.</summary>
+    /// <param name="field">The member.</param>
+    /// <returns>The stored name.</returns>
+    public static string StoredName(IFieldSymbol field) =>
+        AttributeReader.Find(field, WellKnownNames.EnumNameAttribute) is { } attribute && AttributeReader.Text(attribute, 0) is { } name ? name : field.Name;
+
+    /// <summary>The stored names of an enum, each once, in the order of its members.</summary>
+    /// <param name="type">The enum.</param>
+    /// <returns>The names.</returns>
+    public static IEnumerable<string> StoredNames(INamedTypeSymbol type) => Fields(type).Select(StoredName).Distinct(StringComparer.Ordinal);
 
     /// <summary>
     /// The width of a <c>d&lt;w&gt;</c> that holds every value of an enum: the digits of its largest member, or of all its members combined for <c>[Flags]</c>. Null when a member is negative,
@@ -88,14 +109,12 @@ internal sealed class EnumRegistry
         return model.ConverterName;
     }
 
-    private static IEnumerable<IFieldSymbol> Fields(INamedTypeSymbol type) =>
-        type.GetMembers().OfType<IFieldSymbol>().Where(static field => field.HasConstantValue);
-
     private static EquatableArray<EnumMember> Members(INamedTypeSymbol type)
     {
         var values = new HashSet<object>();
         var members = Fields(type)
-            .Select(field => new EnumMember(field.Name, Names.Identifier(field.Name), Encoding.UTF8.GetByteCount(field.Name), values.Add(field.ConstantValue!)));
+            .Select(field => (Field: field, Name: StoredName(field)))
+            .Select(member => new EnumMember(member.Name, Names.Identifier(member.Field.Name), Encoding.UTF8.GetByteCount(member.Name), values.Add(member.Field.ConstantValue!)));
         return new EquatableArray<EnumMember>([.. members]);
     }
 

@@ -911,6 +911,7 @@ public sealed class KeyDiagnosticsTests
     [Test]
     [Arguments("[Flags] public enum Mode { A = 1, B = 2 }")]
     [Arguments("public enum Mode { A, B = A }")]
+    [Arguments("public enum Mode { [DynamoDbEnumName(\"X\")] A, [DynamoDbEnumName(\"X\")] B }")]
     public async Task Build_EnumNamesThatAreNotOneToOne_ReportsDyna113(string declaration)
     {
         // Arrange
@@ -924,7 +925,67 @@ public sealed class KeyDiagnosticsTests
         var report = Analysis.Report(source);
 
         // Assert
-        await Assert.That(report).IsEqualTo(Analysis.Expect(source, "DYNA113 Error: Enum 'Shop.Mode' has [Flags] or aliased members, so its names are not one-to-one in a key. Use d<w>."));
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, "DYNA113 Error: Enum 'Shop.Mode' has [Flags], aliased members or a stored name twice, so its names are not one-to-one in a key. Use d<w>."));
+    }
+
+    [Test]
+    [Arguments("A#B", "A#B", "holds '#', a delimiter of the template")]
+    [Arguments("A\\u0001", "A\u0001", "holds a control character")]
+    [Arguments("", "", "is empty")]
+    [Arguments("A\\uD800", "A\uD800", "is not well-formed text")]
+    [Arguments("\\uD800A", "\uD800A", "is not well-formed text")]
+    [Arguments("\\uDC00", "\uDC00", "is not well-formed text")]
+    [Arguments("A\\uDBFF\\uDFFF", "A\U0010FFFF", "holds U+10FFFF")]
+    public async Task Build_StoredNameNoKeyCanHold_ReportsDyna125(string name, string stored, string reason)
+    {
+        // Arrange (KeyWriter turns the name away on every write of the member; the name is as the source writes it, the stored text as a read of it gives it)
+        var source = $$"""
+            public enum Mode { [DynamoDbEnumName("{{name}}")] A, B }
+            [DynamoDbEntity, Discriminator("E"), PartitionKey([|"M#{Status}#{Id}"|])]
+            public partial class E { public Mode Status { get; set; } public string Id { get; set; } = "id"; }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, $"DYNA125 Error: Placeholder 'Status' writes the stored name '{stored}' of enum 'Shop.Mode', which {reason}, so every key of that member throws KeyFormatException. Change the stored name, or use d<w>."));
+    }
+
+    [Test]
+    [Arguments("A_B")]
+    [Arguments("A\\uD83D\\uDE00")]
+    public async Task Build_StoredNameAKeyCanHold_ReportsNothing(string name)
+    {
+        // Arrange (a surrogate pair is well-formed text)
+        var source = $$"""
+            public enum Mode { [DynamoDbEnumName("{{name}}")] A, B }
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("M#{Status}#{Id}")]
+            public partial class E { public Mode Status { get; set; } public string Id { get; set; } = "id"; }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Build_StoredNameWithADelimiterUnderD1_ReportsNothing()
+    {
+        // Arrange (d<w> writes the value and ignores the name)
+        const string Source = """
+            public enum Mode { [DynamoDbEnumName("A#B")] A, B }
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("M#{Status:d1}#{Id}")]
+            public partial class E { public Mode Status { get; set; } public string Id { get; set; } = "id"; }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
     }
 
     [Test]
@@ -1508,7 +1569,7 @@ public sealed class KeyDiagnosticsTests
         "int" => "plain, the default, d<w>, such as d6, or n<i>, such as n10",
         "decimal" => "plain, the default, or n<i>.<f>, such as n10.2",
         "DateTimeOffset" or "DateTime" => "yyyy, yyyy-MM, yyyy-MM-dd, yyyy-MM-ddTHH, yyyy-MM-ddTHH:mm, s, ms, us or ticks, the default",
-        "Color" => "no format for the member name, or d<w>, such as d3, for its value",
+        "Color" => "no format for the stored name of the member, or d<w>, such as d3, for its value",
         "DateOnly" => "no format, because it is written as yyyy-MM-dd already; a DateTime or DateTimeOffset takes the shorter ones, such as yyyy-MM",
         _ => "no format",
     };

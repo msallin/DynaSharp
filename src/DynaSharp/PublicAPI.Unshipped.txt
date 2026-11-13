@@ -25,3 +25,6 @@ DynaSharp.StreamUnavailableException.RequiredViewType.get -> DynaSharp.Requests.
 DynaSharp.StreamUnavailableException.StreamUnavailableException(string! message, string! tableName, DynaSharp.Requests.StreamViewType? viewType, DynaSharp.Requests.StreamViewType? requiredViewType) -> void
 DynaSharp.StreamUnavailableException.TableName.get -> string!
 DynaSharp.StreamUnavailableException.ViewType.get -> DynaSharp.Requests.StreamViewType?
+DynaSharp.Mapping.DynamoDbEnumNameAttribute
+DynaSharp.Mapping.DynamoDbEnumNameAttribute.DynamoDbEnumNameAttribute(string! name) -> void
+DynaSharp.Mapping.DynamoDbEnumNameAttribute.Name.get -> string!

@@ -108,7 +108,7 @@ The built-in converters store these types; anything else needs its own converter
 | `TimeOnly` | `S`, with seven fraction digits: `12:00:00.0000000` |
 | `TimeSpan` | `S`: `1.02:03:04.5000000`, which does not sort like the value |
 | `byte[]`, `ReadOnlyMemory<byte>` | `B` |
-| An enum | `S`, the member name; `N` for a `[Flags]` enum |
+| An enum | `S`, the member name, or its `[DynamoDbEnumName]`, see [Stored names of enum members](#stored-names-of-enum-members); `N` for a `[Flags]` enum |
 | `AttributeValue` | What it holds, of any type |
 | `JsonElement` | The native value of its JSON: an object `M`, an array `L`, a string `S`, a number `N` with its digits, `BOOL`, and `NULL`. A null in an object is left out, see [JSON of a contract](#json-of-a-contract) |
 | `List<T>`, `IReadOnlyList<T>`, `IList<T>`, `T[]` | `L`, each element in the form of `T` |
@@ -345,6 +345,37 @@ These ship in `DynaSharp.Serialization` and are opt-in through either attribute,
 | `EmptyStringAsMissingConverter<T, TConverter>` | any | What `TConverter` stores; a stored `{"S":""}` reads as a missing attribute |
 
 [The migration page](migrating.md#what-changes-stored-data) says when each fits, and which built-in converters your own may call.
+
+### Stored names of enum members
+
+An enum is stored by the name of its member. `[DynamoDbEnumName]` on a member stores it under a name of its own, such as the names another system writes, or the uppercase prefix of the other keys of a table:
+
+```csharp
+public enum MessageOwner
+{
+    [DynamoDbEnumName("APPOINTMENT")] Appointment,
+    [DynamoDbEnumName("LOADING_UNIT")] LoadingUnit,
+    [DynamoDbEnumName("TOPIC")] Topic,
+}
+
+[DynamoDbEntity]
+[Discriminator("YARD_MESSAGE")]
+[PartitionKey("{Owner}#{OwnerKey:raw}")]
+public partial record YardMessage
+{
+    public required MessageOwner Owner { get; init; }
+
+    [KeyOnly]
+    public required string OwnerKey { get; init; }
+}
+```
+
+The partition key of `MessageOwner.LoadingUnit` with `"4711"` is `LOADING_UNIT#4711`, and `YardMessage.Keys.Pk.Parse` reads it back.
+
+- **Everywhere.** The name is what the generated converter of the enum writes and reads: the attribute, an element of a set or a list, a placeholder of a key and its `Parse`, and a value in a condition, a filter or a key condition. A placeholder with `d<w>` writes the value and ignores the name.
+- **Reading.** A read compares the bytes, with no case folding, and only the stored name reads: the member's own name does not. With `[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]`, a name that is no stored name of the enum counts as missing.
+- **Aliases.** Members of one value write the stored name of the first of them, and each of their names reads as that value. So an alias that carries an old name reads attributes stored under it; a key has no such way, see [Changing a model](migrating.md#changing-a-model).
+- **Checked.** A name that two values share, or that is another member's name, is `DYNA044`; an empty one, or one with a control character, `DYNA045`; one on a `[Flags]` enum, or on an enum with a converter of its own, which ignore it, `DYNA046`; and one that holds a delimiter of a key template the enum stands in, `DYNA125`. See [Diagnostics](diagnostics.md#entities).
 
 ## Time to live
 

@@ -395,6 +395,10 @@ Entity: EntityModel
               Encoding: EnumNameEncoding
                 ConverterName: Shop_OrderStatusConverter
                 EnumType: global::Shop.OrderStatus
+                StoredNames: 
+                  - Pending
+                  - Paid
+                  - Shipped
                 FixedWidth: 0
                 IsLossless: True
                 CanReject: True

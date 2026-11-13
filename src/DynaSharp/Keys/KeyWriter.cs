@@ -121,14 +121,17 @@ public ref struct KeyWriter
         }
     }
 
-    /// <summary>Appends text that is already UTF-8, for example an enum member name, with the same validation as <see cref="WriteString"/>.</summary>
+    /// <summary>Appends text that is already UTF-8, for example the stored name of an enum member, with the same validation as <see cref="WriteString"/>.</summary>
     /// <param name="utf8Value">The value.</param>
     /// <param name="delimiters">The delimiters of the template.</param>
     /// <param name="placeholder">The name of the placeholder, for the exception.</param>
     /// <exception cref="KeyFormatException">The value is not a valid segment.</exception>
     public void WriteUtf8Value(scoped ReadOnlySpan<byte> utf8Value, scoped ReadOnlySpan<byte> delimiters, string placeholder) => Append(utf8Value, delimiters, placeholder);
 
-    /// <summary>Appends the name of an enum member. A value that is no member, for example a cast from a number, has no name, and <paramref name="utf8Name"/> is empty.</summary>
+    /// <summary>
+    /// Appends the stored name of an enum member: its <see cref="Mapping.DynamoDbEnumNameAttribute"/>, or the name of the member. A value that is no member, for example a cast from a number, has no name, and
+    /// <paramref name="utf8Name"/> is empty.
+    /// </summary>
     /// <param name="utf8Name">The name as UTF-8, or an empty span if the value has none.</param>
     /// <param name="delimiters">The delimiters of the placeholder.</param>
     /// <param name="placeholder">The name of the placeholder, for the exception.</param>

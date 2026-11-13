@@ -361,7 +361,7 @@ are public types in `DynaSharp.dll`, found by metadata name in `WellKnownNames`.
 | Stage | Code | Output |
 |---|---|---|
 | Parse | `KeyTemplateParser`: text to nodes, pure and tested on text alone | `TemplateParse` |
-| Collect | `ProjectDefaults`, `TypeRules.Check`, `PropertyCollector`, `ConstructorBinder`, `ConverterResolver`, `EnumRegistry` | `PropertyFacts`, the constructor, converters |
+| Collect | `ProjectDefaults`, `TypeRules.Check`, `PropertyCollector`, `ConstructorBinder`, `ConverterResolver`, `EnumRegistry` (an `EnumMember.Name` is the stored name: `[DynamoDbEnumName]` by metadata name, else the member's; `EnumEmitter` writes `FindName` and `TryParseName` from it, which every use of the enum goes through) | `PropertyFacts`, the constructor, converters |
 | Bind | `KeyTemplateBinder`, `KeyInputCatalog`, `KeyInputs/*`, `EntityKeyBuilder`: placeholders to encodings, delimiters, buffer length, the rules across keys and indexes | `KeyModel`, `IndexModel`, `EntityModel` |
 | Model | `ModelBuilder.Compose` | `TypeModel` in a `BuildResult` with diagnostics |
 | Emit | `EntityEmitter` (the file of a type), `EntitiesEmitter` (the file of `IncludingAll()`), filled by `ConstructorEmitter`, `WriteEmitter`, `ReadEmitter`, `KeysEmitter` with `KeyBuilderEmitter`, `PlainKeyBuilderEmitter` and `AttrsEmitter`, `KeyTemplateEmitter`, `EnumEmitter` | One `.g.cs` per type |
@@ -406,7 +406,7 @@ code compiles against the same version.
 | Template syntax | `KeyTemplateParser`, whose remarks show the grammar |
 | Formats per type | `KeyInputCatalog`, `Parsing/KeyInputs`, `Model/Encodings` |
 | Encodings, both directions | `KeyWriter`, `KeyReader`, `KeyText` |
-| Compile-time rules (`DYNA100` to `DYNA120`, `DYNA123`) | `KeyTemplateBinder`, `EntityKeyBuilder`, `EmptyDefault` |
+| Compile-time rules (`DYNA100` to `DYNA120`, `DYNA123`, `DYNA125`) | `KeyTemplateBinder`, `EntityKeyBuilder`, `EmptyDefault`. `DYNA125` is `KeyTemplateBinder.CheckStoredNames` over the stored names that `EnumNameEncoding` carries, once the delimiters of the template are known; it mirrors `KeyText.Inspect` |
 | Generated builders | `KeyBuilderEmitter`, `PlainKeyBuilderEmitter`. Which conditions exist is `KeyBuilderEmitter.IsInOrder` and `EmitRanges`, and `PlainKeyBuilderEmitter.OrderedText`, for the reasons in `api.md` section 6 |
 | `KeyFormatException` | In namespace `DynaSharp`; names the placeholder, never the value. A generated builder catches it around its writer and throws `InTemplate(template, delimiters)`, because `KeyWriter` gets the delimiters of a call, not the template. The catch costs a valid key nothing |
 | `TryOf` and the check of `Keys.Of` | `KeyWriter.Reject` is the one place a value is turned away, setting `IsInvalid` with `throwOnInvalid: false`. The generated `Encode` is the same for `Format`, `Of`, `TryOf` and `Check`, so they cannot disagree. `KeyEncoding.CanReject` says which keys have any of it |
@@ -424,6 +424,7 @@ Analyzers ship in the generator dll. `DynaSharpTypes` tells what DynaSharp decla
 | `DYNA026` | `DiscriminatorAnalyzer`, on symbols at the end of a compilation, the only point that sees all entities | The generator's reading of `[Discriminator]` | |
 | `DYNA032`, `DYNA120` and `DYNA121` through `[ComputedFrom]` | `ComputedGetterAnalyzer`, on `EntityModel.ComputedInputs`, over the operations of the getter | `KeyInputChanges.Check`, which follows only what the attribute names, and `KeyWriter`, which refuses a delimiter where a template is strict, whatever the getter made. Pass-throughs: `=> X`, `ToUpperInvariant()`, `ToLowerInvariant()`, `X ?? Y`; a call on a member of the type is not followed | |
 | `DYNA033` | `EnumAttributeAnalyzer` on the enum, once; on a property the generator's `ModelBuilder.ReportUnknownNamesThatThrow`, because only the model knows what throws | `ConverterResolver` (a `[DynamoDbConverter]` on the enum wins), `EnumRegistry.CountsUnknownAsMissing`, `MissingOf`, `EntityKeyBuilder.KeepKeysFromMissing` | `TypeDiagnosticsTests` |
+| `DYNA044`, `DYNA045`, `DYNA046` | `EnumAttributeAnalyzer` on the enum, once, over `[DynamoDbEnumName]` of its members | `EnumRegistry.StoredName` (the text the converter stores, the member name without the attribute or with a null one), `EnumRegistry.NamesAreUnique`, and the converter rule of `DYNA033` | `EnumAttributeAnalyzerTests`, `RemoveEnumAttributeCodeFixTests` |
 | `DYNA035` | The generator's `ModelBuilder.ReportNullsThatReadBackAsInitialValues`, on syntax | `ModelBuilder.MissingOf`, which keeps the current value for a nullable property, and `ConstructorEmitter.Argument`, which passes a parameter's default for a missing attribute | `TypeDiagnosticsTests` |
 | `DYNA041` | The generator's `ModelBuilder.MapProperty` through `Types.IsOblivious`, beside `DYNA019` on the type | The generated write of a non-nullable property, which throws for null, and `MissingOf`, which reads it as never null | `TypeDiagnosticsTests` |
 | `DYNA042` | The generator's `ConstructorBinder.Bind` | `ConstructorEmitter.Argument`, which passes a field of `__Fields`, which a `ref`, `out` or `ref readonly` parameter cannot take | `TypeDiagnosticsTests` |

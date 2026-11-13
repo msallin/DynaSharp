@@ -40,7 +40,7 @@ Compare an item the old code wrote with the new code's `ToRequestJson()`, attrib
 | A `DateTimeOffset` your own converter stored with its offset: `2026-11-20T11:00:00.0000000+01:00`. | `[DynamoDbConverter(typeof(OffsetTimestampConverter))]`, below. |
 | `""` that other code wrote for no value, such as a blank timestamp or JSON document. | `EmptyStringAsMissingConverter<T, TConverter>`, below: it reads `""` as a missing attribute, so the property keeps its initial value or reads null. |
 | `StoreAsEpoch = true` on a `DateTime`, an `N`. | `[DynamoDbConverter(typeof(EpochSecondsConverter))]` on a `DateTimeOffset`. |
-| An enum, an `N` in V1 and V2. | `StatusAsNumberConverter`, below. DynaSharp stores the name as text; only a `[Flags]` enum as a number. |
+| An enum, an `N` in V1 and V2. | `StatusAsNumberConverter`, below. DynaSharp stores the name as text, or the `[DynamoDbEnumName]` of the member; only a `[Flags]` enum as a number. |
 | `[DynamoDBVersion] public long? Revision`, whose first `SaveAsync` stores 0. | `[Version(Missing = VersionMissing.Allow)] public long Revision`, not nullable, see [Adopting an existing table](adopting.md). Under plain `[Version]`, 0 means no item, so a write at 0 fails on such an item. |
 | `[DynamoDBTable("Shop", LowerCamelCaseProperties = true)]` | `Naming = AttributeNaming.CamelCase` in `[assembly: DynamoDbDefaults]`, which applies to a plain key too, as in the SDK. |
 | Items without `_type` or a version, attributes under their own names. | [Adopting an existing table](adopting.md). |
@@ -183,6 +183,7 @@ An entity is the format of the items it has stored, so a change that compiles ca
 - **A changed key template.** The key is where an item is: under a new template of the table key, `Get` builds a key no old item has, and a `Put` writes a second item beside the old one. Copy each item to its new key and delete the old one, or move to a new table. A changed index key moves nothing: old items keep the old format until a write gives them the new one, so backfill before a query relies on it.
 - **A new index.** A global index takes the items that hold its key attributes, see [Adding an index](tables.md#adding-an-index); an older item enters it when a `Put` writes them.
 - **A removed property or enum member.** A `Put` drops the attribute, and an `Update` leaves it. A stored enum name that no longer exists is covered under [Converters](entities.md#converters).
+- **A changed stored name of an enum member.** Adding, changing or removing a `[DynamoDbEnumName]` changes what is stored, as a changed `AttributeNaming` does, and a read does not take the old name. In an attribute, an alias member of the same value that carries the old name reads it until a `Put` writes the new one; in a key the old items stay under the old key, which only copying them to the new key moves.
 
 A backfill reads every item and writes it again: a `Put` of an entity as read writes it in the current format, with the defaults of new properties and the keys of new indexes. `Parallel(segments)` scans that many segments at once, and the batch cuts the writes into requests:
 

@@ -35,7 +35,9 @@ internal static class KeyTemplateBinder
         }
 
         CheckNeighbours(segments, role, fallbacks, problems);
-        var template = new KeyTemplate(text, new EquatableArray<TemplateSegment>([.. segments]), Delimiters(segments), BufferLength(segments));
+        var delimiters = Delimiters(segments);
+        CheckStoredNames(segments, delimiters, problems);
+        var template = new KeyTemplate(text, new EquatableArray<TemplateSegment>([.. segments]), delimiters, BufferLength(segments));
         return new KeyBinding(template, problems, fallbacks);
     }
 
@@ -141,6 +143,60 @@ internal static class KeyTemplateBinder
                 problems.Add(new KeyProblem(Descriptors.StringBeforeDelimiter, [placeholder.Property, delimiter.ToString()]));
             }
         }
+    }
+
+    // A stored name of an enum that KeyWriter turns away fails every key of its member, which the names, known here with the delimiters, show before a write does.
+    private static void CheckStoredNames(List<TemplateSegment> segments, string delimiters, List<KeyProblem> problems)
+    {
+        foreach (var segment in segments)
+        {
+            if (segment is not PlaceholderSegment { Encoding: EnumNameEncoding encoding } placeholder)
+            {
+                continue;
+            }
+
+            foreach (var name in encoding.StoredNames)
+            {
+                if (WhyNotInKey(name, delimiters) is { } reason)
+                {
+                    problems.Add(new KeyProblem(Descriptors.EnumStoredNameNotInKey, [placeholder.Property, name, encoding.EnumType.Replace("global::", string.Empty), reason], KeepsModel: true));
+                }
+            }
+        }
+    }
+
+    // What KeyText.Inspect refuses of a value, in its order: an empty one, one that is no well-formed text, a control character, a delimiter, and U+10FFFF.
+    private static string? WhyNotInKey(string name, string delimiters)
+    {
+        if (name.Length == 0)
+        {
+            return "is empty";
+        }
+
+        for (var index = 0; index < name.Length; index++)
+        {
+            if (char.IsSurrogatePair(name, index))
+            {
+                index++;
+            }
+            else if (char.IsSurrogate(name[index]))
+            {
+                return "is not well-formed text";
+            }
+        }
+
+        if (name.Any(static character => character < ' '))
+        {
+            return "holds a control character";
+        }
+
+        var delimiter = name.IndexOfAny(delimiters.ToCharArray());
+        if (delimiter >= 0)
+        {
+            return $"holds '{name[delimiter]}', a delimiter of the template";
+        }
+
+        return name.Contains("\uDBFF\uDFFF") ? "holds U+10FFFF" : null;
     }
 
     // USER#{Id}-{Name}.csv gives "#-.": every character next to a placeholder, each once.

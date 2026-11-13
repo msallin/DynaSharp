@@ -174,7 +174,7 @@ getter reads; an update that changes one of those by handle throws, because it c
 |---|---|---|---|---|
 | `string` | as is | `raw`, at the end of a template | variable | UTF-8 bytes, not culture |
 | `Guid` | lowercase `D` | | 36 | by creation time for version 7, otherwise none useful |
-| enum | member name | `d<w>` value | variable or fixed | by name or value |
+| enum | stored name (`[DynamoDbEnumName]` or the member name) | `d<w>` value | variable or fixed | by stored name or value |
 | integers up to 64 bits | plain digits (`plain`) | `d<w>`, `n<i>` | variable or fixed | numeric only with a fixed format |
 | `decimal` | shortest form (`plain`) | `n<i>.<f>` | variable or fixed | numeric only with a fixed format |
 | `DateTimeOffset`, `DateTime` | `ticks` | `yyyy`, `yyyy-MM`, `yyyy-MM-dd`, `yyyy-MM-ddTHH`, `yyyy-MM-ddTHH:mm`, `s`, `ms`, `us`, `ticks` | fixed | chronological |
@@ -182,8 +182,8 @@ getter reads; an update that changes one of those by handle throws, because it c
 | `IUtf8SpanFormattable` + `IUtf8SpanParsable<T>` | invariant | | variable | the type's text |
 
 `float`, `double`, `bool`, `TimeSpan` and wider integers are rejected: floats have no exact text, the others have not been
-needed. `[Flags]` enums and enums with aliased members are rejected under the name format, because their names are not
-one-to-one; an undefined enum value throws.
+needed. `[Flags]` enums, enums with aliased members and enums with a stored name twice are rejected under the name format, because
+their names are not one-to-one; an undefined enum value throws, and a stored name a key cannot hold is `DYNA125`.
 
 Encodings, chosen so that ordinal byte order equals value order, because DynamoDB compares strings by their UTF-8 bytes:
 - `d<w>`: zero-padded to `w` digits. Non-negative only; a negative value or one too wide throws.
@@ -229,7 +229,7 @@ silence. Case folding and normalization are never applied: ElectroDB's default l
 - `Format`, `Prefix` at every depth, `UpperBound`, `Of`, `Keys.Of` and `Parse` validate alike, at the call. Violations throw
   `KeyFormatException`, an `ArgumentException` naming the placeholder and never the value, so a key built from user input
   fails as a bad argument. `TryOf` returns `null` for exactly those values, without an exception.
-- `Parse(x)` succeeds exactly when `Format(Parse(x)) == x`: exact widths, lowercase Guids, defined enum names, no delimiter
+- `Parse(x)` succeeds exactly when `Format(Parse(x)) == x`: exact widths, lowercase Guids, stored enum names, no delimiter
   in a segment.
 
 Prefixes and ranges:

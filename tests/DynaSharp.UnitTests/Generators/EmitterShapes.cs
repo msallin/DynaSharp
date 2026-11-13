@@ -898,6 +898,43 @@ internal static class EmitterShapes
 
     // A lenient enum beside one that says the default: only the first one's converter answers, and only for a property, a nullable one included, that is no plain key.
     // The plain key and the required member read an unknown name strictly, which DYNA033 reports for each of them.
+    public const string EnumNames = Usings + """
+        namespace Shapes.EnumNames
+        {
+            public enum MessageOwner
+            {
+                [DynamoDbEnumName("APPOINTMENT")] Appointment,
+                [DynamoDbEnumName("LOADING_UNIT")] LoadingUnit,
+                Topic,
+            }
+
+            [DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]
+            public enum Priority
+            {
+                [DynamoDbEnumName("LOW")] Low = 1,
+                [DynamoDbEnumName("LO")] Minor = 1,
+                [DynamoDbEnumName("HIGH")] High = 2,
+            }
+
+            [DynamoDbEntity]
+            [Discriminator("YARD_MESSAGE")]
+            [PartitionKey("{Owner}#{OwnerKey:raw}")]
+            [SortKey("MSG#{Owner:d1}#{Id}")]
+            public partial class YardMessage
+            {
+                public required MessageOwner Owner { get; init; }
+
+                public required string OwnerKey { get; init; }
+
+                public required string Id { get; init; }
+
+                public Priority? Priority { get; set; }
+
+                public HashSet<MessageOwner> Seen { get; set; } = new();
+            }
+        }
+        """;
+
     public const string LenientEnums = Usings + """
         namespace Shapes.Lenient
         {
@@ -955,6 +992,7 @@ internal static class EmitterShapes
         ["OmittedByConverter"] = OmittedByConverter,
         ["CountedAsMissing"] = CountedAsMissing,
         ["LenientEnums"] = LenientEnums,
+        ["EnumNames"] = EnumNames,
     };
 
     /// <summary>Gets the warnings a shape reports on purpose, as the compiler prints them, which a consumer's build shows as well.</summary>

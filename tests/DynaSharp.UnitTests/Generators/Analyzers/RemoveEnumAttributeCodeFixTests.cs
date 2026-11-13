@@ -3,14 +3,45 @@ using Microsoft.CodeAnalysis.CodeFixes;
 
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
-/// <summary>The fix of DYNA033, applied in a real workspace to the diagnostics the analyzer and the generator report there, and run through them again.</summary>
+/// <summary>The fix of DYNA033 and DYNA046, applied in a real workspace to the diagnostics the analyzer and the generator report there, and run through them again.</summary>
 public sealed class RemoveEnumAttributeCodeFixTests
 {
     private const string Key = RemoveEnumAttributeCodeFix.Key;
 
     private const string Flags = "[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)]\n[System.Flags]\npublic enum Access { None = 0, Read = 1 }";
 
+    private const string FlagsWithName = "[System.Flags]\npublic enum Access\n{\n    None = 0,\n    [DynamoDbEnumName(\"READ\")]\n    Read = 1,\n}";
+
     private static readonly CodeFixRun Run = new(new RemoveEnumAttributeCodeFix(), "DYNA033", new EnumAttributeAnalyzer());
+
+    private static readonly CodeFixRun NameRun = new(new RemoveEnumAttributeCodeFix(), "DYNA046", new EnumAttributeAnalyzer());
+
+    [Test]
+    public async Task Fix_NameOnAMemberOfAFlagsEnum_RemovesItsLineAndLeavesNoWarning()
+    {
+        // Arrange
+        var files = CodeFixRun.One(FlagsWithName);
+
+        // Act
+        var fixedFiles = await NameRun.FixAsync(RemoveEnumAttributeCodeFix.NameKey, files);
+        var left = await NameRun.LeftAsync(fixedFiles, files);
+
+        // Assert
+        await Assert.That((fixedFiles["Order.cs"], left.Count)).IsEqualTo((CodeFixRun.Header + "[System.Flags]\npublic enum Access\n{\n    None = 0,\n    Read = 1,\n}", 0));
+    }
+
+    [Test]
+    public async Task RegisterCodeFixes_NameOnAMemberOfAFlagsEnum_OffersToRemoveIt()
+    {
+        // Arrange
+        var files = CodeFixRun.One(FlagsWithName);
+
+        // Act
+        var titles = await NameRun.TitlesAsync(files);
+
+        // Assert
+        await Assert.That(titles).IsEquivalentTo(["Remove [DynamoDbEnumName]"]);
+    }
 
     [Test]
     public async Task Fix_AttributeOfAFlagsEnum_RemovesItsLine()
@@ -66,7 +97,7 @@ public sealed class RemoveEnumAttributeCodeFixTests
     }
 
     [Test]
-    public async Task FixableDiagnosticIds_IsTheRule()
+    public async Task FixableDiagnosticIds_AreTheRules()
     {
         // Arrange
         var fix = new RemoveEnumAttributeCodeFix();
@@ -75,6 +106,6 @@ public sealed class RemoveEnumAttributeCodeFixTests
         var ids = fix.FixableDiagnosticIds;
 
         // Assert
-        await Assert.That(ids).IsEquivalentTo(["DYNA033"]);
+        await Assert.That(ids).IsEquivalentTo(["DYNA033", "DYNA046"]);
     }
 }

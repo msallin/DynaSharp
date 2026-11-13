@@ -1,15 +1,16 @@
 namespace DynaSharp.Generators;
 
-/// <summary>An enum: the member name by default, and <c>d&lt;w&gt;</c> for its value.</summary>
+/// <summary>An enum: the stored name of the member by default, and <c>d&lt;w&gt;</c> for its value, which ignores the name.</summary>
 /// <param name="typeName">The type as messages show it.</param>
 /// <param name="valueType">The enum as code.</param>
 /// <param name="underlying">The underlying type.</param>
 /// <param name="namesAreUnique">False for <c>[Flags]</c> and aliased members, whose names are not one-to-one.</param>
 /// <param name="hasNoNames">True for an enum without members, which no name can write.</param>
 /// <param name="digitsWidth">The width of a <c>d&lt;w&gt;</c> that holds every value, or null when a member is negative.</param>
+/// <param name="storedNames">The stored names of the members, each once.</param>
 /// <param name="converter">Registers the generated converter and gives its name. It is not needed for <c>d&lt;w&gt;</c>.</param>
-internal sealed class EnumInput(string typeName, string valueType, IntegerType underlying, bool namesAreUnique, bool hasNoNames, int? digitsWidth, Func<string> converter)
-    : KeyInputType(typeName, "no format for the member name, or d<w>, such as d3, for its value")
+internal sealed class EnumInput(string typeName, string valueType, IntegerType underlying, bool namesAreUnique, bool hasNoNames, int? digitsWidth, EquatableArray<string> storedNames, Func<string> converter)
+    : KeyInputType(typeName, "no format for the stored name of the member, or d<w>, such as d3, for its value")
 {
     private const int MaxWidth = 20;
 
@@ -27,7 +28,7 @@ internal sealed class EnumInput(string typeName, string valueType, IntegerType u
         if (format is null)
         {
             return namesAreUnique
-                ? Encoded(new EnumNameEncoding(converter(), valueType))
+                ? Encoded(new EnumNameEncoding(converter(), valueType, storedNames))
                 : new FormatBinding(null, new KeyProblem(Descriptors.EnumNamesNotUnique, [TypeName], Fix: digitsWidth is { } digits ? KeyProblem.Rewrite(property, [(property, "d" + digits)]) : null));
         }
 

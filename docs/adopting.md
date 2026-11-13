@@ -18,7 +18,7 @@ A `Query` or a `Scan` of an entity filters on `_type`, which nobody wrote into t
 
 ## Names of your own
 
-`AttributeName` gives a key the name it has in the table, and `[DynamoDbAttribute]` does the same for any other property. A key with no template is the value of its property.
+`AttributeName` gives a key the name it has in the table, and `[DynamoDbAttribute]` does the same for any other property. A key with no template is the value of its property. An enum whose values another writer stored under other names, such as `APPOINTMENT` for `Appointment`, takes `[DynamoDbEnumName("APPOINTMENT")]` on each member, in attributes and in keys alike, see [Stored names of enum members](entities.md#stored-names-of-enum-members).
 
 ```csharp
 [DynamoDbEntity]

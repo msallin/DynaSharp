@@ -258,6 +258,42 @@ internal static class Descriptors
         true,
         helpLinkUri: EntityHelp);
 
+    public static readonly DiagnosticDescriptor EnumStoredNameTaken = new(
+        "DYNA044",
+        "Enum stored name is not one-to-one",
+        "Enum '{0}' stores '{1}' as '{2}', which is {3}, so a read of '{2}' cannot tell them apart. Give each value a stored name of its own.",
+        Mapping,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: EntityHelp);
+
+    public static readonly DiagnosticDescriptor InvalidEnumStoredName = new(
+        "DYNA045",
+        "Enum stored name is invalid",
+        "[DynamoDbEnumName] on '{0}' {1}, which no attribute or key can hold. Give it a name of visible characters.",
+        Mapping,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: EntityHelp);
+
+    public static readonly DiagnosticDescriptor IneffectiveEnumName = new(
+        "DYNA046",
+        "[DynamoDbEnumName] has no effect",
+        "[DynamoDbEnumName] on '{0}' changes nothing, because {1}",
+        Mapping,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: EntityHelp);
+
+    public static readonly DiagnosticDescriptor EnumStoredNameNotInKey = new(
+        "DYNA125",
+        "Enum stored name does not fit the key",
+        "Placeholder '{0}' writes the stored name '{1}' of enum '{2}', which {3}, so every key of that member throws KeyFormatException. Change the stored name, or use d<w>.",
+        KeyGrammar,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: KeyHelp);
+
     public static readonly DiagnosticDescriptor TemplateSyntax = new(
         "DYNA100", "Key template syntax error", "Key template '{0}' has a syntax error at position {1}: {2}", KeyGrammar, DiagnosticSeverity.Error, true, helpLinkUri: KeyHelp);
 
@@ -318,7 +354,7 @@ internal static class Descriptors
     public static readonly DiagnosticDescriptor EnumNamesNotUnique = new(
         "DYNA113",
         "Enum names are not one-to-one",
-        "Enum '{0}' has [Flags] or aliased members, so its names are not one-to-one in a key. Use d<w>.",
+        "Enum '{0}' has [Flags], aliased members or a stored name twice, so its names are not one-to-one in a key. Use d<w>.",
         KeyGrammar,
         DiagnosticSeverity.Error,
         true,
@@ -793,11 +829,11 @@ internal static class Descriptors
         LanguageVersionTooLow, InaccessibleType, InvalidKeyType, InvalidIndex, NullableContextDisabled, NoDiscriminator, IgnoredPlainKey,
         InvalidDiscriminator, VersionInKey, EnumWithoutMembers, NamedLikeGeneratedClass, DuplicateDiscriminator, InvalidDefaultConverter, InvalidOmitEmpty, EntityInsideEntity, UnnamedComputedSource, IneffectiveEnumAttribute, TemplateSyntax, LiteralNotAscii, UnknownProperty, UnsupportedKeyInput, FormatDoesNotFit, FormatOutOfRange,
         NoLiteralBetween, NullableInput, NumberWithoutFixedFormat, InvalidKeyOnly, SparseWithoutNullableInput, RepeatedPlaceholder,
-        MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter, TruncatedTimestampEndsTableKey, EmptyDefaultOfKey, RawNotLast, InvalidComputedFrom, RawBesideStrict, RawThroughGetter, ConstantNoKeyHolds, RawWithoutKeyOnly, EnumWithoutMembersInKey,
+        MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter, TruncatedTimestampEndsTableKey, EmptyDefaultOfKey, RawNotLast, InvalidComputedFrom, RawBesideStrict, RawThroughGetter, ConstantNoKeyHolds, RawWithoutKeyOnly, EnumWithoutMembersInKey, EnumStoredNameNotInKey,
         CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber, NestedConflictRetry, VersionReadBeforeRetry, WriteOfComputedInputSource,
         ReservedWordInExpression, FilterOnLosslessKey, FilterOnLossyKey, OverlappingUpdatePaths, KeyOfAnotherAttribute, IncludedKeyDiffers, IndexKeyWithoutAllInputs, ValueWithoutFound,
         KeyOfAnotherEntity, NotAnEntity, ValueOfAnotherType, AddWithoutNumberOrSet, ItemMethodOnRead,
-        UnreachableSetter, NullReadsBackAsInitialValue, IfVersionOnPut, VersionedBatchWrite, DateTimeWithoutKind, InvalidTimeToLive, NoIncludingAll, NamedLikeEntitiesClass, InvalidTableName, TableKeysDiffer, NoDeclaredTable, UnsettledVersionByKey, ObliviousProperty, ByReferenceParameter, NameTakenOverByGeneratedClass, EntityLeftOutOfTable, UpdateCreatesUnreadableItem, AddOnTimeToLive, SetOfMaybeNull,
+        UnreachableSetter, NullReadsBackAsInitialValue, IfVersionOnPut, VersionedBatchWrite, DateTimeWithoutKind, InvalidTimeToLive, NoIncludingAll, NamedLikeEntitiesClass, InvalidTableName, TableKeysDiffer, NoDeclaredTable, UnsettledVersionByKey, ObliviousProperty, ByReferenceParameter, NameTakenOverByGeneratedClass, EnumStoredNameTaken, InvalidEnumStoredName, IneffectiveEnumName, EntityLeftOutOfTable, UpdateCreatesUnreadableItem, AddOnTimeToLive, SetOfMaybeNull,
     ];
 
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById = All.ToDictionary(descriptor => descriptor.Id);

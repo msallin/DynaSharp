@@ -43,6 +43,8 @@ internal static class WellKnownNames
 
     public const string EnumAttribute = "DynaSharp.Mapping.DynamoDbEnumAttribute";
 
+    public const string EnumNameAttribute = "DynaSharp.Mapping.DynamoDbEnumNameAttribute";
+
     public const string DocumentInterface = "DynaSharp.Mapping.IDynamoDbDocument<TSelf>";
 
     public const string ConverterInterface = "DynaSharp.Serialization.IDynamoDbConverter<T>";

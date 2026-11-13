@@ -118,7 +118,7 @@ A sort key has no `Of`: its builder makes conditions for `Query`; `Keys.Of` make
 | `Ge`, `Gt`, `Le`, `Lt(values...)` | When every field through the last argument sorts like its value | One end, not bounded by the template: `Ge` also reaches what sorts after it in the partition |
 | `Parse`, `TryParse` | Always | `SkParts`, as for a partition key |
 
-A field sorts like its value when its width is fixed (`d6`, a timestamp, a `Guid`, a date) or it is a string that ends the key or precedes a space. Plain digits sort `10` before `9` and an enum sorts by name, so those get no range. A string before another delimiter is `DYNA115`. What is not generated would be wrong, so it does not compile.
+A field sorts like its value when its width is fixed (`d6`, a timestamp, a `Guid`, a date) or it is a string that ends the key or precedes a space. Plain digits sort `10` before `9` and an enum sorts by its stored name, so those get no range. A string before another delimiter is `DYNA115`. What is not generated would be wrong, so it does not compile.
 
 For the sample, `Order.Keys.Sk` of `ORDER#{Number:d6}` has `Format`, `Eq`, `Prefix()`, `UpperBound()`, `BeginsWith()`, `Between`, `Ge`, `Gt`, `Le`, `Lt` and the parsers; no `Range`, as nothing follows `Number`, and no `PrefixPartial`, as `Number` is no string. `Order.Keys.ByStatusSk` of `{PlacedAt}` has no literal, so no prefix, and its ranges compare whole keys. See [Queries and scans](queries.md#sort-key-conditions). The bounds they write:
 

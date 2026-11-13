@@ -4,7 +4,7 @@ What DynaSharp's generator and analyzers report, and how to fix it. Every diagno
 
 ## Entities
 
-The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]` types; `DYNA026`, `DYNA032` and `DYNA033` on an enum come from analyzers. A type with an error generates no code, so the `CS0311` on its table that the build shows beside it goes away with the fix. The exceptions are `DYNA020`, where the type is generated as if it opted out, and `DYNA104` and `DYNA105` on a key template, where the placeholder takes the default format of its type: the uses of the type compile, and the build fails on that error alone.
+The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]` types; `DYNA026`, `DYNA032`, and `DYNA033` and `DYNA044` to `DYNA046` on an enum, come from analyzers. A type with an error generates no code, so the `CS0311` on its table that the build shows beside it goes away with the fix. The exceptions are `DYNA020`, where the type is generated as if it opted out, and `DYNA104` and `DYNA105` on a key template, where the placeholder takes the default format of its type: the uses of the type compile, and the build fails on that error alone.
 
 | Rule | What is wrong | What to do |
 |---|---|---|
@@ -114,6 +114,19 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 - **Fix.** Write the name in full, `public Shop.Keys Key { get; set; }`, `global::Shop.Keys` or `Names.TableName`, or give a type another name with a using alias, `using KeyCode = Shop.Keys;`. The code fix writes the name in full, as the message gives it.
 - **Not reported.** A name after a dot, such as `Shop.Keys` or `dictionary.Keys`, a local or a parameter, which C# finds first, and a name of a member the type does not get: `Keys` in a document, `Indexes` in an entity without an index, `TableName` in an entity without a table. `[DynamoDbEntity(Table = TableName)]`, whose value is the constant's anyway. A member of the type with such a name is `DYNA014`.
 
+`DYNA044` (error): two members of an enum with different values that one stored name would read as both: they share a `[DynamoDbEnumName]`, as in `[DynamoDbEnumName("WIND")] Calm, [DynamoDbEnumName("WIND")] Gale`, or one stores the name of the other, as in `[DynamoDbEnumName("Gale")] Calm, Gale`. A write of either stores the same text, and a read gives one of them. Reported on the enum, once per pair.
+
+- **Fix.** Give each value a stored name of its own.
+- **Not reported.** Aliases, members of one value, which write the name of the first and read each of theirs as that value. A stored name that is another member's only by case, `GALE` beside `Gale`: a read compares bytes. Two members that swap their names, `[DynamoDbEnumName("GALE")] Calm, [DynamoDbEnumName("CALM")] Gale`, which is one-to-one.
+
+`DYNA045` (error): a `[DynamoDbEnumName]` that no attribute or key can hold: null, empty, white space alone, or with a control character. A write of an empty name throws, and a key refuses each of them.
+
+- **Fix.** Give the member a name of visible characters, or take the attribute off to store the member's own name.
+
+`DYNA046` (warning): `[DynamoDbEnumName]` on a member of an enum whose generated converter does not store names: a `[Flags]` enum is stored as a number, and an enum with its own `[DynamoDbConverter]` is written by that converter. Reported on the attribute, whether a type uses the enum or not.
+
+- **Fix.** Remove the attribute, or store the name in the converter. The code fix removes it.
+
 ## Key templates
 
 The source generator reports these on key templates. The grammar is under [Key grammar](https://github.com/msallin/DynaSharp/blob/main/spec/requirements.md#key-grammar) in the repository's requirements, each type's formats are in the row of `DYNA104`, and each message says which part of a template it is about. Analyzers report what code shows of a template: `DYNA120` and `DYNA121` through the getter of a computed input, and `DYNA122` on a call of a key builder.
@@ -133,7 +146,7 @@ The source generator reports these on key templates. The grammar is under [Key g
 | `DYNA110` (warning) | A sparse index whose inputs can never be absent, so it holds every item | Remove `Sparse`, or make an input nullable or a string with an `[OmitEmpty]` of its own. The code fix removes `Sparse = true` |
 | `DYNA111` | A property twice in one template | Use it once |
 | `DYNA112` | A template on a property, or a plain key on a type | Move it |
-| `DYNA113` | An enum with `[Flags]` or aliases, whose names are not one-to-one | Use `d<w>`. The code fix writes it with the digits of the largest value, all flags together for `[Flags]`, where no member is negative |
+| `DYNA113` | An enum with `[Flags]`, aliases or a stored name twice, whose names are not one-to-one | Use `d<w>`. The code fix writes it with the digits of the largest value, all flags together for `[Flags]`, where no member is negative |
 | `DYNA114` | A computed property in an index template, which no update can follow | Add `[ComputedFrom]` naming the stored properties it reads, or use a stored property. The code fix adds `[ComputedFrom(nameof(...))]` with the stored properties of the same instance the getter reads |
 | `DYNA115` (info) | A string before a delimiter in a sort key, so values with a smaller character sort out of order | Use a delimiter below the values, or accept the rare caveat |
 
@@ -176,9 +189,14 @@ The source generator reports these on key templates. The grammar is under [Key g
 - **Fix.** Mark the property `[KeyOnly]`, as in [Keys that hold your delimiter](adopting.md#keys-that-hold-your-delimiter); the code fix adds it. It then has no handle, so a condition or a filter cannot name it.
 - **Not reported.** A raw placeholder of an index, which the table key does not hold, and a computed input, which `[KeyOnly]` does not take. Information only, because an adopted table whose items hold the attribute needs it: there `[KeyOnly]` would make a `Put` drop it, so suppress the message instead.
 
-`DYNA124` (error): a placeholder without a format of an enum that has no members, such as `{Status}` with `public enum Status { }`. Without a format a key holds an enum by the name of a member, and this one has none, so every write throws. `DYNA024` reports a stored property of such an enum; this rule also sees a `[KeyOnly]` property and a getter that only the key holds.
+`DYNA124` (error): a placeholder without a format of an enum that has no members, such as `{Status}` with `public enum Status { }`. Without a format a key holds an enum by the stored name of a member, and this one has none, so every write throws. `DYNA024` reports a stored property of such an enum; this rule also sees a `[KeyOnly]` property and a getter that only the key holds.
 
 - **Fix.** Add a member, or write the value with `d<w>`: `{Status:d1}`, which the code fix writes.
+
+`DYNA125` (error): a placeholder without a format of an enum with a stored name that no key of the template can hold: one that holds a delimiter of the template, such as `[DynamoDbEnumName("LOADING#UNIT")]` under `{Owner}#{Key}`, a control character, U+10FFFF or text that is not well-formed. Every key of that member throws `KeyFormatException`, so every write of it does too.
+
+- **Fix.** Change the stored name, or write the value with `d<w>`, which ignores the name.
+- **Not reported.** A placeholder with `d<w>`. A delimiter of another template, which the enum does not stand in.
 
 ## Commands
 
