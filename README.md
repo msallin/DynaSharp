@@ -70,7 +70,7 @@ await foreach (var placed in orders.Query(Order.Keys.Pk.Of("alice")).ItemsAsync(
 }
 ```
 
-[Getting started](https://msallin.github.io/DynaSharp/getting-started.html) has the whole program, a local emulator, the options and the credential chain. The examples below use [a small shop on one table](https://msallin.github.io/DynaSharp/getting-started.html#the-shop), which [`samples`](https://github.com/msallin/DynaSharp/tree/main/samples) runs as a tour.
+[Getting started](https://msallin.github.io/DynaSharp/getting-started.html) has the whole program, a local emulator, the options and the credential chain. The examples below use [a small shop on one table](https://msallin.github.io/DynaSharp/getting-started.html#the-shop), which [`samples`](https://github.com/msallin/DynaSharp/tree/main/samples) runs as a tour. Coming from the AWS SDK or EfficientDynamoDb? See [Migrating](https://msallin.github.io/DynaSharp/migrating.html).
 
 ## Examples
 
