@@ -476,7 +476,7 @@ public sealed class CompileGuardTests
     [Arguments("""await orders.BatchWrite().Put(new Order("a")).IgnoreVersion().Delete(default(Order.Key));""")]
     [Arguments("""await shop.Of<KeyedOrder>().Update(KeyedOrder.Keys.Of(default, default, default)).Remove(KeyedOrder.Attrs.Quantity).Remove("x").Remove(Attr("y"));""")]
     [Arguments("""await client.TransactWrite().Update(shop, "a").Remove(KeyedOrder.Attrs.Quantity).Remove("x");""")]
-    [Arguments("""await foreach (Mixed<Invoice, Payment> item in shop.Query("a").Of<Invoice, Payment>().ItemsAsync()) { if (item.Is(out Invoice? invoice)) { var id = invoice.Id; } }""")]
+    [Arguments("""await foreach (Mixed<Invoice, Payment> item in shop.Query("a").Of<Invoice, Payment>().ItemsAsync()) { if (item.TryGetValue(out Invoice? invoice)) { var id = invoice.Id; } }""")]
     [Arguments("""await foreach (var item in index.Query("a").Of<Invoice, Payment>().ItemsAsync()) { }""")]
     [Arguments("""await foreach (var item in shop.Scan().Of<Invoice, Payment>().ItemsAsync()) { string id = item.Match(i => i.Id, p => p.Id); }""")]
     [Arguments("""await foreach (var item in index.Scan().Of<Invoice, Payment>().Parallel(2).ItemsAsync()) { }""")]

@@ -500,7 +500,7 @@ public sealed class TableStreamExtensionsTests
         var changes = await client.Table("Shop", "pk", "sk").ReadChangesAsync<Alpha, Beta>(streams, ShardIteratorType.TrimHorizon, onMappingFailure: (failure, _) => failures.Add(failure)).Take(1).ToListAsync();
 
         // Assert
-        await Assert.That((changes.Single().Is(out Change<Alpha>? alpha), alpha!.Kind, failures.Count)).IsEqualTo((true, OperationType.Insert, 2));
+        await Assert.That((changes.Single().TryGetValue(out Change<Alpha>? alpha), alpha!.Kind, failures.Count)).IsEqualTo((true, OperationType.Insert, 2));
     }
 
     [Test]
@@ -543,7 +543,7 @@ public sealed class TableStreamExtensionsTests
         var read = (
             (await one.Take(1).ToListAsync()).Single().After!.Name,
             string.Join(",", (await two.Take(2).ToListAsync()).Select(static change => change.Match(static _ => "A", static _ => "B"))),
-            (await other.Take(1).ToListAsync()).Single().Is(out Change<Beta>? beta) && beta.After!.Amount == 7);
+            (await other.Take(1).ToListAsync()).Single().TryGetValue(out Change<Beta>? beta) && beta.After!.Amount == 7);
 
         // Assert
         await Assert.That(read).IsEqualTo(("first", "A,B", true));

@@ -209,7 +209,8 @@ Check(commandHandler.Requests[^1].BodyText.Contains("#n1 IN (:v1, :v2)", StringC
 
 commandHandler.Enqueue(StubResponse.Json(MixedItems));
 var mixedPage = await users.Scan().Of<Basket, Visitor>().PageAsync();
-Check(mixedPage.ScannedCount == 3 && mixedPage.Items[0].Is(out Visitor? mixedVisitor) && mixedVisitor.Visits == 1, "a mixed scan reads a page");
+Check(mixedPage.ScannedCount == 3 && mixedPage.Items[0].TryGetValue(out Visitor? mixedVisitor) && mixedVisitor.Visits == 1, "a mixed scan reads a page");
+Check(mixedPage.Items[0] switch { Basket => "basket", Visitor { Visits: 1 } => "visitor", Visitor => "other", null => "nothing" } == "visitor", "a switch takes a mixed item apart");
 
 // A fan-out: tasks that read at once, a heap, a token that holds a key per partition, and numbers that merge by value. Each
 // partition answers with items of its own partition key, as DynamoDB does, since the token checks the key it holds.

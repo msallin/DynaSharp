@@ -149,7 +149,7 @@ for it, so no reader outlives the enumeration.
 `IChangeTypes<TOut>` is an internal interface of static abstract members, so `TableStreamExtensions.ReadTypedAsync` is one generic iterator for every arity with no delegate per
 record; `SingleChange<T>` and each `MixedChange<...>` ask a `DiscriminatorSchema`, so a mixed read, a typed change and `Item.Is<T>()` share one rule. The mixed readings are
 members of `Table<T>` (`Streams/Table.Streams.cs`), because an extension over `Table<TTable>` cannot be called with the types of the reading alone. `MixedChange` holds the change
-as `object` plus an index, because a change is a class and a field per type only adds size.
+as `object` plus an index, because a change is a class and a field per type only adds size; that `object` is its `Value` of the union shape (below).
 
 **The request API** adds nothing to the path: an `IOperation<TRequest, TResponse>` is a stateless struct with `Name`, `WriteRequest` and `ReadResponse`, and
 `OperationCalls.ExecuteAsync` checks the request and sends it as a `RequestCall`, so `Http` knows calls, not operations. A response both APIs read goes through one envelope in
@@ -289,6 +289,8 @@ merge compares only bytes. `FanOutToken` is the composite position inside a `Con
 extends `DiscriminatorSchema`, whose `FindType` reads a copy of the reader to find `_type` and then lets the type read from the start. A problem with a combination is thrown at
 `Of<...>()`, never from a type initializer. The mixed commands repeat the read clauses by hand, and `MixedForwardingTests` keeps them forwarding every clause. `Item.Is<T>()` applies
 the same rule to an item already read and answers -1 where the wire overload throws.
+
+**Unions.** Each `Mixed<...>` and `MixedChange<...>` carries `[Union]` with a public constructor per type, `Value`, `HasValue` and `TryGetValue(out T)` per type, so a C# 15 consumer gets an exhaustive `switch` and type patterns, which call `TryGetValue`. `src/` stays C# 14 and declares the shape only; it never switches over a `Mixed` by case (CS9327 at C# 14). The constructors of `Mixed` check through `MixedSchema.Required`, one generic method, so no struct instantiation leaves an untested branch. The generator refuses a user's union by symbol (`TypeRules.IsUnion`: `[Union]`, or `IUnion`, which is all a `union` declaration shows, since the compiler's attribute is not in `GetAttributes()`): `DYNA007` on the type, and `DYNA003` with a converter hint on a property of a union that does not implement `IDynamoDbDocument<T>` itself. The Roslyn of the unit tests is the generator floor (C# 14), so tests of what C# 15 sees (`CS8509`, a `union` declaration) run the SDK's compiler through `SdkCompiler`.
 
 **Plain JSON.** `JsonBridge` goes through the wire format both ways, so the reader and the writer stay the only DynamoDB-JSON code (decision 3). In: `JsonValueWriter` writes one
 JSON value with a `DynamoDbWriter` and checks what DynamoDB refuses, so a failure names its JSONPath: numbers (`DynamoDbNumber.FitsDynamoDb`), 32 levels, and duplicate names,

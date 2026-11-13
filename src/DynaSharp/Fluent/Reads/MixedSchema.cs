@@ -33,6 +33,15 @@ internal sealed class MixedSchema : DiscriminatorSchema
     public static InvalidOperationException Empty() =>
         new("This Mixed is a default value, which holds nothing. Items of a mixed read always hold one of their types.");
 
+    /// <summary>Checks the item of a constructor of a <c>Mixed</c>, which holds an item or, as its default value, nothing.</summary>
+    /// <typeparam name="T">The type of the item.</typeparam>
+    /// <param name="item">The item.</param>
+    /// <param name="name">The name of the parameter.</param>
+    /// <returns>What was passed.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="item"/> is <see langword="null"/>.</exception>
+    /// <remarks>One generic method, not a check in each constructor: an entity that is a struct would leave a check inline there without a null case to test.</remarks>
+    public static T Required<T>(T item, string name) => item is null ? throw new ArgumentNullException(name) : item;
+
     /// <summary>
     /// Turns a query of items into a mixed read: the filter gains the discriminators, and the handle of the read is used up. DynamoDB refuses a filter on a key of what a query reads, so a
     /// query of a table or index keyed by the discriminator goes without, as a typed query does, and its key condition says which items come back.

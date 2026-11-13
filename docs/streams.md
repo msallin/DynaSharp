@@ -239,23 +239,27 @@ await foreach (Change<Order> change in shop.Of<Order>().ReadChangesAsync(streams
 
 ### Several entities
 
-`ReadChangesAsync<T1, T2>` of a table, with up to four entities, gives a `MixedChange`: a change of one of them, which `Is(out Change<T>? change)` and `Match` tell apart, as `Mixed` does for a [mixed read](queries.md#several-types-in-one-query). `Match` takes one function per type, so adding a type breaks the build where it is not handled:
+`ReadChangesAsync<T1, T2>` of a table, with up to four entities, gives a `MixedChange`: a change of one of them, a C# 15 union of the `Change<T>` of each type, as `Mixed` is of the items of a [mixed read](queries.md#unions-in-c-15). A `switch` names each type, and the compiler warns (`CS8509`) where adding a type leaves one unhandled:
 
 ```csharp
 await foreach (var change in shop.ReadChangesAsync<Customer, Order>(streams, ShardIteratorType.Latest, cancellationToken: ct))
 {
-    change.Match(
-        customer => Console.WriteLine($"customer {customer.Kind}: {customer.After?.Email}"),
-        order => Console.WriteLine($"order {order.Kind}: {order.After?.Total}"));
+    Console.WriteLine(change switch
+    {
+        Change<Customer> customer => $"customer {customer.Kind}: {customer.After?.Email}",
+        Change<Order> placed => $"order {placed.Kind}: {placed.After?.Total}",
+    });
 }
 ```
+
+In C# 14, `Match` takes one function or action per type and is as exhaustive: `change.Match(customer => ..., placed => ...)`.
 
 Every table has it, whatever type it was opened for, because the reading needs only the client, the name and the keys of the table. An application that opens the table once per entity reads from any of them, and the type of the table need not be one of the types read:
 
 ```csharp
 await foreach (var change in orders.ReadChangesAsync<Customer, Order>(streams, ShardIteratorType.Latest, cancellationToken: ct))
 {
-    if (change.Is(out Change<Customer>? signedUp))
+    if (change is Change<Customer> signedUp)
     {
         Console.WriteLine($"customer {signedUp.Kind}");
     }
@@ -266,14 +270,17 @@ Without type arguments, `orders.ReadChangesAsync(streams, ...)` is the reading o
 
 The types are entities with a discriminator, in one attribute, and two types with the same discriminator throw `ArgumentException` at the call, as `Of<...>()` of a query does. An item that becomes another of the types at its key gives two changes, the removal first, and both come before the next record. Changes of entities that are not named are skipped. More than four entities, or a table without a model, read the records and take them apart with `As<T>()` or with `Item`.
 
-Code that handles the changes is tested without a stream: `MixedChange` has a constructor per type, which takes the `Change<T>` of that type, and `Change<T>` is a record that a test fills in. The type of the argument picks the constructor:
+Code that handles the changes is tested without a stream: a `Change<T>` converts to the `MixedChange` of its type, and `Change<T>` is a record that a test fills in. In C# 14 the constructor of each type does the same, `new MixedChange<Customer, Order>(change)`; the type of the argument picks it. The `default` value holds nothing and matches the `null` pattern; a reading never gives one.
 
 ```csharp
-static string Describe(MixedChange<Customer, Order> change) =>
-    change.Match(customer => $"customer {customer.After?.Email}", order => $"order {order.Kind} {order.After?.Total}");
+static string Describe(MixedChange<Customer, Order> change) => change switch
+{
+    Change<Customer> customer => $"customer {customer.After?.Email}",
+    Change<Order> placed => $"order {placed.Kind} {placed.After?.Total}",
+};
 
-var placed = new MixedChange<Customer, Order>(new Change<Order> { Kind = OperationType.Insert, After = order, Record = new ChangeRecord() });
-Console.WriteLine(Describe(placed)); // order Insert, then the total of the order
+MixedChange<Customer, Order> inserted = new Change<Order> { Kind = OperationType.Insert, After = order, Record = new ChangeRecord() };
+Console.WriteLine(Describe(inserted)); // order Insert, then the total of the order
 ```
 
 ### Skip changes that fail to map

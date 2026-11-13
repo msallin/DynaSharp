@@ -44,6 +44,7 @@ What the other two have, or what you may look for, and DynaSharp does not do:
 
 - **Older .NET.** It targets .NET 11 only.
 - **A class hierarchy in one table.** Several types are separate entities with a discriminator each, read together through `Of<A, B>()`, not derived classes of one base.
+- **A union as an entity.** A C# 15 union of your own is not mapped: the types it holds are each an entity, and a mixed read gives them as `Mixed<A, B>`, which is a union itself. See [Unions in C# 15](queries.md#unions-in-c-15).
 - **Interfaces to mock.** The client and the tables are sealed classes. A test fakes the wire with `DynaSharp.Testing` instead, see [Testing](testing.md).
 - **MFA in a profile.** A profile with `mfa_serial` fails, because the code of the device would be needed at every refresh. See [Assume a role](credentials.md#assume-a-role).
 - **PartiQL, DAX and vector search.** The AWS SDK has PartiQL on its low-level client and `SearchVectorsAsync` on the context.

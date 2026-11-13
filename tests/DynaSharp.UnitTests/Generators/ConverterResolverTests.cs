@@ -259,6 +259,41 @@ public sealed class ConverterResolverTests
     }
 
     [Test]
+    [Arguments("[System.Runtime.CompilerServices.Union] public readonly struct U { public U(int x) => Value = x; public object? Value { get; } }", "U")]
+    [Arguments("public readonly struct U : System.Runtime.CompilerServices.IUnion { public object? Value => null; }", "U")]
+    [Arguments("[System.Runtime.CompilerServices.Union] public readonly struct U { public U(int x) => Value = x; public object? Value { get; } }", "U?")]
+    [Arguments("[DynamoDbDocument, System.Runtime.CompilerServices.Union] public partial struct U { public U(int x) => Value = x; public object? Value { get; } }", "U")]
+    public async Task Resolve_UnionProperty_ReportsDyna003PointingToAConverter(string union, string type)
+    {
+        // Arrange (a union with [DynamoDbDocument] is refused itself, DYNA007, so its property points to a converter too)
+        var source = union + "\n[DynamoDbDocument] public partial class A { public " + type + " [|X|] { get; set; } }";
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(string.Join("\n", report.Split('\n').Where(static line => line.StartsWith("DYNA003", StringComparison.Ordinal))))
+            .IsEqualTo(Analysis.Expect(source, $"DYNA003 Error: Property 'X' has unsupported type 'Shop.{type}'. A union needs a converter: add a [DynamoDbConverter] with an IDynamoDbConverter<T> of it."));
+    }
+
+    [Test]
+    public async Task Resolve_MixedProperty_IsMappedAsADocument()
+    {
+        // Arrange (a union that writes itself, as Mixed<...> does, needs no converter)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("B"), PartitionKey("B")] public partial class B { }
+            [DynamoDbEntity, Discriminator("C"), PartitionKey("C")] public partial class C { }
+            [DynamoDbDocument] public partial class A { public Mixed<B, C> X { get; set; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(string.Empty);
+    }
+
+    [Test]
     public async Task Resolve_SetOfACustomElementWithoutSetSupport_ReportsDyna003()
     {
         // Arrange

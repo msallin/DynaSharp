@@ -126,16 +126,42 @@ A lookup that runs often needs a key: an index on the value, or a claim item as 
 
 ## Several types in one query
 
-Each item arrives as what it is, without a dictionary in between.
+Each item arrives as what it is, without a dictionary in between. `Of<Customer, Order>()` filters on the discriminators, so other types never reach the client, and each item is a `Mixed<Customer, Order>`, which a `switch` takes apart.
 
 ```csharp
 await foreach (var item in shop.Query(Order.Keys.Pk.Of("alice")).Of<Customer, Order>().ItemsAsync(ct))
 {
-    Console.WriteLine(item.Match(profile => profile.Name, order => $"#{order.Number}"));
+    Console.WriteLine(item switch
+    {
+        Customer profile => profile.Name,
+        Order placed => $"#{placed.Number}",
+    });
 }
 ```
 
+In C# 14, `Match` takes one function per type and is as exhaustive: `item.Match(profile => profile.Name, placed => $"#{placed.Number}")`. `item.TryGetValue(out Order? placed)` asks for one type in both.
+
 The changes of a table of several entities are typed the same way, by the discriminator of their images, see [Typed changes](streams.md#typed-changes).
+
+### Unions in C# 15
+
+`Mixed<T1, T2>` of a mixed read and `MixedChange<T1, T2>` of [typed changes](streams.md#typed-changes), with up to four types, are C# 15 unions of their types:
+
+- A `switch` over one names each type, without a discard arm, and the compiler warns with `CS8509` when one is missing. A type added to `Of<...>()` later shows every place that does not handle it yet.
+- `item is Order placed` asks for one type. A `Customer` or an `Order` converts to a `Mixed<Customer, Order>`, which is how a test builds the input of code that handles items: `Mixed<Customer, Order> item = customer;`, or `new Mixed<Customer, Order>(customer)` in C# 14.
+- `CA1508` of the .NET analyzers, on with `AnalysisLevel` `latest-all`, predates unions and may report the arms of such a `switch` as always true; switch it off where it does.
+- The `default` value holds nothing. It matches the `null` pattern, `HasValue` is `false`, and a `switch` without a `null` arm throws `SwitchExpressionException` on it. A read never gives one.
+
+```csharp
+static string Describe(Mixed<Customer, Order> item) => item switch
+{
+    Customer profile => $"profile of {profile.Name}",
+    Order { Total: > 100m } large => $"large order #{large.Number}",
+    Order placed => $"order #{placed.Number}",
+};
+```
+
+A union of your own is not an entity or a document. DynaSharp maps each type of a table as an entity with its discriminator and reads several of them with `Of<...>()`; a union holds one value of several types, which has no single set of attributes and no discriminator to write, so `[DynamoDbEntity]` or `[DynamoDbDocument]` on a union is [`DYNA007`](diagnostics.md#entities). A property whose type is a union needs a converter, an `IDynamoDbConverter<T>` that writes the value it holds, as under [Converters](entities.md#converters); without one it is [`DYNA003`](diagnostics.md#entities).
 
 ## One list over many partitions
 

@@ -28,6 +28,12 @@ A typed read parses the JSON of the response into the properties of the entity, 
 
 An `Item` keeps its names and values in two arrays, and the items of one response share their names. A read item costs little more than its values, at any size. An item built by hand is cheap at the usual sizes, and above 32 attributes costs more than a `Dictionary` of known capacity, because it then keeps a lookup index of its own.
 
+## Mixed reads are unions you do not declare
+
+`Mixed<Customer, Order>` and `MixedChange<Customer, Order>` are structs that hold one of their types, marked `[Union]` with a constructor per type, `TryGetValue` per type and `Value`, the shape C# 15 knows as a union. That is all the compiler needs for an exhaustive `switch` and for `item is Order placed`, and a library compiled as C# 14 can declare it, so DynaSharp needs no newer compiler than its consumers. A pattern calls `TryGetValue` of the type it names, so a `Mixed` holds a struct entity without a box; only `Value`, which no pattern needs, returns it as an object. `Match` stays for C# 14, where a `switch` cannot see the types.
+
+Your own union is not mapped, for a reason that comes from the table, not from the language: DynamoDB has no type of an item, only attributes, and DynaSharp tells the entities of a table apart by a discriminator each, so each type stays an entity of its own and a read of several gives the union. A union declared as an entity would need its cases to share keys and a discriminator they cannot both write. A union as a property has no single shape to store, so it takes a converter that decides one. A generated mapping of a union is open work, built when a service asks.
+
 ## What is checked at the call, and what at the send
 
 Arguments are checked where they are passed: a null, an empty key, a path that is not valid. What depends on the whole command is checked when it is sent: a version without `IfVersion` or `IgnoreVersion`, an index key that an update cannot keep consistent, a transaction without an action. In a transaction, such a check runs at the next action, where the action before it settles. A `Select` of an attribute that an item can lack, and a `Filter` that a key condition makes pointless, are reported by analyzers at build time instead ([`DYNA209`](diagnostics.md#commands), [`DYNA221`](diagnostics.md#commands)).

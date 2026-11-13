@@ -372,7 +372,7 @@ public sealed class MixedQueryCommandTests
         var items = await client.Table("Shop", "pk", "sk").Query("a").Of<Alpha, Beta>().ItemsAsync().ToListAsync();
 
         // Assert
-        await Assert.That(items.Single().Is(out Alpha? _)).IsTrue();
+        await Assert.That(items.Single().TryGetValue(out Alpha? _)).IsTrue();
     }
 
     [Test]
@@ -386,7 +386,7 @@ public sealed class MixedQueryCommandTests
         var items = await client.Table("Shop", "pk", "sk").Query("a").Of<Alpha, Beta, Gamma, Delta>().ItemsAsync().ToListAsync();
 
         // Assert
-        await Assert.That(items.Single().Is(out Delta _)).IsTrue();
+        await Assert.That(items.Single().TryGetValue(out Delta _)).IsTrue();
     }
 
     [Test]

@@ -54,7 +54,7 @@ public sealed class MixedReadTests(Backend backend)
         var items = await Read.ToListAsync(sandbox.Shop.Query(AlicePartition).Of<Customer, Order, Refund>().ItemsAsync());
 
         // Assert
-        await Assert.That((items.Count(static item => item.Is(out Order? _)), items.Count(static item => item.Is(out Refund? _)), items.Count(static item => item.Is(out Customer? _)))).IsEqualTo((2, 1, 1));
+        await Assert.That((items.Count(static item => item.TryGetValue(out Order? _)), items.Count(static item => item.TryGetValue(out Refund? _)), items.Count(static item => item.TryGetValue(out Customer? _)))).IsEqualTo((2, 1, 1));
     }
 
     [Test]
@@ -84,7 +84,7 @@ public sealed class MixedReadTests(Backend backend)
         var items = await Read.ToListAsync(sandbox.Shop.Index(ShopSandbox.ByType, "_type", "sk").Query("ORDER").Of<Customer, Order>().ItemsAsync());
 
         // Assert
-        await Assert.That(items.Count(static item => item.Is(out Order? _))).IsEqualTo(2);
+        await Assert.That(items.Count(static item => item.TryGetValue(out Order? _))).IsEqualTo(2);
     }
 
     [Test]
@@ -98,7 +98,7 @@ public sealed class MixedReadTests(Backend backend)
         var items = await Read.ToListAsync(sandbox.Shop.Index(ShopSandbox.ByPartitionAndType, "pk", "_type").Query(AlicePartition).Of<Customer, Order>().ItemsAsync());
 
         // Assert (CUSTOMER sorts before ORDER)
-        await Assert.That((items.Count, items[0].Is(out Customer? _))).IsEqualTo((3, true));
+        await Assert.That((items.Count, items[0].TryGetValue(out Customer? _))).IsEqualTo((3, true));
     }
 
     [Test]
@@ -157,7 +157,7 @@ public sealed class MixedReadTests(Backend backend)
         var items = await Read.ToListAsync(sandbox.Shop.Query(AlicePartition).Filter(Attr("Total").Gt(15m)).Of<Customer, Order>().Filter($"{Attr("Quantity")} = {0}").ItemsAsync());
 
         // Assert
-        await Assert.That(items.Single().Is(out Order? order) && order.Total == 20.5m).IsTrue();
+        await Assert.That(items.Single().TryGetValue(out Order? order) && order.Total == 20.5m).IsTrue();
     }
 
     [Test]
@@ -187,7 +187,7 @@ public sealed class MixedReadTests(Backend backend)
         var second = await sandbox.Shop.Query(AlicePartition).Of<Customer, Order>().Limit(2).PageAsync(ContinuationToken.Parse(first.Next.ToString()));
 
         // Assert
-        await Assert.That((first.Count, second.Count, second.Items[0].Is(out Customer? _))).IsEqualTo((2, 1, true));
+        await Assert.That((first.Count, second.Count, second.Items[0].TryGetValue(out Customer? _))).IsEqualTo((2, 1, true));
     }
 
     [Test]
@@ -201,7 +201,7 @@ public sealed class MixedReadTests(Backend backend)
         var pages = await Read.ToListAsync(sandbox.Shop.Query(AlicePartition).Of<Customer, Order>().Descending().Limit(1).PagesAsync());
 
         // Assert
-        await Assert.That((pages.Sum(static page => page.Count), pages[0].Items[0].Is(out Customer? _))).IsEqualTo((3, true));
+        await Assert.That((pages.Sum(static page => page.Count), pages[0].Items[0].TryGetValue(out Customer? _))).IsEqualTo((3, true));
     }
 
     [Test]

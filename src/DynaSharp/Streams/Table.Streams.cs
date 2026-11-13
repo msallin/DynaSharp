@@ -15,7 +15,7 @@ public sealed partial class Table<T>
 {
     /// <summary>
     /// Reads the changes of 2 entities of a table from its stream, typed: <c>shop.ReadChangesAsync&lt;Customer, Order&gt;(streams, ShardIteratorType.Latest, cancellationToken: ct)</c>
-    /// gives a <see cref="MixedChange{T1, T2}"/> per change of one of them, which <c>Is(out ...)</c> and <c>Match</c> tell apart, and skips the other entities of the table.
+    /// gives a <see cref="MixedChange{T1, T2}"/> per change of one of them, which a <c>switch</c> (or <c>Match</c> in C# 14) tells apart, and skips the other entities of the table.
     /// </summary>
     /// <typeparam name="T1">The first entity.</typeparam>
     /// <typeparam name="T2">The second entity.</typeparam>
@@ -62,7 +62,7 @@ public sealed partial class Table<T>
 
     /// <summary>
     /// Reads the changes of 3 entities of a table from its stream, typed: <c>shop.ReadChangesAsync&lt;Customer, Order, Invoice&gt;(streams, ShardIteratorType.Latest, cancellationToken: ct)</c>
-    /// gives a <see cref="MixedChange{T1, T2, T3}"/> per change of one of them, which <c>Is(out ...)</c> and <c>Match</c> tell apart, and skips the other entities of the table.
+    /// gives a <see cref="MixedChange{T1, T2, T3}"/> per change of one of them, which a <c>switch</c> (or <c>Match</c> in C# 14) tells apart, and skips the other entities of the table.
     /// </summary>
     /// <typeparam name="T1">The first entity.</typeparam>
     /// <typeparam name="T2">The second entity.</typeparam>
@@ -111,7 +111,7 @@ public sealed partial class Table<T>
 
     /// <summary>
     /// Reads the changes of 4 entities of a table from its stream, typed: <c>shop.ReadChangesAsync&lt;Customer, Order, Invoice, Payment&gt;(streams, ShardIteratorType.Latest, cancellationToken: ct)</c>
-    /// gives a <see cref="MixedChange{T1, T2, T3, T4}"/> per change of one of them, which <c>Is(out ...)</c> and <c>Match</c> tell apart, and skips the other entities of the table.
+    /// gives a <see cref="MixedChange{T1, T2, T3, T4}"/> per change of one of them, which a <c>switch</c> (or <c>Match</c> in C# 14) tells apart, and skips the other entities of the table.
     /// </summary>
     /// <typeparam name="T1">The first entity.</typeparam>
     /// <typeparam name="T2">The second entity.</typeparam>

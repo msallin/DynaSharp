@@ -138,9 +138,15 @@ catch (TransactionCanceledException exception) when (exception.ReasonFor(emailTa
 ```csharp
 await foreach (var item in shop.Query(Order.Keys.Pk.Of("alice")).Of<Customer, Order>().ItemsAsync(ct))
 {
-    Console.WriteLine(item.Match(profile => profile.Name, order => $"#{order.Number}"));
+    Console.WriteLine(item switch
+    {
+        Customer profile => profile.Name,
+        Order placed => $"#{placed.Number}",
+    });
 }
 ```
+
+Each item is a C# 15 union of its types, so the compiler warns when a `switch` misses one; C# 14 calls `item.Match(profile => ..., placed => ...)`.
 
 **Optimistic locking, and a retry on a conflict.** With `[Version]` on a property, a write of a copy that changed since it was read throws `ConditionalCheckFailedException`, and `RetryOnConflictAsync` runs the read-modify-write again with a fresh read. [Optimistic locking](https://msallin.github.io/DynaSharp/commands.html#optimistic-locking), [Retry on a conflict](https://msallin.github.io/DynaSharp/commands.html#retry-on-a-conflict)
 

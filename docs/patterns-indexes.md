@@ -42,12 +42,16 @@ public partial record Team
 }
 ```
 
-`Of<A, B>()` reads each item as its type. Memberships come first, since `GROUP#` sorts before `PROFILE`:
+`Of<A, B>()` reads each item as its type, and a `switch` takes it apart ([`Match`](queries.md#several-types-in-one-query) in C# 14). Memberships come first, since `GROUP#` sorts before `PROFILE`:
 
 ```csharp
 await foreach (var item in shop.Query(Member.Keys.Pk.Of("alice")).Of<Member, Membership>().ItemsAsync(ct))
 {
-    Console.WriteLine(item.Match(member => member.Name, membership => membership.GroupId));
+    Console.WriteLine(item switch
+    {
+        Member member => member.Name,
+        Membership membership => membership.GroupId,
+    });
 }
 ```
 
@@ -57,7 +61,11 @@ In the index, a team's partition holds the team and a membership per user:
 var byGroup = shop.Index<Membership>(Membership.Indexes.Gsi1);
 await foreach (var item in byGroup.Query(Team.Keys.Gsi1Pk.Of("staff")).Of<Team, Membership>().ItemsAsync(ct))
 {
-    Console.WriteLine(item.Match(team => team.Title, membership => membership.UserId));
+    Console.WriteLine(item switch
+    {
+        Team team => team.Title,
+        Membership membership => membership.UserId,
+    });
 }
 ```
 
@@ -124,7 +132,11 @@ Where two types share an index partition, one query reads both, expenses first, 
 var byTeam = shop.Index<Staffer>(Staffer.Indexes.Gsi1);
 await foreach (var item in byTeam.Query(Staffer.Keys.Gsi1Pk.Of("red")).Of<Staffer, Expense>().ItemsAsync(ct))
 {
-    Console.WriteLine(item.Match(staffer => staffer.Id, expense => $"{expense.Id}: {expense.Amount}"));
+    Console.WriteLine(item switch
+    {
+        Staffer staffer => staffer.Id,
+        Expense expense => $"{expense.Id}: {expense.Amount}",
+    });
 }
 ```
 

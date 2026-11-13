@@ -81,6 +81,14 @@ internal static class TypeRules
     public static bool AnnotatesNullability(GeneratorAttributeSyntaxContext context) =>
         context.SemanticModel.GetNullableContext(context.TargetNode.SpanStart).AnnotationsEnabled();
 
+    /// <summary>
+    /// Whether the type is a C# 15 union: a <c>union</c> declaration or a type with <c>[Union]</c>. Read from the symbol, so a compiler older than the syntax still sees it in a referenced
+    /// assembly, and the generator needs no syntax of C# 15.
+    /// </summary>
+    public static bool IsUnion(ITypeSymbol type) =>
+        AttributeReader.Find(type, WellKnownNames.UnionAttribute) is not null
+        || type.AllInterfaces.Any(static candidate => candidate.ToDisplayString() == WellKnownNames.UnionInterface);
+
     public static bool HidesKeys(INamedTypeSymbol type) => HidesInherited(type, KeysClass, WellKnownNames.EntityAttribute);
 
     public static bool HidesAttrs(INamedTypeSymbol type) =>
@@ -129,6 +137,12 @@ internal static class TypeRules
 
     private static string? Unmappable(INamedTypeSymbol type)
     {
+        // First, since a union is also a struct, and may be generic: the generated mapping would read and write its fields, not the value it holds.
+        if (IsUnion(type))
+        {
+            return "it is a union. Map each of its types instead, and read them together with Of<T1, T2>()";
+        }
+
         if (type.TypeKind == TypeKind.Interface)
         {
             return "it is an interface";

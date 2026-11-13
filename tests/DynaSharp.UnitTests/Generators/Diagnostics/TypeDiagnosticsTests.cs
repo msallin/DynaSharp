@@ -10,6 +10,8 @@ public sealed class TypeDiagnosticsTests
 {
     private const string Entity = """[DynamoDbEntity, Discriminator("E"), PartitionKey("E")] public partial class E { """;
 
+    private const string Union = "it is a union. Map each of its types instead, and read them together with Of<T1, T2>()";
+
     private const string Dyna035OfInitializer = "Remove the initializer, or make the property non-nullable";
 
     private const string LenientWind = "[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)] public enum Wind { Calm, Gale }\n";
@@ -535,6 +537,10 @@ public sealed class TypeDiagnosticsTests
     [Arguments("[DynamoDbDocument] public partial interface [|A|] { }", "it is an interface")]
     [Arguments("[DynamoDbDocument] file partial class [|A|] { }", "it is file-local")]
     [Arguments("file partial class Outer { [DynamoDbDocument] public partial class [|A|] { } }", "it is file-local")]
+    [Arguments("[DynamoDbDocument, System.Runtime.CompilerServices.Union] public partial struct [|A|] { public A(int x) => Value = x; public object? Value { get; } }", Union)]
+    [Arguments("[DynamoDbDocument] public partial struct [|A|] : System.Runtime.CompilerServices.IUnion { public object? Value => null; }", Union)]
+    [Arguments("""[DynamoDbEntity, Discriminator("A"), PartitionKey("A")] public partial struct [|A|] : System.Runtime.CompilerServices.IUnion { public object? Value => null; }""", Union)]
+    [Arguments("[DynamoDbDocument, System.Runtime.CompilerServices.Union] public partial struct [|A|]<T> { public A(T x) => Value = x; public object? Value { get; } }", Union)]
     public async Task Build_ShapeThatCannotBeMapped_ReportsDyna007(string source, string reason)
     {
         // Arrange, Act
@@ -542,6 +548,21 @@ public sealed class TypeDiagnosticsTests
 
         // Assert
         await Assert.That(report).IsEqualTo(Analysis.Expect(source, $"DYNA007 Error: Type 'A' cannot be mapped: {reason}"));
+    }
+
+    [Test]
+    [Arguments("[DynamoDbDocument] public partial union A(B, C);")]
+    [Arguments("""[DynamoDbEntity, Discriminator("A"), PartitionKey("A")] public partial union A(B, C);""")]
+    public async Task Build_UnionDeclarationInCSharp15_ReportsDyna007(string declaration)
+    {
+        // Arrange (the Roslyn of these tests cannot parse a union declaration, so the compiler of the SDK runs the generator; the compiler adds no [Union] the symbol shows)
+        var source = $"using DynaSharp.Mapping; namespace Shop; public sealed record B; public sealed record C; {declaration}";
+
+        // Act
+        var diagnostics = await SdkCompiler.DiagnoseAsync(source, typeof(DynaSharpGenerator).Assembly.Location);
+
+        // Assert
+        await Assert.That(string.Join(" | ", diagnostics)).IsEqualTo("DYNA007");
     }
 
     [Test]

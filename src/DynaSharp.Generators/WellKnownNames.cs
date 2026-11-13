@@ -68,4 +68,10 @@ internal static class WellKnownNames
     public const string ExpressionHandler = "DynaSharp.Expressions.ExpressionHandler";
 
     public const string ReadCommandInterface = "DynaSharp.Fluent.IReadCommand";
+
+    /// <summary>What makes a hand-written type a C# 15 union; it is in the base library, not in DynaSharp.dll.</summary>
+    public const string UnionAttribute = "System.Runtime.CompilerServices.UnionAttribute";
+
+    /// <summary>What a <c>union</c> declaration implements: the compiler adds no <see cref="UnionAttribute"/> a symbol shows for one.</summary>
+    public const string UnionInterface = "System.Runtime.CompilerServices.IUnion";
 }

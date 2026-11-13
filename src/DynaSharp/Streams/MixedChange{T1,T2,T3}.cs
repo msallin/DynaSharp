@@ -1,27 +1,21 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using DynaSharp.Mapping;
 
 namespace DynaSharp.Streams;
 
-/// <summary>
-/// One change of a typed read of several entities: a <see cref="Change{T}"/> of one of the types, from <c>shop.ReadChangesAsync&lt;Customer, Order&gt;(streams, ...)</c>. Ask with
-/// <c>change.Is(out Change&lt;Customer&gt;? customer)</c>, or handle every case with <c>Match</c>, which is what stays correct when a type is added.
-/// </summary>
-/// <remarks>
-/// It is to <see cref="Change{T}"/> what <see cref="Mixed{T1, T2, T3}"/> of a mixed read is to an entity, with the same members. That one is a document, which a read fills and <see cref="Item.From{T}"/> writes;
-/// this one holds a change, which is neither. The default value holds nothing,
-/// and <c>Match</c> throws on it; a typed read never gives one. A test builds one with the constructor of its type.
-/// </remarks>
+/// <summary>One change of a typed read of 3 entities, a C# 15 union of their changes, as <see cref="MixedChange{T1, T2}"/> is of 2.</summary>
+/// <inheritdoc cref="MixedChange{T1, T2}" path="/remarks"/>
 /// <typeparam name="T1">The first type.</typeparam>
 /// <typeparam name="T2">The second type.</typeparam>
 /// <typeparam name="T3">The third type.</typeparam>
+[Union]
 public readonly struct MixedChange<T1, T2, T3> : IChangeTypes<MixedChange<T1, T2, T3>>
     where T1 : IDynamoDbDiscriminated<T1>
     where T2 : IDynamoDbDiscriminated<T2>
     where T3 : IDynamoDbDiscriminated<T3>
 {
     private readonly int _type;
-    private readonly object? _change;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MixedChange{T1, T2, T3}"/> struct that holds a change of the first type, as a typed read gives it, so that a test of code that
@@ -71,8 +65,16 @@ public readonly struct MixedChange<T1, T2, T3> : IChangeTypes<MixedChange<T1, T2
     private MixedChange(int type, object change)
     {
         _type = type;
-        _change = change;
+        Value = change;
     }
+
+    /// <summary>Gets the change it holds, or <see langword="null"/> for the default value.</summary>
+    /// <value>The <see cref="Change{T}"/>, as an <see cref="object"/>.</value>
+    public object? Value { get; }
+
+    /// <summary>Gets a value indicating whether it holds a change, which is <see langword="false"/> only for the default value.</summary>
+    /// <value><see langword="true"/> if it holds a change.</value>
+    public bool HasValue => _type != 0;
 
     /// <inheritdoc/>
     static int IChangeTypes<MixedChange<T1, T2, T3>>.FindType(Item? image) => ChangeTyping.FindType(Mixed<T1, T2, T3>.Schema, image);
@@ -85,34 +87,34 @@ public readonly struct MixedChange<T1, T2, T3> : IChangeTypes<MixedChange<T1, T2
         _ => new(3, ChangeTyping.Create<T3>(record, before, after)),
     };
 
-    /// <summary>Gets the change if it is of the first type.</summary>
+    /// <summary>Gets the change if it is of the first type, which is what a type pattern of its <see cref="Change{T}"/> asks in C# 15.</summary>
     /// <param name="change">The change, or <see langword="null"/>.</param>
     /// <returns><see langword="true"/> if the change is of this type.</returns>
-    public bool Is([NotNullWhen(true)] out Change<T1>? change)
+    public bool TryGetValue([NotNullWhen(true)] out Change<T1>? change)
     {
-        change = _type == 1 ? (Change<T1>)_change! : null;
+        change = _type == 1 ? (Change<T1>)Value! : null;
         return change is not null;
     }
 
-    /// <summary>Gets the change if it is of the second type.</summary>
+    /// <summary>Gets the change if it is of the second type, which is what a type pattern of its <see cref="Change{T}"/> asks in C# 15.</summary>
     /// <param name="change">The change, or <see langword="null"/>.</param>
     /// <returns><see langword="true"/> if the change is of this type.</returns>
-    public bool Is([NotNullWhen(true)] out Change<T2>? change)
+    public bool TryGetValue([NotNullWhen(true)] out Change<T2>? change)
     {
-        change = _type == 2 ? (Change<T2>)_change! : null;
+        change = _type == 2 ? (Change<T2>)Value! : null;
         return change is not null;
     }
 
-    /// <summary>Gets the change if it is of the third type.</summary>
+    /// <summary>Gets the change if it is of the third type, which is what a type pattern of its <see cref="Change{T}"/> asks in C# 15.</summary>
     /// <param name="change">The change, or <see langword="null"/>.</param>
     /// <returns><see langword="true"/> if the change is of this type.</returns>
-    public bool Is([NotNullWhen(true)] out Change<T3>? change)
+    public bool TryGetValue([NotNullWhen(true)] out Change<T3>? change)
     {
-        change = _type == 3 ? (Change<T3>)_change! : null;
+        change = _type == 3 ? (Change<T3>)Value! : null;
         return change is not null;
     }
 
-    /// <summary>Computes a result from the change, with one function per type, so no type can be forgotten.</summary>
+    /// <summary>Computes a result from the change, with one function per type, so no type can be forgotten: the form of a <c>switch</c> over the change for C# 14.</summary>
     /// <typeparam name="TResult">The type of the result.</typeparam>
     /// <param name="first">What to do with a change of the first type.</param>
     /// <param name="second">What to do with a change of the second type.</param>
@@ -127,14 +129,14 @@ public readonly struct MixedChange<T1, T2, T3> : IChangeTypes<MixedChange<T1, T2
         ArgumentNullException.ThrowIfNull(third);
         return _type switch
         {
-            1 => first((Change<T1>)_change!),
-            2 => second((Change<T2>)_change!),
-            3 => third((Change<T3>)_change!),
+            1 => first((Change<T1>)Value!),
+            2 => second((Change<T2>)Value!),
+            3 => third((Change<T3>)Value!),
             _ => throw Empty(),
         };
     }
 
-    /// <summary>Does something with the change, with one action per type, so no type can be forgotten.</summary>
+    /// <summary>Does something with the change, with one action per type, so no type can be forgotten: the form of a <c>switch</c> over the change for C# 14.</summary>
     /// <param name="first">What to do with a change of the first type.</param>
     /// <param name="second">What to do with a change of the second type.</param>
     /// <param name="third">What to do with a change of the third type.</param>
@@ -148,13 +150,13 @@ public readonly struct MixedChange<T1, T2, T3> : IChangeTypes<MixedChange<T1, T2
         switch (_type)
         {
             case 1:
-                first((Change<T1>)_change!);
+                first((Change<T1>)Value!);
                 break;
             case 2:
-                second((Change<T2>)_change!);
+                second((Change<T2>)Value!);
                 break;
             case 3:
-                third((Change<T3>)_change!);
+                third((Change<T3>)Value!);
                 break;
             default:
                 throw Empty();

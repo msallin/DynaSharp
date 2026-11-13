@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using DynaSharp.Streams;
 using DynaSharp.UnitTests.Fluent.Mix;
 using static DynaSharp.UnitTests.Streams.TypedChanges;
@@ -13,54 +14,54 @@ public sealed class MixedChangeTests
     private static readonly Item DeltaImage = Item.From(new Delta { Pk = "a", Sk = "1" });
 
     [Test]
-    public async Task Is_TwoTypes_SaysWhichTypeTheChangeIs()
+    public async Task TryGetValue_TwoTypes_SaysWhichTypeTheChangeIs()
     {
         // Arrange
         var changes = Of<MixedChange<Alpha, Beta>>(AlphaImage, BetaImage);
 
         // Act
-        var answers = (changes[0].Is(out Change<Alpha>? alpha), alpha!.After!.Name, changes[0].Is(out Change<Beta>? _), changes[1].Is(out Change<Alpha>? _), changes[1].Is(out Change<Beta>? beta), beta!.After!.Amount);
+        var answers = (changes[0].TryGetValue(out Change<Alpha>? alpha), alpha!.After!.Name, changes[0].TryGetValue(out Change<Beta>? _), changes[1].TryGetValue(out Change<Alpha>? _), changes[1].TryGetValue(out Change<Beta>? beta), beta!.After!.Amount);
 
         // Assert
         await Assert.That(answers).IsEqualTo((true, "first", false, false, true, 7));
     }
 
     [Test]
-    public async Task Is_ThreeTypes_SaysWhichTypeTheChangeIs()
+    public async Task TryGetValue_ThreeTypes_SaysWhichTypeTheChangeIs()
     {
         // Arrange
         var changes = Of<MixedChange<Alpha, Beta, Gamma>>(AlphaImage, BetaImage, GammaImage);
 
         // Act
-        var answers = (changes[0].Is(out Change<Alpha>? _), changes[0].Is(out Change<Beta>? _), changes[1].Is(out Change<Beta>? _), changes[1].Is(out Change<Gamma>? _), changes[2].Is(out Change<Gamma>? gamma), gamma!.Kind, changes[2].Is(out Change<Alpha>? _));
+        var answers = (changes[0].TryGetValue(out Change<Alpha>? _), changes[0].TryGetValue(out Change<Beta>? _), changes[1].TryGetValue(out Change<Beta>? _), changes[1].TryGetValue(out Change<Gamma>? _), changes[2].TryGetValue(out Change<Gamma>? gamma), gamma!.Kind, changes[2].TryGetValue(out Change<Alpha>? _));
 
         // Assert
         await Assert.That(answers).IsEqualTo((true, false, true, false, true, OperationType.Insert, false));
     }
 
     [Test]
-    public async Task Is_FourTypes_SaysWhichTypeTheChangeIs()
+    public async Task TryGetValue_FourTypes_SaysWhichTypeTheChangeIs()
     {
         // Arrange
         var changes = Of<MixedChange<Alpha, Beta, Gamma, Delta>>(AlphaImage, BetaImage, GammaImage, DeltaImage);
 
         // Act
-        var answers = (changes[0].Is(out Change<Alpha>? _), changes[1].Is(out Change<Beta>? _), changes[2].Is(out Change<Gamma>? _), changes[3].Is(out Change<Delta>? delta), delta!.After.Sk, changes[3].Is(out Change<Alpha>? _),
-            changes[0].Is(out Change<Beta>? _), changes[0].Is(out Change<Gamma>? _), changes[0].Is(out Change<Delta>? _));
+        var answers = (changes[0].TryGetValue(out Change<Alpha>? _), changes[1].TryGetValue(out Change<Beta>? _), changes[2].TryGetValue(out Change<Gamma>? _), changes[3].TryGetValue(out Change<Delta>? delta), delta!.After.Sk, changes[3].TryGetValue(out Change<Alpha>? _),
+            changes[0].TryGetValue(out Change<Beta>? _), changes[0].TryGetValue(out Change<Gamma>? _), changes[0].TryGetValue(out Change<Delta>? _));
 
         // Assert
         await Assert.That(answers).IsEqualTo((true, true, true, true, "1", false, false, false, false));
     }
 
     [Test]
-    public async Task Is_DefaultValue_IsNoType()
+    public async Task TryGetValue_DefaultValue_IsNoType()
     {
         // Arrange
         var (two, three, four) = (default(MixedChange<Alpha, Beta>), default(MixedChange<Alpha, Beta, Gamma>), default(MixedChange<Alpha, Beta, Gamma, Delta>));
 
         // Act
-        var answers = (two.Is(out Change<Alpha>? _), two.Is(out Change<Beta>? _), three.Is(out Change<Alpha>? _), three.Is(out Change<Beta>? _), three.Is(out Change<Gamma>? _),
-            four.Is(out Change<Alpha>? _), four.Is(out Change<Beta>? _), four.Is(out Change<Gamma>? _), four.Is(out Change<Delta>? _));
+        var answers = (two.TryGetValue(out Change<Alpha>? _), two.TryGetValue(out Change<Beta>? _), three.TryGetValue(out Change<Alpha>? _), three.TryGetValue(out Change<Beta>? _), three.TryGetValue(out Change<Gamma>? _),
+            four.TryGetValue(out Change<Alpha>? _), four.TryGetValue(out Change<Beta>? _), four.TryGetValue(out Change<Gamma>? _), four.TryGetValue(out Change<Delta>? _));
 
         // Assert
         await Assert.That(answers).IsEqualTo((false, false, false, false, false, false, false, false, false));
@@ -247,6 +248,111 @@ public sealed class MixedChangeTests
 
         // Assert
         await Assert.That(handled).IsEqualTo("beta Insert 12");
+    }
+
+    [Test]
+    public async Task Value_EveryArity_IsTheChange()
+    {
+        // Arrange
+        var two = Of<MixedChange<Alpha, Beta>>(AlphaImage, BetaImage);
+        var three = Of<MixedChange<Alpha, Beta, Gamma>>(AlphaImage, BetaImage, GammaImage);
+        var four = Of<MixedChange<Alpha, Beta, Gamma, Delta>>(AlphaImage, BetaImage, GammaImage, DeltaImage);
+
+        // Act
+        var values = two.Select(static change => (change.Value, change.HasValue))
+            .Concat(three.Select(static change => (change.Value, change.HasValue)))
+            .Concat(four.Select(static change => (change.Value, change.HasValue)));
+
+        // Assert
+        await Assert.That(string.Join(",", values.Select(static value => $"{value.Value!.GetType().GenericTypeArguments[0].Name} {value.HasValue}")))
+            .IsEqualTo("Alpha True,Beta True,Alpha True,Beta True,Gamma True,Alpha True,Beta True,Gamma True,Delta True");
+    }
+
+    [Test]
+    public async Task ValueAndHasValue_DefaultValue_AreNullAndFalse()
+    {
+        // Arrange
+        var (two, three, four) = (default(MixedChange<Alpha, Beta>), default(MixedChange<Alpha, Beta, Gamma>), default(MixedChange<Alpha, Beta, Gamma, Delta>));
+
+        // Act
+        var answers = (two.Value is null, two.HasValue, three.Value is null, three.HasValue, four.Value is null, four.HasValue);
+
+        // Assert
+        await Assert.That(answers).IsEqualTo((true, false, true, false, true, false));
+    }
+
+    [Test]
+    public async Task Switch_EveryArity_TakesTheArmOfTheType()
+    {
+        // Arrange
+        var two = Of<MixedChange<Alpha, Beta>>(AlphaImage, BetaImage);
+        var three = Of<MixedChange<Alpha, Beta, Gamma>>(AlphaImage, BetaImage, GammaImage);
+        var four = Of<MixedChange<Alpha, Beta, Gamma, Delta>>(AlphaImage, BetaImage, GammaImage, DeltaImage);
+
+        // Act: no discard arm, so the build, which fails on a warning, shows each switch exhaustive
+        var shown = (
+            string.Join(",", two.Select(static change => change switch { Change<Alpha> alpha => "A" + alpha.After!.Name, Change<Beta> beta => "B" + beta.After!.Amount })),
+            string.Join(",", three.Select(static change => change switch { Change<Alpha> => "A", Change<Beta> => "B", Change<Gamma> => "G" })),
+            string.Join(",", four.Select(static change => change switch { Change<Alpha> => "A", Change<Beta> => "B", Change<Gamma> => "G", Change<Delta> delta => "D" + delta.After.Sk })));
+
+        // Assert
+        await Assert.That(shown).IsEqualTo(("Afirst,B7", "A,B,G", "A,B,G,D1"));
+    }
+
+    [Test]
+    public async Task Conversion_ChangeOfAType_IsHeldAsThatType()
+    {
+        // Arrange
+        var beta = new Change<Beta> { Kind = OperationType.Remove, Before = BetaValue(), Record = new ChangeRecord() };
+
+        // Act
+        MixedChange<Alpha, Beta> change = beta;
+
+        // Assert
+        await Assert.That(change is Change<Beta> { Kind: OperationType.Remove } held && ReferenceEquals(held, beta)).IsTrue();
+    }
+
+    [Test]
+    public async Task Switch_DefaultValue_MatchesNull()
+    {
+        // Arrange
+        var empty = default(MixedChange<Alpha, Beta, Gamma>);
+
+        // Act
+        var shown = empty switch { Change<Alpha> => "A", Change<Beta> => "B", Change<Gamma> => "G", null => "nothing" };
+
+        // Assert
+        await Assert.That(shown).IsEqualTo("nothing");
+    }
+
+    [Test]
+    public async Task Switch_DefaultValueWithoutANullArm_ThrowsSwitchExpressionException()
+    {
+        // Arrange
+        var empty = default(MixedChange<Alpha, Beta>);
+
+        // Act
+        var failure = TestClient.Catch(() => _ = empty switch { Change<Alpha> => "A", Change<Beta> => "B" });
+
+        // Assert
+        await Assert.That(failure).IsTypeOf<SwitchExpressionException>();
+    }
+
+    [Test]
+    [Arguments("MixedChange<Alpha, Beta> change", "Change<Alpha> => 1, Change<Beta> => 2", "")]
+    [Arguments("MixedChange<Alpha, Beta> change", "Change<Beta> => 2", "CS8509 'DynaSharp.Streams.Change<DynaSharp.UnitTests.Fluent.Mix.Alpha>'")]
+    [Arguments("MixedChange<Alpha, Beta, Gamma> change", "Change<Alpha> => 1, Change<Beta> => 2", "CS8509 'DynaSharp.Streams.Change<DynaSharp.UnitTests.Fluent.Mix.Gamma>'")]
+    [Arguments("MixedChange<Alpha, Beta, Gamma, Delta> change", "Change<Alpha> => 1, Change<Gamma> => 3, Change<Delta> => 4", "CS8509 'DynaSharp.Streams.Change<DynaSharp.UnitTests.Fluent.Mix.Beta>'")]
+    public async Task Switch_InCSharp15_WarnsOfAMissingType(string parameter, string arms, string expected)
+    {
+        // Arrange
+        var source = $"using DynaSharp.Streams; using DynaSharp.UnitTests.Fluent.Mix; public static class Handler {{ public static int Handle({parameter}) => change switch {{ {arms} }}; }}";
+
+        // Act
+        var diagnostics = await SdkCompiler.DiagnoseAsync(source);
+
+        // Assert
+        await Assert.That(string.Join(" | ", diagnostics)).IsEqualTo(expected);
     }
 
     private static Exception? Failure(Action action)

@@ -20,6 +20,8 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
 
     private const string DefaultHint = "Add a [DynamoDbConverter] or use a supported type";
 
+    private const string UnionHint = "A union needs a converter: add a [DynamoDbConverter] with an IDynamoDbConverter<T> of it";
+
     private const string ListHint = "Use IReadOnlyList<T>, or add a [DynamoDbConverter]";
 
     private const string SetArrayConverter = Serialization + "SetArrayConverter<";
@@ -296,7 +298,10 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
     private static bool IsDocument(ITypeSymbol type) =>
         AttributeReader.Find(type, WellKnownNames.EntityAttribute) is not null
         || AttributeReader.Find(type, WellKnownNames.DocumentAttribute) is not null
-        || type.AllInterfaces.Any(static candidate => candidate.OriginalDefinition.ToDisplayString() == WellKnownNames.DocumentInterface);
+        || WritesItself(type);
+
+    private static bool WritesItself(ITypeSymbol type) =>
+        type.AllInterfaces.Any(static candidate => candidate.OriginalDefinition.ToDisplayString() == WellKnownNames.DocumentInterface);
 
     private static bool Implements(ITypeSymbol converter, string interfaceName, ITypeSymbol value) =>
         converter.AllInterfaces.Any(candidate =>
@@ -339,6 +344,12 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
         if (isNullable)
         {
             return Inner(inner, property, isElement) is { } wrapped ? Wrapped(inner, wrapped) : null;
+        }
+
+        // A union maps only where it is a document of its own making, as Mixed<...> is: with [DynamoDbDocument] it is refused (DYNA007), and the generated code could not read it.
+        if (TypeRules.IsUnion(type) && !WritesItself(type))
+        {
+            return Unsupported(property, UnionHint);
         }
 
         if (!IsDocument(type))

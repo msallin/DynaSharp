@@ -235,11 +235,16 @@ await foreach (var order in bigOrders)
 Output.Say($"Alice has {await orders.Query(pkOfAlice, Order.Keys.Sk.BeginsWith()).CountAsync(ct)} orders");
 
 // One table pays off here: one query reads the customer and her orders in one go. Table<Item> is the table without a schema, and Of
-// says which types to expect: a filter lets only those through, and each item arrives as what it is.
+// says which types to expect: a filter lets only those through, and each item arrives as what it is. The item is a union of the
+// types, so the switch names each one and the compiler warns when one is missing (Match does the same in C# 14).
 var shop = client.Table(tableName, "pk", "sk");
 await foreach (var item in shop.Query(pkOfAlice).Of<Customer, Order>().ItemsAsync(ct))
 {
-    Output.Say(item.Match(profile => $"Profile of {profile.Name}", order => $"Order #{order.Number}"));
+    Output.Say(item switch
+    {
+        Customer profile => $"Profile of {profile.Name}",
+        Order order => $"Order #{order.Number}",
+    });
 }
 
 // ------------------------------------------------------------------------------------------------------------------------
