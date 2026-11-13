@@ -26,6 +26,42 @@ public sealed class KeyDiagnosticsTests
 
     private const string Enum = "public enum Color { Red }";
 
+    private const string EnumAdvice = "Remove the converter and give the members their stored names with [DynamoDbEnumName], or use d<w> for the number";
+
+    private const string Converters = """
+
+
+        public enum Color { Red }
+
+        public readonly struct UpperColor : IDynamoDbConverter<Color>
+        {
+            public static void Write(DynamoDbWriter writer, Color value) => writer.WriteString("RED");
+
+            public static Color Read(ref DynamoDbReader reader, AttributeType type) => Color.Red;
+        }
+
+        public readonly struct UpperText : IDynamoDbConverter<string>
+        {
+            public static void Write(DynamoDbWriter writer, string value) => writer.WriteString(value.ToUpperInvariant());
+
+            public static string Read(ref DynamoDbReader reader, AttributeType type) => reader.GetString();
+        }
+
+        public readonly struct DayAsNumber : IDynamoDbConverter<DateOnly>
+        {
+            public static void Write(DynamoDbWriter writer, DateOnly value) => writer.WriteNumber(value.DayNumber);
+
+            public static DateOnly Read(ref DynamoDbReader reader, AttributeType type) => DateOnly.FromDayNumber(reader.GetNumber<int>());
+        }
+
+        public readonly struct IntAsText : IDynamoDbConverter<int>
+        {
+            public static void Write(DynamoDbWriter writer, int value) => writer.WriteString("1");
+
+            public static int Read(ref DynamoDbReader reader, AttributeType type) => 1;
+        }
+        """;
+
     [Test]
     [Arguments("USER#{Id}#{{literal}}")]
     [Arguments("{Number:plain}")]
@@ -1550,6 +1586,144 @@ public sealed class KeyDiagnosticsTests
         // Assert
         await Assert.That(report).IsEmpty();
     }
+
+    [Test]
+    [Arguments("[DynamoDbConverter(typeof(UpperColor))] public Color Paint { get; set; }")]
+    [Arguments("[DynamoDbConverter(typeof(UpperColor)), KeyOnly] public Color Paint { get; set; }")]
+    [Arguments("[DynamoDbConverter(typeof(EmptyStringAsMissingConverter<Color, UpperColor>))] public Color Paint { get; set; }")]
+    public async Task Build_EnumInputWithAConverterOfItsOwn_ReportsDyna126(string paint)
+    {
+        // Arrange (the key holds LoadingUnit where the attribute holds LOADINGUNIT; a [KeyOnly] input has no attribute, and the converter is no less ignored)
+        var source = ConverterSource("[|\"E#{Paint}#{Id}\"|]", paint);
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, ConverterIgnored("Paint", "the member name", "Shop.UpperColor", EnumAdvice)));
+    }
+
+    [Test]
+    public async Task Build_EnumWithAConverterOnTheType_ReportsDyna126()
+    {
+        // Arrange
+        var source = ConverterSource("[|\"E#{Mode}#{Id}\"|]", "public Mode Mode { get; set; }") + """
+
+            [DynamoDbConverter(typeof(UpperMode))] public enum Mode { Open }
+
+            public readonly struct UpperMode : IDynamoDbConverter<Mode>
+            {
+                public static void Write(DynamoDbWriter writer, Mode value) => writer.WriteString("OPEN");
+
+                public static Mode Read(ref DynamoDbReader reader, AttributeType type) => Mode.Open;
+            }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, ConverterIgnored("Mode", "the member name", "Shop.UpperMode", EnumAdvice)));
+    }
+
+    [Test]
+    [Arguments("[DynamoDbConverter(typeof(UpperText))] public string Name { get; set; } = \"name\";")]
+    [Arguments("[DynamoDbConverter(typeof(UpperText))] public string Name => Id;")]
+    public async Task Build_StringInputWithAConverterOfItsOwn_ReportsDyna126(string name)
+    {
+        // Arrange (a getter has no attribute, and the converter is no less ignored)
+        var source = ConverterSource("[|\"E#{Name}#{Id}\"|]", name);
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, ConverterIgnored("Name", "the value as it is", "Shop.UpperText", TextAdvice("Name"))));
+    }
+
+    [Test]
+    public async Task Build_DateInputWithAConverterOfItsOwn_ReportsDyna126()
+    {
+        // Arrange (the key holds 2026-10-31 where the attribute holds what the converter writes)
+        var source = ConverterSource("[|\"E#{Day}#{Id}\"|]", "[DynamoDbConverter(typeof(DayAsNumber))] public DateOnly Day { get; set; }");
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, ConverterIgnored("Day", "the value as it is", "Shop.DayAsNumber", TextAdvice("Day"))));
+    }
+
+    [Test]
+    public async Task Build_InputOfASparseIndexWithAConverterOfItsOwn_ReportsDyna126()
+    {
+        // Arrange (an update copies the attribute into the index key only when the two hold the same text, and builds the key from the value otherwise)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), GlobalIndexKey("ByPaint", PartitionKey = [|"{Paint}"|], Sparse = true)]
+            public partial class E { public string Id { get; set; } = "id"; [DynamoDbConverter(typeof(UpperColor))] public Color? Paint { get; set; } }
+            """ + Converters;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, ConverterIgnored("Paint", "the member name", "Shop.UpperColor", EnumAdvice)));
+    }
+
+    [Test]
+    [Arguments("public Color Paint { get; set; }")]
+    [Arguments("[KeyOnly] public Color Paint { get; set; }")]
+    public async Task Build_EnumInputWithADefaultConverter_ReportsDyna126(string paint)
+    {
+        // Arrange (a default reaches an input without an attribute as well)
+        var source = "using DynaSharp;\nusing DynaSharp.Mapping;\nusing DynaSharp.Serialization;\n\n[assembly: DynamoDbDefaultConverter(typeof(Shop.Color), typeof(Shop.UpperColor))]\n\nnamespace Shop;\n\n"
+            + ConverterSource("[|\"E#{Paint}#{Id}\"|]", paint);
+
+        // Act
+        var report = Analysis.ReportOfWholeFile(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.ExpectOfWholeFile(source, ConverterIgnored("Paint", "the member name", "Shop.UpperColor", EnumAdvice)));
+    }
+
+    [Test]
+    [Arguments("[PartitionKey, DynamoDbConverter(typeof(UpperColor))] public Color Paint { get; set; }")]
+    [Arguments("[DynamoDbConverter(typeof(UpperColor))] public Color Paint { get; set; }", "{Paint}", "Paint")]
+    [Arguments("[DynamoDbConverter(typeof(UpperColor))] public Color Paint { get; set; }", "E#{Paint:d1}")]
+    [Arguments("[DynamoDbConverter(typeof(EpochSecondsConverter))] public DateTimeOffset At { get; set; }", "E#{At}")]
+    [Arguments("[DynamoDbConverter(typeof(IntAsText))] public int Number { get; set; }", "E#{Number:d5}")]
+    [Arguments("[DynamoDbConverter(typeof(NumberConverter<int>))] public int Number { get; set; }", "E#{Number:d5}")]
+    [Arguments("[DynamoDbConverter(typeof(StringConverter))] public string Name { get; set; } = \"name\";", "E#{Name}")]
+    [Arguments("[DynamoDbConverter(typeof(EmptyStringAsMissingConverter<string, StringConverter>))] public string Name { get; set; } = \"name\";", "E#{Name}")]
+    [Arguments("[DynamoDbConverter(typeof(OmitEmptyConverter<StringConverter>))] public string Name { get; set; } = \"name\";", "E#{Name}")]
+    [Arguments("public Color Paint { get; set; }", "E#{Paint}")]
+    [Arguments("[DynamoDbConverter(typeof(DateOnlyConverter))] public DateOnly Day { get; set; }", "E#{Day}")]
+    public async Task Build_InputWhoseKeyHoldsWhatTheConverterWrites_ReportsNothing(string property, string? template = null, string? attributeName = null)
+    {
+        // Arrange (a plain key and a bare placeholder over the property's own attribute go through the converter; d<w>, a timestamp and a number take a format of the template
+        // whatever the attribute holds; a converter of the library writes the text of the key)
+        var key = template is null ? "\"Id\"" : $"\"{template}\"" + (attributeName is null ? string.Empty : $", AttributeName = \"{attributeName}\"");
+        var source = template is null
+            ? $"[DynamoDbEntity, Discriminator(\"E\")]\npublic partial class E {{ {property} }}\n" + Converters
+            : ConverterSource(key, property);
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    private static string ConverterSource(string key, string member) => $$"""
+        [DynamoDbEntity, Discriminator("E"), PartitionKey({{key}})]
+        public partial class E { public string Id { get; set; } = "id"; {{member}} }
+        """ + Converters;
+
+    private static string TextAdvice(string property) =>
+        $"Write the text in a computed string property and use that in the template, or make '{property}' the whole key, which goes through the converter";
+
+    private static string ConverterIgnored(string property, string writes, string converter, string advice) =>
+        $"DYNA126 Error: Placeholder '{property}' writes {writes} and ignores the converter '{converter}', so the key does not hold the text the converter stores. {advice}.";
 
     private static string RawWithoutKeyOnly(string property, string template) =>
         $"DYNA123 Info: '{property}' is raw in the table key '{template}' and has no [KeyOnly], so a Put stores it as an attribute of its own as well, while an Update does not write it, and only the items a Put wrote hold it. Mark it [KeyOnly] if the key is all the item needs; a read restores it from the key.";

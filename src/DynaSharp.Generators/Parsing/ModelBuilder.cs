@@ -245,7 +245,7 @@ internal sealed class ModelBuilder
         if (discriminator is not null)
         {
             var tableName = ReadTableName();
-            entity = new EntityKeyBuilder(_type, _spot, properties, claims, reserved, _enums, _bag).Build(discriminator) is { } built ? built with { TableName = tableName } : null;
+            entity = new EntityKeyBuilder(_type, _spot, properties, claims, reserved, _enums, _defaults, _bag).Build(discriminator) is { } built ? built with { TableName = tableName } : null;
         }
 
         KeepWhatAReadNeeds(properties);

@@ -6,6 +6,8 @@ namespace DynaSharp.Generators;
 /// <param name="StoredNames">The stored names of the enum, which the template checks against its delimiters.</param>
 internal sealed record EnumNameEncoding(string ConverterName, string EnumType, EquatableArray<string> StoredNames) : KeyEncoding(0)
 {
+    public override bool MirrorsAttribute => true;
+
     // The key asks the generated converter for the name that the attribute holds.
     public override bool HasTextOf(string converter) => converter == ConverterName;
 

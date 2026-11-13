@@ -313,6 +313,8 @@ public partial record ClubMember
 
 `[DynamoDbConverter]` puts an `IDynamoDbConverter<T>` on a property; [the migration page](migrating.md#what-changes-stored-data) has examples. A converter that answers `CountsAsMissing` makes a stored value count as a missing attribute, so the rest of the item reads.
 
+A converter does not apply inside a key template: a placeholder writes the value in a format of the template, while the attribute goes through the converter. On a string, `Guid`, `DateOnly` or enum input of a template, where the two would hold different text, that is `DYNA126`; an enum gets other names in its key with [`[DynamoDbEnumName]`](#stored-names-of-enum-members). A plain key goes through the converter.
+
 An enum needs no converter for that. With `[DynamoDbEnum]`, an unknown name, such as one a newer version of a service stores during a rollout, reads as the property's initial value, which the next `Put` stores over the unknown name.
 
 > [!WARNING]

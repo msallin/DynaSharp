@@ -9,6 +9,8 @@ internal sealed record StringEncoding(bool IsRaw = false) : KeyEncoding(0)
 {
     private const string NoDelimiters = "\"\"u8";
 
+    public override bool MirrorsAttribute => true;
+
     // Raw or not, a value alone in a key is the string as it is.
     public override bool HasTextOf(string converter) => converter == Serialization + "StringConverter";
 

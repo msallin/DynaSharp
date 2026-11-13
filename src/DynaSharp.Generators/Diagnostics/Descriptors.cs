@@ -459,6 +459,15 @@ internal static class Descriptors
         true,
         helpLinkUri: KeyHelp);
 
+    public static readonly DiagnosticDescriptor ConverterIgnoredInKey = new(
+        "DYNA126",
+        "Converter ignored by a key template",
+        "Placeholder '{0}' writes {1} and ignores the converter '{2}', so the key does not hold the text the converter stores. {3}.",
+        KeyGrammar,
+        DiagnosticSeverity.Error,
+        true,
+        helpLinkUri: KeyHelp);
+
     public static readonly DiagnosticDescriptor CommandOutlivesExpression = new(
         "DYNA201",
         "Command outlives its expression",
@@ -829,7 +838,7 @@ internal static class Descriptors
         LanguageVersionTooLow, InaccessibleType, InvalidKeyType, InvalidIndex, NullableContextDisabled, NoDiscriminator, IgnoredPlainKey,
         InvalidDiscriminator, VersionInKey, EnumWithoutMembers, NamedLikeGeneratedClass, DuplicateDiscriminator, InvalidDefaultConverter, InvalidOmitEmpty, EntityInsideEntity, UnnamedComputedSource, IneffectiveEnumAttribute, TemplateSyntax, LiteralNotAscii, UnknownProperty, UnsupportedKeyInput, FormatDoesNotFit, FormatOutOfRange,
         NoLiteralBetween, NullableInput, NumberWithoutFixedFormat, InvalidKeyOnly, SparseWithoutNullableInput, RepeatedPlaceholder,
-        MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter, TruncatedTimestampEndsTableKey, EmptyDefaultOfKey, RawNotLast, InvalidComputedFrom, RawBesideStrict, RawThroughGetter, ConstantNoKeyHolds, RawWithoutKeyOnly, EnumWithoutMembersInKey, EnumStoredNameNotInKey,
+        MisplacedKey, EnumNamesNotUnique, ComputedInIndex, StringBeforeDelimiter, TruncatedTimestampEndsTableKey, EmptyDefaultOfKey, RawNotLast, InvalidComputedFrom, RawBesideStrict, RawThroughGetter, ConstantNoKeyHolds, RawWithoutKeyOnly, EnumWithoutMembersInKey, EnumStoredNameNotInKey, ConverterIgnoredInKey,
         CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber, NestedConflictRetry, VersionReadBeforeRetry, WriteOfComputedInputSource,
         ReservedWordInExpression, FilterOnLosslessKey, FilterOnLossyKey, OverlappingUpdatePaths, KeyOfAnotherAttribute, IncludedKeyDiffers, IndexKeyWithoutAllInputs, ValueWithoutFound,
         KeyOfAnotherEntity, NotAnEntity, ValueOfAnotherType, AddWithoutNumberOrSet, ItemMethodOnRead,

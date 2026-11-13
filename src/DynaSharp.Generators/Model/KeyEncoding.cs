@@ -20,6 +20,12 @@ internal abstract record KeyEncoding(int FixedWidth)
     public virtual bool CanReject => true;
 
     /// <summary>
+    /// Gets a value indicating whether a key holds the value as the text that its attribute holds without a converter of its own: a string, a <c>Guid</c>, a date, an enum by name. A converter
+    /// that stores other text then makes the key and the attribute disagree. A number and a timestamp take a format of the template, whatever their attribute holds.
+    /// </summary>
+    public virtual bool MirrorsAttribute => false;
+
+    /// <summary>
     /// Finds out whether a converter stores a value as a string with the same text, byte for byte, as this encoding writes for it alone in a key, so that an update can copy the attribute into
     /// such a key. Only built-in and generated converters are known to: a number is no string, and a converter of one's own, or the default of an assembly, writes what it likes.
     /// </summary>

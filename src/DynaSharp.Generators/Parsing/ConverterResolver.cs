@@ -147,6 +147,13 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
         return converter is null || name!.StartsWith(Serialization, StringComparison.Ordinal) ? KeyInputCatalog.IsInteger(inner) : IsAddable(converter);
     }
 
+    /// <summary>The converter that the property, the type of its value or the assembly names for all of the value, which leaves a built-in out.</summary>
+    /// <param name="property">The property, with its converter resolved if it is stored.</param>
+    /// <param name="value">The value, without nullability.</param>
+    /// <returns>The converter, or null for a built-in or generated one.</returns>
+    public static ITypeSymbol? OwnConverterOf(PropertyFacts property, ITypeSymbol value) =>
+        (property.Converter ?? AttributeReader.Find(value, WellKnownNames.ConverterAttribute))?.ConstructorArguments.FirstOrDefault().Value as ITypeSymbol ?? property.DefaultConverter;
+
     /// <summary>Whether an argument of an attribute is a converter of a value: a closed, accessible type that implements <c>IDynamoDbConverter&lt;T&gt;</c> for it.</summary>
     /// <param name="candidate">What the attribute names.</param>
     /// <param name="value">The value, without nullability.</param>
@@ -275,10 +282,6 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
 
     // A number is one as well, which no [OmitEmpty] asks about. A set of a built-in converter does not come here.
     private static bool IsAddable(PropertyFacts property, ITypeSymbol value) => OwnConverterOf(property, value) is { } converter && IsAddable(converter);
-
-    // The converter that the property, the type of its value or the assembly names for all of the value, which leaves a built-in out.
-    private static ITypeSymbol? OwnConverterOf(PropertyFacts property, ITypeSymbol value) =>
-        (property.Converter ?? AttributeReader.Find(value, WellKnownNames.ConverterAttribute))?.ConstructorArguments.FirstOrDefault().Value as ITypeSymbol ?? property.DefaultConverter;
 
     private static bool IsConverterOf(INamedTypeSymbol candidate, ITypeSymbol value) =>
         candidate.OriginalDefinition.ToDisplayString() == WellKnownNames.ConverterInterface && SymbolEqualityComparer.Default.Equals(candidate.TypeArguments[0], value);

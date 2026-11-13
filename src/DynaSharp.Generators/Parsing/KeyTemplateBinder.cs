@@ -107,6 +107,11 @@ internal static class KeyTemplateBinder
             return null;
         }
 
+        if (input.Converter is { } converter && binding.Encoding.MirrorsAttribute && !binding.Encoding.HasTextOf(converter))
+        {
+            problems.Add(new KeyProblem(Descriptors.ConverterIgnoredInKey, [input.Property, .. IgnoredConverter(input, binding.Encoding, converter)], KeepsModel: true));
+        }
+
         if (role.IsSortKey && node.Format is null && binding.Encoding is PlainIntegerEncoding or PlainDecimalEncoding)
         {
             string[] formats = binding.Encoding is PlainIntegerEncoding { Type: var integer } ? ["d" + integer.MaxDigits, "n" + integer.MaxDigits, "plain"] : ["plain"];
@@ -115,6 +120,12 @@ internal static class KeyTemplateBinder
 
         return new PlaceholderSegment(input.Property, input.ParameterName, input.ValueType, binding.Encoding, input.IsNullable || input.OmitsEmpty);
     }
+
+    // A template writes its own text, and a converter that writes another one leaves the key and the attribute apart. An enum gets its other names where the key reads them too.
+    private static string[] IgnoredConverter(TemplateInput input, KeyEncoding encoding, string converter) =>
+        encoding is EnumNameEncoding
+            ? ["the member name", converter.Replace("global::", string.Empty), "Remove the converter and give the members their stored names with [DynamoDbEnumName], or use d<w> for the number"]
+            : ["the value as it is", converter.Replace("global::", string.Empty), $"Write the text in a computed string property and use that in the template, or make '{input.Property}' the whole key, which goes through the converter"];
 
     // The formats of the type that hold every value here: raw only where the placeholder ends the template.
     private static IEnumerable<(string Property, string? Format)> Fitting(TemplateInput input, bool endsTemplate) =>

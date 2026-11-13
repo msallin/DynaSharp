@@ -5,3 +5,4 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
+DYNA126 | DynaSharp.Keys | Error | Converter ignored by a key template

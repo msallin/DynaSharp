@@ -5,8 +5,15 @@ namespace DynaSharp.Mapping;
 /// over one on the property's type, and both win over <see cref="DynamoDbDefaultConverterAttribute"/> and the built-in converters.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The converter implements <see cref="Serialization.IDynamoDbConverter{T}"/> for the value type without nullability: a converter
 /// on a <c>DateTimeOffset?</c> property implements it for <see cref="DateTimeOffset"/>, and the generator adds the null handling.
+/// </para>
+/// <para>
+/// <b>Not in a key template.</b> A plain key goes through the converter; a placeholder of a template writes the value in a format of its own. On a placeholder that holds a string, <see cref="Guid"/>,
+/// <see cref="DateOnly"/> or enum by name, where the key and the attribute would hold different text, that is
+/// <see href="https://msallin.github.io/DynaSharp/diagnostics.html#key-templates">DYNA126</see>; an enum takes other names with <see cref="DynamoDbEnumNameAttribute"/>.
+/// </para>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Enum, AllowMultiple = false, Inherited = false)]
 public sealed class DynamoDbConverterAttribute : Attribute

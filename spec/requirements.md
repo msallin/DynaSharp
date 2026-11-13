@@ -183,7 +183,7 @@ getter reads; an update that changes one of those by handle throws, because it c
 
 `float`, `double`, `bool`, `TimeSpan` and wider integers are rejected: floats have no exact text, the others have not been
 needed. `[Flags]` enums, enums with aliased members and enums with a stored name twice are rejected under the name format, because
-their names are not one-to-one; an undefined enum value throws, and a stored name a key cannot hold is `DYNA125`.
+their names are not one-to-one; an undefined enum value throws, and a stored name a key cannot hold is `DYNA125`. A placeholder never calls a converter; one of the property's own on a string, `Guid`, `DateOnly` or enum-by-name input is `DYNA126`, since key and attribute would hold different text.
 
 Encodings, chosen so that ordinal byte order equals value order, because DynamoDB compares strings by their UTF-8 bytes:
 - `d<w>`: zero-padded to `w` digits. Non-negative only; a negative value or one too wide throws.

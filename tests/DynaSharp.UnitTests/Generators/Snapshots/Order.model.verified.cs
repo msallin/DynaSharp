@@ -328,6 +328,7 @@ Entity: EntityModel
           ValueType: global::System.Guid
           Encoding: GuidEncoding
             CanReject: False
+            MirrorsAttribute: True
             FixedWidth: 36
             IsLossless: True
           InputCanBeAbsent: False
@@ -358,6 +359,7 @@ Entity: EntityModel
             CanReject: False
             IsBucket: False
             FixedWidth: 28
+            MirrorsAttribute: False
           InputCanBeAbsent: False
         - LiteralSegment
           Text: #
@@ -367,6 +369,7 @@ Entity: EntityModel
           ValueType: global::System.Guid
           Encoding: GuidEncoding
             CanReject: False
+            MirrorsAttribute: True
             FixedWidth: 36
             IsLossless: True
           InputCanBeAbsent: False
@@ -399,6 +402,7 @@ Entity: EntityModel
                   - Pending
                   - Paid
                   - Shipped
+                MirrorsAttribute: True
                 FixedWidth: 0
                 IsLossless: True
                 CanReject: True
@@ -427,6 +431,7 @@ Entity: EntityModel
                 FixedWidth: 14
                 IsLossless: True
                 CanReject: True
+                MirrorsAttribute: False
               InputCanBeAbsent: False
           Delimiters: 
           StackBufferLength: 14
@@ -454,6 +459,7 @@ Entity: EntityModel
               ValueType: global::System.Guid
               Encoding: GuidEncoding
                 CanReject: False
+                MirrorsAttribute: True
                 FixedWidth: 36
                 IsLossless: True
               InputCanBeAbsent: True
@@ -482,6 +488,7 @@ Entity: EntityModel
                 CanReject: False
                 IsBucket: False
                 FixedWidth: 28
+                MirrorsAttribute: False
               InputCanBeAbsent: True
           Delimiters: 
           StackBufferLength: 28

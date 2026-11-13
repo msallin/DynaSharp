@@ -11,6 +11,7 @@ namespace DynaSharp.Generators;
 /// <param name="IsComputed">Whether the property has no setter and no constructor parameter.</param>
 /// <param name="HasDependencies">Whether <c>[ComputedFrom]</c> says what a computed property is derived from, which is what an index template asks of it.</param>
 /// <param name="IsAccessible">Whether a public builder of the entity can take the type as a parameter.</param>
+/// <param name="Converter">The converter of its own that writes the text of the property, as code, or null for the built-in or generated one.</param>
 internal sealed record TemplateInput(
     string Property,
     string ParameterName,
@@ -21,4 +22,5 @@ internal sealed record TemplateInput(
     bool OmitsEmpty,
     bool IsComputed,
     bool HasDependencies,
-    bool IsAccessible);
+    bool IsAccessible,
+    string? Converter);

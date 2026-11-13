@@ -110,7 +110,8 @@ File.WriteAllText(project, """
         <ImplicitUsings>enable</ImplicitUsings>
         <DebugType>none</DebugType>
         <!-- The blocks of every page are one assembly, where the entities of several pages declare the table Shop, so a CreateTable() chain of one page leaves out those of the others. -->
-        <NoWarn>$(NoWarn);DYNA240</NoWarn>
+        <!-- The default of migrating.md stores OrderStatus as a number, under which the key of ByStatus keeps the name, as SDK code that formatted it wrote it; the page says to suppress DYNA126 there. -->
+        <NoWarn>$(NoWarn);DYNA240;DYNA126</NoWarn>
       </PropertyGroup>
       <ItemGroup>
         <Compile Include="../../samples/DynaSharp.Sample/ShopModel.cs" />

@@ -11,7 +11,8 @@ namespace DynaSharp.Mapping;
 /// </para>
 /// <para>
 /// In a key it does what a <see cref="DynamoDbConverterAttribute"/> on the property does. A plain key goes through it, and its type need not be one DynamoDB can hold, so <see href="https://msallin.github.io/DynaSharp/diagnostics.html#entities">DYNA017</see> does not apply. A template
-/// has formats of its own, so a placeholder ignores it, and the attribute of the property, if it is stored, goes through it. A <see cref="VersionAttribute"/> property keeps the built-in converter, because an update
+/// has formats of its own, so a placeholder ignores it, and the attribute of the property, if it is stored, goes through it; on a placeholder that holds a string, <see cref="Guid"/>, <see cref="DateOnly"/> or enum by name, where the key and the attribute would hold different text, that is
+/// <see href="https://msallin.github.io/DynaSharp/diagnostics.html#key-templates">DYNA126</see>. A <see cref="VersionAttribute"/> property keeps the built-in converter, because an update
 /// has to add to it.
 /// </para>
 /// <para>

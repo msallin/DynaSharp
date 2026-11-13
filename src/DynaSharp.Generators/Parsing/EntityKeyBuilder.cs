@@ -10,6 +10,7 @@ namespace DynaSharp.Generators;
 /// <param name="claims">The attribute names in use, by owner, seeded with the stored properties.</param>
 /// <param name="reserved">The attribute of the discriminator, or null.</param>
 /// <param name="enums">Where enums in name formats register their converter.</param>
+/// <param name="defaults">The defaults of the assembly, whose converters reach an input that has no attribute.</param>
 /// <param name="bag">Where problems go.</param>
 internal sealed class EntityKeyBuilder(
     INamedTypeSymbol type,
@@ -18,9 +19,17 @@ internal sealed class EntityKeyBuilder(
     Dictionary<string, AttributeClaim> claims,
     string? reserved,
     EnumRegistry enums,
+    ProjectDefaults defaults,
     DiagnosticBag bag)
 {
     private const string DateTimeOffsetType = "global::System.DateTimeOffset";
+
+    // The converters of the library that write what the converter they wrap writes.
+    private static readonly HashSet<string> PassingWrappers =
+    [
+        "DynaSharp.Serialization.EmptyStringAsMissingConverter<T, TConverter>",
+        "DynaSharp.Serialization.OmitEmptyConverter<TConverter>",
+    ];
 
     private static readonly KeySlot PartitionSlot = new(WellKnownNames.PartitionKeyAttribute, "PartitionKey", "pk", "Pk", default);
 
@@ -30,7 +39,7 @@ internal sealed class EntityKeyBuilder(
 
     private readonly Dictionary<string, TemplateInput> _inputs = properties
         .Where(static property => !property.IsIgnored)
-        .ToDictionary(static property => property.Name, property => ToInput(property, type, enums));
+        .ToDictionary(static property => property.Name, property => ToInput(property, type, enums, defaults));
 
     private readonly HashSet<string> _indexNames = [];
 
@@ -127,7 +136,7 @@ internal sealed class EntityKeyBuilder(
             : "DynamoDB deletes by a number of epoch seconds and ignores an item that holds anything else. On a DateTimeOffset add [DynamoDbConverter(typeof(EpochSecondsConverter))]; an integer holds the seconds as it is";
     }
 
-    private static TemplateInput ToInput(PropertyFacts property, INamedTypeSymbol type, EnumRegistry enums)
+    private static TemplateInput ToInput(PropertyFacts property, INamedTypeSymbol type, EnumRegistry enums, ProjectDefaults defaults)
     {
         var (inner, isNullable) = Types.Unwrap(property.Type);
         return new TemplateInput(
@@ -140,7 +149,20 @@ internal sealed class EntityKeyBuilder(
             property.OmitsEmptyByItsOwnAttribute,
             property.IsComputed,
             property.ComputedFrom is not null,
-            Types.Effective(inner) >= Types.Effective(type));
+            Types.Effective(inner) >= Types.Effective(type),
+            WritingConverterOf(property, inner, defaults));
+    }
+
+    // Only a stored property has its default resolved, and an input without an attribute is as much the type's. A wrapper of the library passes the write on, so the text is the wrapped converter's.
+    private static string? WritingConverterOf(PropertyFacts property, ITypeSymbol inner, ProjectDefaults defaults)
+    {
+        var converter = ConverterResolver.OwnConverterOf(property, inner) ?? (property.IsStored ? null : defaults.ConverterOf(inner));
+        while (converter is INamedTypeSymbol named && PassingWrappers.Contains(named.OriginalDefinition.ToDisplayString()))
+        {
+            converter = named.TypeArguments[named.TypeArguments.Length - 1];
+        }
+
+        return converter is null ? null : Names.Of(converter);
     }
 
     private static void AddIfBuilt(List<IndexModel> indexes, IndexModel? index)
