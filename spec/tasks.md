@@ -286,6 +286,7 @@ Generator rules (`DYNA0xx` and `DYNA1xx`, but `DYNA026`, `DYNA032`, `DYNA033` an
 | a | `DYNA208` | the missing names into `Project(...)` (done) |
 | a | `DYNA210` | `Attr(...)` around the string (done) |
 | a | `DYNA220` | the word in a hole, `{Attr("...")}` (done) |
+| a | `DYNA212` of a bare name starting with `_` | the name in a hole, `{Attr("_type")}`, by `ReservedWordCodeFix` (done) |
 | a | `DYNA224` | the index's key builder (done) |
 | a | `DYNA233` | `Add` to `Set` (done) |
 | a | `DYNA234` | `.ItemsAsync()` (or `.ValuesAsync()`) before the LINQ call (done) |

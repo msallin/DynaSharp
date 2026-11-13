@@ -11,8 +11,8 @@ namespace DynaSharp.Generators;
 
 /// <summary>
 /// The fix of DYNA220: <c>$"Total > {100}"</c> becomes <c>$"{Attr("Total")} > {100}"</c>, with as many braces as a raw string's holes take, and <c>using static DynaSharp.Expr;</c> added if
-/// <c>Attr</c> does not bind. Only where the diagnostic stands on the word itself: in text with an escape or a raw string's indent it stands on the whole text, and nothing is offered. Only an IDE
-/// loads this class.
+/// <c>Attr</c> does not bind. The same for the DYNA212 of a bare name that starts with an underscore, <c>$"_type = {"Order"}"</c>. Only where the diagnostic stands on the word itself: in text
+/// with an escape or a raw string's indent it stands on the whole text, and nothing is offered. Only an IDE loads this class.
 /// </summary>
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(ReservedWordCodeFix))]
 [Shared]
@@ -29,7 +29,7 @@ internal sealed class ReservedWordCodeFix : CodeFixProvider
     });
 
     /// <inheritdoc/>
-    public override ImmutableArray<string> FixableDiagnosticIds { get; } = [Descriptors.ReservedWordInExpression.Id];
+    public override ImmutableArray<string> FixableDiagnosticIds { get; } = [Descriptors.ReservedWordInExpression.Id, Descriptors.ExpressionSyntaxError.Id];
 
     /// <inheritdoc/>
     public override FixAllProvider GetFixAllProvider() => FixAll;
@@ -48,12 +48,15 @@ internal sealed class ReservedWordCodeFix : CodeFixProvider
         }
     }
 
-    // Null where the diagnostic does not stand on the word alone.
+    // Null where the diagnostic does not stand on the word alone, and for a syntax error that is not about a name starting with an underscore.
     private static Edit? Hole(SyntaxNode root, Diagnostic diagnostic)
     {
         var span = diagnostic.Location.SourceSpan;
         var word = root.GetText().ToString(span);
-        if (!word.All(static character => char.IsLetter(character)))
+        var isName = diagnostic.Id == Descriptors.ExpressionSyntaxError.Id
+            ? word.StartsWith("_", StringComparison.Ordinal) && word.All(ExpressionLexer.IsWordCharacter)
+            : word.All(static character => char.IsLetter(character));
+        if (!isName)
         {
             return null;
         }

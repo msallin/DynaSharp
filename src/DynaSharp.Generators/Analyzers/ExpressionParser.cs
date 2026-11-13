@@ -610,6 +610,7 @@ internal sealed class ExpressionParser
         TokenKind.End => TooEarly,
         TokenKind.Hole => "a hole cannot stand here",
         TokenKind.Number => "a number cannot be written in the text; put it in a hole",
+        TokenKind.Invalid when _parts[token.Part].Text[token.Start] == '_' => "the name '" + TextOf(token) + "' starts with an underscore and needs a placeholder; put it in a hole, {Attr(\"" + TextOf(token) + "\")}",
         _ => "unexpected '" + TextOf(token) + "'",
     };
 

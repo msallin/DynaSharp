@@ -376,9 +376,9 @@ In an interpolated expression such as `$"{Attr("status")} = {"open"}"`, the text
 
 `DYNA211` (error): the text holds its own `#name` or `:value` placeholders, which would clash with the generated ones. Write the name in `Attr(...)` and the value in a hole.
 
-`DYNA212` (warning): the expression breaks DynamoDB's grammar: an unclosed parenthesis, an unknown function or one with the wrong operand count, `BETWEEN` without `AND`, more than 100 operands of `IN`. Function names are case-sensitive, and condition and update functions are separate groups. Only the first error is reported; what follows is noise.
+`DYNA212` (warning): the expression breaks DynamoDB's grammar: an unclosed parenthesis, an unknown function or one with the wrong operand count, `BETWEEN` without `AND`, more than 100 operands of `IN`, a bare name that starts with an underscore. Function names are case-sensitive, and condition and update functions are separate groups. Only the first error is reported; what follows is noise.
 
-- **Fix.** Fix the expression, or if DynamoDB accepts it, suppress the warning and report the case.
+- **Fix.** Fix the expression, or if DynamoDB accepts it, suppress the warning and report the case. A name that starts with an underscore, such as DynaSharp's discriminator `_type`, needs a placeholder: write it as a hole, `$"{Attr("_type")} = {"Order"}"`, or with a handle. The code fix writes `{Attr("_type")}` where the name stands, and the `using static DynaSharp.Expr;` the file lacks.
 
 `DYNA213` (warning): a constant path on a command of a mapped type starts with a name the type does not have, such as `orders.Update(key).Set("Totl", 1)`, or a bare name starts a path in an expression's text, `orders.Scan().Filter($"Totl > {1}")`. `Attr("Totl")` and `Attr<int>("Totl")` count where they go into a condition, a filter, an update or a `Select` of such a command, through the calls of DynaSharp that build it: `orders.Scan().Filter(Attr("Totl").Gt(1))`, `orders.Update(key).If(Order.Attrs.Status.Eq(open).And(Attr("Totl").Exists()))`, `$"{Attr("Totl")} > {1}"`. Under `Naming` of `[assembly: DynamoDbDefaults]` the attribute has the converted name, so `"Total"` is reported where the item holds `total`.
 

@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis.CodeFixes;
 
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
-/// <summary>The fix of DYNA220, applied in a real workspace to what the analyzer reports there, and analyzed and compiled again.</summary>
+/// <summary>The fix of DYNA220 and of the DYNA212 of a name starting with an underscore, applied in a real workspace to what the analyzer reports there, and analyzed and compiled again.</summary>
 public sealed class ReservedWordCodeFixTests
 {
     private const string Key = ReservedWordCodeFix.Key;
@@ -13,6 +13,8 @@ public sealed class ReservedWordCodeFixTests
     private const string StaticImport = "using static DynaSharp.Expr;\n";
 
     private static readonly CodeFixRun Run = new(new ReservedWordCodeFix(), "DYNA220", new ExpressionAnalyzer());
+
+    private static readonly CodeFixRun SyntaxRun = new(new ReservedWordCodeFix(), "DYNA212", new ExpressionAnalyzer());
 
     [Test]
     [Arguments("$\"Total > {100}\"", "$\"{Attr(\"Total\")} > {100}\"")]
@@ -59,6 +61,37 @@ public sealed class ReservedWordCodeFixTests
 
         // Assert
         await Assert.That(reported).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("$\"_type = {\"Order\"}\"", "$\"{Attr(\"_type\")} = {\"Order\"}\"")]
+    [Arguments("$\"info._v2 > {1}\"", "$\"info.{Attr(\"_v2\")} > {1}\"")]
+    public async Task Fix_NameStartingWithAnUnderscore_PutsItInAHole(string filter, string expected)
+    {
+        // Arrange
+        var source = Usings + StaticImport + Code(filter);
+
+        // Act
+        var fixedSource = await SyntaxRun.FixAsync(Key, source);
+
+        // Assert
+        await Assert.That(fixedSource).IsEqualTo(Usings + StaticImport + Code(expected));
+    }
+
+    [Test]
+    [Arguments("$\"price = {1} price\"")]
+    [Arguments("$\"price = \"")]
+    public async Task RegisterCodeFixes_SyntaxErrorOnAnotherWord_OffersNothing(string filter)
+    {
+        // Arrange
+        var source = Usings + Code(filter);
+
+        // Act
+        var (solution, diagnostics) = await SyntaxRun.RunAsync([("Code.cs", source)]);
+        var actions = await SyntaxRun.ActionsAsync(solution, diagnostics.Single());
+
+        // Assert
+        await Assert.That(actions).IsEmpty();
     }
 
     [Test]
@@ -113,7 +146,7 @@ public sealed class ReservedWordCodeFixTests
         var ids = fix.FixableDiagnosticIds;
 
         // Assert
-        await Assert.That(ids).IsEquivalentTo(["DYNA220"]);
+        await Assert.That(ids).IsEquivalentTo(["DYNA220", "DYNA212"]);
     }
 
     // With the line ends of the usings, which the import takes.

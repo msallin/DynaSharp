@@ -721,7 +721,7 @@ public sealed class ExpressionAnalyzerTests
     }
 
     [Test]
-    public async Task Analyze_BareNameStartingWithAnUnderscore_ReportsASyntaxError()
+    public async Task Analyze_BareNameStartingWithAnUnderscore_ReportsASyntaxErrorThatAsksForAHole()
     {
         // Arrange (real DynamoDB answers a syntax error for a bare _type, FidelityTests question 14; the discriminator goes in a hole, {Attr("_type")})
         var source = AnalyzerRun.Member(OrderFields + "public static void Run() { " + """orders.Scan().Filter($"_type = {1}");""" + " }");
@@ -730,7 +730,7 @@ public sealed class ExpressionAnalyzerTests
         var report = await WithOrders.ReportAsync(source);
 
         // Assert
-        await Assert.That(report).Contains("DYNA212 Warning [", StringComparison.Ordinal).And.Contains("]: The expression is not valid: unexpected '_type'", StringComparison.Ordinal);
+        await Assert.That(report).Contains("DYNA212 Warning [", StringComparison.Ordinal).And.Contains("""]: The expression is not valid: the name '_type' starts with an underscore and needs a placeholder; put it in a hole, {Attr("_type")}""", StringComparison.Ordinal);
     }
 
     [Test]
