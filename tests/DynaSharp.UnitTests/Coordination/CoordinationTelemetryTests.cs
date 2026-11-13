@@ -93,6 +93,7 @@ public sealed class CoordinationTelemetryTests
             "dynasharp.lock.contention_retries {retry} Number of times RunAsLeaderAsync contended again after an acquire failed with a transient error, with error.type.",
             "dynasharp.lock.losses {lease} Number of leases lost before they were released: taken over, deleted, run out, or the table gone.",
             "dynasharp.lock.renewals {renewal} Number of renewals of leases, by the heartbeat or by RenewAsync, with error.type on the failed ones.",
+            "dynasharp.lock.wakeups {wakeup} Number of times a lease released in this process woke an acquire of the same LockTable that waited for the lock, before its next poll.",
         ]);
     }
 }

@@ -202,6 +202,9 @@ public sealed class Lease : IAsyncDisposable
             CoordinationTelemetry.Fail(activity, exception);
             CoordinationLog.ReleaseFailed(Locks.Logger, Name, Locks.Table.Name, CoordinationTelemetry.ErrorTypeOf(exception));
         }
+
+        // After the write, so a woken acquire finds the lock free. A release that did not go through wakes them for one try, which costs a read.
+        Locks.Released(Name);
     }
 
     /// <summary>Sets <see cref="Current"/> for the code that runs from here in this async flow, which <see cref="Leadership"/> does for a term.</summary>

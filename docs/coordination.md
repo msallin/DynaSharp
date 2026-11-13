@@ -134,7 +134,9 @@ A holder that crashed does not release its lock. A contender takes the lock over
 
 A holder that stops without knowing it, because its host was suspended, its virtual machine froze, or a garbage collection paused it, does not see its clock run while the contender's does. It can wake up holding a lease that ended a while ago, and act on it before its heartbeat notices. No lease can prevent that; [fencing](#fencing) is what makes it harmless.
 
-While another holder has the lock, `AcquireAsync` polls every third of that holder's lease, but at least every 10 seconds, or sooner if the lease runs out before. A lock that is released is acquired at the next poll; a lock whose holder crashed is taken over after a whole lease.
+While another holder has the lock, `AcquireAsync` polls every third of that holder's lease, but at least every 10 seconds, or sooner if the lease runs out before. A lock that another process releases is acquired at the next poll; a lock whose holder crashed is taken over after a whole lease.
+
+A lease that is released in this process wakes the acquires of the same `LockTable` that wait for that lock at once, so a hand-off between consumers of one process, such as three topics that contend for one tour, takes a request and not a poll. Hold one `LockTable` per table to get it: a `LockTable` knows only its own leases, and a release elsewhere is seen by the poll. A release wakes every wait of the lock that began before it, the woken acquires race for the lock as any contenders do, and the losers wait again. A lease that is lost or runs out wakes nobody: its holder did not release the lock, so the item still names it, and a contender takes it over only after a whole lease, as from another process.
 
 A poll is a read. A `LockTable` that has not seen the lock held yet writes at once, which costs a free lock a single request; if the lock is held, the failed write brings the item along, and from then on each poll is one strongly consistent `GetItem`. It writes again only when it reads the lock free or when the holder is due for a takeover. So a process that waits for a live leader costs one read per poll and no failed conditional write, which keeps `ConditionalCheckFailedRequests` in CloudWatch for real conflicts: a failed write happens when contenders race for a lock that is free or due, and once when a `LockTable` first meets a held lock.
 
@@ -308,6 +310,7 @@ The spans and metrics go to the activity source and the meter named `DynaSharp`,
 | `dynasharp.lock.renewals` | `{renewal}` | Each renewal, with `error.type` on one that failed |
 | `dynasharp.lock.losses` | `{lease}` | Each lease lost before it was released, with `dynasharp.lock.loss_reason`: `taken_over`, `deleted`, `expired` or `table_not_found` |
 | `dynasharp.lock.contention_retries` | `{retry}` | Each time `RunAsLeaderAsync` contends again after an acquire failed with a transient error, with `error.type`, also while log 44 is quiet |
+| `dynasharp.lock.wakeups` | `{wakeup}` | Each time a lease released in this process woke a waiting acquire of the same `LockTable` before its next poll; the span of the acquire counts them in `dynasharp.lock.wakeup_count` |
 
 The requests of a lock have spans of their own under the span of the lock, so the polls of a waiting process show as `GetItem` spans under `Lock.Acquire`, and the client's request metrics count them.
 

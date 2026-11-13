@@ -22,6 +22,7 @@ internal static class CoordinationTelemetry
     public const string RenewalsMetric = "dynasharp.lock.renewals";
     public const string LossesMetric = "dynasharp.lock.losses";
     public const string ContentionRetriesMetric = "dynasharp.lock.contention_retries";
+    public const string WakeupsMetric = "dynasharp.lock.wakeups";
 
     public const string DbSystemName = "db.system.name";
     public const string DbSystemNameValue = "aws.dynamodb";
@@ -32,6 +33,7 @@ internal static class CoordinationTelemetry
     public const string TakeOver = "dynasharp.lock.takeover";
     public const string FencingToken = "dynasharp.lock.fencing_token";
     public const string LossReason = "dynasharp.lock.loss_reason";
+    public const string WakeupCount = "dynasharp.lock.wakeup_count";
 
     private static readonly ActivitySource ActivitySource = new(Source);
 
@@ -56,6 +58,11 @@ internal static class CoordinationTelemetry
         ContentionRetriesMetric,
         unit: "{retry}",
         description: "Number of times RunAsLeaderAsync contended again after an acquire failed with a transient error, with error.type.");
+
+    private static readonly Counter<long> Wakeups = Meter.CreateCounter<long>(
+        WakeupsMetric,
+        unit: "{wakeup}",
+        description: "Number of times a lease released in this process woke an acquire of the same LockTable that waited for the lock, before its next poll.");
 
     /// <summary>Starts the span of an operation on a lock.</summary>
     /// <param name="name">The name of the span.</param>
@@ -114,6 +121,16 @@ internal static class CoordinationTelemetry
     public static void Lose(Lease lease, string reason)
     {
         Losses.Add(1, new(DbCollectionName, lease.Locks.Table.Name), new(LossReason, reason));
+    }
+
+    /// <summary>Counts a release in this process that woke a waiting acquire, and sets how many did on its span.</summary>
+    /// <param name="activity">The span of the acquire, or <see langword="null"/>.</param>
+    /// <param name="table">The table of the locks.</param>
+    /// <param name="wakeups">How many releases woke this acquire so far.</param>
+    public static void Wake(Activity? activity, string table, int wakeups)
+    {
+        activity?.SetTag(WakeupCount, wakeups);
+        Wakeups.Add(1, new KeyValuePair<string, object?>(DbCollectionName, table));
     }
 
     /// <summary>Records that an election contends again after a transient failure of an acquire, each time, also while its log is quiet.</summary>

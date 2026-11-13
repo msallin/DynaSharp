@@ -45,7 +45,7 @@ namespace DynaSharp.Coordination;
 /// <para>
 /// <b>Clock, logs and retries.</b> It uses the <see cref="DynamoDbClientOptions.TimeProvider"/> of the client of the table for every wait and for the monotonic clock, and its
 /// <see cref="DynamoDbClientOptions.LoggerFactory"/> for the log category <c>DynaSharp.Coordination.LockTable</c>. The requests go through the client
-/// with its retries. It is thread-safe; hold one per table, because it remembers which holders it has seen, which a takeover depends on.
+/// with its retries. It is thread-safe; hold one per table, because it remembers which holders it has seen, which a takeover depends on, and a lease it released wakes the acquires of it that wait for that lock.
 /// </para>
 /// <para>
 /// <b>One region.</b> The lock table must have a single region that writes. A global table that takes writes in more than one region can grant a lock twice, with the same
@@ -76,6 +76,10 @@ public sealed class LockTable
 
     // The waits of LockTableTesting.WaitForRefusalAsync, by lock name; empty outside tests, which costs a try one check.
     private readonly ConcurrentDictionary<string, TaskCompletionSource> _refusals = new(StringComparer.Ordinal);
+
+    // The acquires of this table that wait, by lock name, so that a lease of this table that is released wakes them at once; see Waiters.
+    private readonly Dictionary<string, Waiters> _waiters = new(StringComparer.Ordinal);
+    private readonly Lock _waitersLock = new();
 
     // When the next sweep of stale sightings is due, on the monotonic clock; a sweep runs at most once every MaxPoll.
     private long _nextSweep;
@@ -109,6 +113,18 @@ public sealed class LockTable
 
     /// <summary>Gets how many locks this table holds a sighting of, for the tests of how long it keeps them.</summary>
     internal int SightingCount => _sightings.Count;
+
+    /// <summary>Gets the number of lock names that acquires of this table wait on, for a test that no wait leaves one behind.</summary>
+    internal int WaitingNames
+    {
+        get
+        {
+            lock (_waitersLock)
+            {
+                return _waiters.Count;
+            }
+        }
+    }
 
     /// <summary>
     /// Makes a lock table over any table, typed or not, for <c>LockTable.For(client.Table&lt;Order&gt;("Shop"))</c>: it needs only the name of the table,
@@ -275,6 +291,11 @@ public sealed class LockTable
     /// holder due, see <see cref="TryAcquireAsync(string, TimeSpan, CancellationToken)"/>. A try that meets a transaction on the lock item, such as the holder's <see cref="LeaseTransactExtensions.IsHeld{TChain}(TChain, Lease)"/>, is refused and waits as for a held lock.
     /// </para>
     /// <para>
+    /// <b>A release in this process.</b> A lease of this <see cref="LockTable"/> that is disposed ends the wait of every acquire of it for that lock at once, so a hand-off within a process takes a
+    /// request and not a poll; the woken acquires race for the lock as any contenders do. A release in another process, or through another <see cref="LockTable"/>, is seen at the next poll, and a lease that
+    /// is lost or runs out wakes nobody, since a takeover waits a whole lease.
+    /// </para>
+    /// <para>
     /// <b>Giving up.</b> A process that must not wait for a live holder takes a wait of a little more than one lease, <see cref="TryAcquireAsync(string, TimeSpan, TimeSpan, CancellationToken)"/>
     /// or <see cref="AcquireAsync(string, TimeSpan, TimeSpan, CancellationToken)"/>: that is long enough to take over the lock of a holder that crashed, which
     /// <see cref="TryAcquireAsync(string, TimeSpan, CancellationToken)"/> of a short-lived process cannot.
@@ -410,6 +431,24 @@ public sealed class LockTable
     internal Task NextRefusal(string name) =>
         _refusals.GetOrAdd(name, static _ => new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously)).Task;
 
+    /// <summary>Wakes the acquires of this table that wait for the lock, after a lease of this table released it, so that they try at once instead of at their next poll.</summary>
+    /// <param name="name">The name of the lock.</param>
+    internal void Released(string name)
+    {
+        TaskCompletionSource released;
+        lock (_waitersLock)
+        {
+            if (!_waiters.TryGetValue(name, out var waiters))
+            {
+                return;
+            }
+
+            released = waiters.Renew();
+        }
+
+        released.TrySetResult();
+    }
+
     /// <summary>Adds what the options ask every write of a lock item to carry: the time to live, from now on the wall clock.</summary>
     /// <param name="update">The write of a lock item.</param>
     /// <returns>The write, which replaces it.</returns>
@@ -430,11 +469,15 @@ public sealed class LockTable
     internal async Task<Lease?> ContendAsync(string name, TimeSpan leaseDuration, TimeSpan? wait, Claim claim, Action? answered, bool timeoutThrows, CancellationToken cancellationToken)
     {
         using var activity = CoordinationTelemetry.Start(timeoutThrows ? CoordinationTelemetry.AcquireSpan : CoordinationTelemetry.TryAcquireSpan, Table.Name, name);
+        var waiters = Join(name);
         try
         {
             var started = Time.GetTimestamp();
+            var wakeups = 0;
             while (true)
             {
+                // Taken before the try, so that a release between a refused try and the wait after it still ends that wait.
+                var released = waiters.Next;
                 var attempt = await AttemptAsync(name, leaseDuration, claim, cancellationToken).ConfigureAwait(false);
                 answered?.Invoke();
                 if (attempt.Lease is { } lease)
@@ -464,13 +507,20 @@ public sealed class LockTable
                     delay = delay < left ? delay : left;
                 }
 
-                await Task.Delay(delay, Time, cancellationToken).ConfigureAwait(false);
+                if (await WaitAsync(delay, released, cancellationToken).ConfigureAwait(false))
+                {
+                    CoordinationTelemetry.Wake(activity, Table.Name, ++wakeups);
+                }
             }
         }
         catch (Exception exception)
         {
             CoordinationTelemetry.Fail(activity, exception);
             throw;
+        }
+        finally
+        {
+            Leave(name, waiters);
         }
     }
 
@@ -506,6 +556,49 @@ public sealed class LockTable
     private static bool IsTaken(string attribute, Table<Item> table) =>
         attribute is LockItem.Type or LockItem.Owner or LockItem.RecordVersion or LockItem.FencingToken or LockItem.LeaseDuration or LockItem.HolderLabel
         || attribute == table.PartitionKeyName || attribute == table.SortKeyName;
+
+    // The timer is cancelled when the release comes first, so that a test clock holds no wait that is over.
+    private async Task<bool> WaitAsync(TimeSpan delay, Task released, CancellationToken cancellationToken)
+    {
+        using var timer = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var delayed = Task.Delay(delay, Time, timer.Token);
+        if (await Task.WhenAny(delayed, released).ConfigureAwait(false) == delayed)
+        {
+            // The delay ends early only when the caller cancelled, whose token the exception then carries.
+            cancellationToken.ThrowIfCancellationRequested();
+            return false;
+        }
+
+        await timer.CancelAsync().ConfigureAwait(false);
+        return true;
+    }
+
+    private Waiters Join(string name)
+    {
+        lock (_waitersLock)
+        {
+            if (!_waiters.TryGetValue(name, out var waiters))
+            {
+                waiters = new Waiters();
+                _waiters.Add(name, waiters);
+            }
+
+            waiters.Count++;
+            return waiters;
+        }
+    }
+
+    // The last acquire to stop waiting drops the name, so a table that waited on many locks keeps none of them.
+    private void Leave(string name, Waiters waiters)
+    {
+        lock (_waitersLock)
+        {
+            if (--waiters.Count == 0)
+            {
+                _waiters.Remove(name);
+            }
+        }
+    }
 
     private async Task<Attempt> AttemptAsync(string name, TimeSpan leaseDuration, Claim claim, CancellationToken cancellationToken)
     {
@@ -691,5 +784,24 @@ public sealed class LockTable
         /// <summary>Records a write that went unanswered.</summary>
         /// <param name="sent">When it was sent.</param>
         public void Unanswered(long sent) => FirstUnanswered ??= sent;
+    }
+
+    /// <summary>
+    /// The acquires of one lock that wait, in this <see cref="LockTable"/>. Each takes <see cref="Next"/> before its try and waits for it beside its poll; a release completes it and puts a new one in its
+    /// place, so a release wakes every wait that began before it, and a try that begins after it sees the lock free. Only a release of this table wakes: other processes are seen by the poll.
+    /// </summary>
+    private sealed class Waiters
+    {
+        private TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>Gets or sets how many acquires wait, under the lock of the table.</summary>
+        public int Count { get; set; }
+
+        /// <summary>Gets the task that the next release completes.</summary>
+        public Task Next => Volatile.Read(ref _released).Task;
+
+        /// <summary>Puts a new source in place of the one the next release completes, under the lock of the table.</summary>
+        /// <returns>The source to complete.</returns>
+        public TaskCompletionSource Renew() => Interlocked.Exchange(ref _released, new(TaskCreationOptions.RunContinuationsAsynchronously));
     }
 }
