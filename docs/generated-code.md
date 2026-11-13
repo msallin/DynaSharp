@@ -60,6 +60,26 @@ Order? found = await orders.Get(first).ItemAsync(ct);
 
 The key is a nullable struct, so the `null` costs nothing. `Keys` and every partition key builder that can refuse a value have a `TryOf`; a sort key builder makes conditions and has none.
 
+### Looking up a value from outside
+
+An empty value, or one that cannot be part of a key, is an invalid key, not the key of an empty partition, so `Of` throws `KeyFormatException` for it. That is right for code that builds a key from its own data, where a blank customer id is a bug that should stop the call. A write keeps `Of` for that reason: an item under a blank key is no item anyone can find again.
+
+A value that comes from outside is another matter: a tour number read from Oracle, a yard key from a Kafka message, a license number from a request. It can be blank or malformed for reasons the code does not control, and for a lookup the honest answer is "no such item". Look it up with `TryOf`, so that no key means no result, and no call is sent:
+
+```csharp
+async Task<Order?> FindAsync(string customerId, int number, CancellationToken token) =>
+    Order.Keys.TryOf(customerId, number) is { } key ? await orders.Get(key).ItemAsync(token) : null;
+
+async Task<List<Order>> FindAllAsync(string customerId, CancellationToken token) =>
+    Order.Keys.Pk.TryOf(customerId) is { } partition ? await orders.Query(partition).ItemsAsync(token).ToListAsync(token) : [];
+
+// after came in from outside, and may be blank: then both find nothing.
+Order? found = await FindAsync(after, 1, ct);
+List<Order> history = await FindAllAsync(after, ct);
+```
+
+Code that glued the key together by hand, as the AWS SDK lets it, sent `CUSTOMER#` for a blank id, read an empty partition and found nothing. The same lookup over `Of` throws instead, which surfaces in a read path that used to answer "not found": `TryOf` keeps that answer. Where a blank value from outside is an error worth telling the sender about, check it where it comes in, and keep `Of` behind the check.
+
 ### Builders
 
 Each key has a static class under `Keys`:

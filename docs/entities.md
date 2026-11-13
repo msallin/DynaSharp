@@ -57,7 +57,7 @@ The rules of a template, and what the generator reports when one is broken, are 
 
 ## Keys and Attrs
 
-`Keys` builds keys from values and checks them at the call: `Order.Keys.Of("alice", 1)` is the table key, `Order.Keys.Pk.Of("alice")` the partition key alone, and `Order.Keys.Sk` holds the sort key conditions of a query. `Attrs` holds a typed handle per stored property: `Order.Attrs.Total.Gt(100m)` compiles, a comparison with a string does not. For a value from outside, `Order.Keys.Pk.TryOf(id) is { } key` checks without an exception. [Generated code](generated-code.md) lists every member, including both forms of `TryOf` and `Parse`; [Expressions](expressions.md) says what a handle can do.
+`Keys` builds keys from values and checks them at the call: `Order.Keys.Of("alice", 1)` is the table key, `Order.Keys.Pk.Of("alice")` the partition key alone, and `Order.Keys.Sk` holds the sort key conditions of a query. `Attrs` holds a typed handle per stored property: `Order.Attrs.Total.Gt(100m)` compiles, a comparison with a string does not. An empty value is no key and throws `KeyFormatException`; for a value from outside, `Order.Keys.Pk.TryOf(id) is { } key` checks without an exception, so a lookup of it finds nothing, see [Looking up a value from outside](generated-code.md#looking-up-a-value-from-outside). [Generated code](generated-code.md) lists every member, including both forms of `TryOf` and `Parse`; [Expressions](expressions.md) says what a handle can do.
 
 ## Discriminator
 
