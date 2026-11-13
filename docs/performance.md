@@ -4,9 +4,39 @@ What a call costs comes in two parts: what the client allocates and spends on th
 
 ## Benchmarks
 
-Allocations are exact, and times depend on the machine. All clients run on the same canned responses with no network, so these numbers show the client's own cost.
+Allocations are exact. Times depend on the machine: they are the means of one run on an idle 8-core AMD EPYC with .NET 11 (SDK 11.0.100), each within 3 %. A KB is 1,024 bytes. All clients run on the same canned responses with no network, so these numbers show the client's own cost.
 
-The four tables are on the [front page of the repository](https://github.com/msallin/DynaSharp#benchmarks), which is also the [home page of this site](https://msallin.github.io/DynaSharp/#benchmarks): the time and the bytes allocated per call by the mapped APIs of DynaSharp, EfficientDynamoDb and the AWS SDK's `DynamoDBContext`, the low-level APIs of the three in KB, and the API levels of DynaSharp in bytes.
+Time per call, mapped APIs, in µs:
+
+| Call | DynaSharp | EfficientDynamoDb | AWS `DynamoDBContext` |
+|---|---|---|---|
+| GetItem | 4.9 | 14.0 | 24.9 |
+| PutItem | 4.5 | 13.6 | 25.5 |
+| Query, 100 items | 113 | 119 | 701 |
+
+Bytes allocated per call, mapped APIs:
+
+| Call | DynaSharp | EfficientDynamoDb | AWS `DynamoDBContext` |
+|---|---|---|---|
+| GetItem | 2,384 | 5,456 | 36,041 |
+| PutItem | 1,528 | 4,632 | 39,667 |
+| Query, 100 items | 81,120 | 91,329 | 986,217 |
+
+Low-level APIs, in KB:
+
+| Call | DynaSharp request API | EfficientDynamoDb | AWS SDK |
+|---|---|---|---|
+| GetItem | 2.55 | 6.69 | 25.86 |
+| PutItem | 1.60 | 4.52 | 22.06 |
+| Query, 100 items | 98.03 | 201.74 | 374.44 |
+
+Inside DynaSharp, by API level, in bytes:
+
+| Call | Generated entity | `Table<Item>` | Request API |
+|---|---|---|---|
+| GetItem | 2,256 | 2,576 | 2,608 |
+| PutItem | 1,528 | n/a | 1,640 |
+| Query, 100 items | 68,320 | 100,320 | 100,456 |
 
 ### Why the rows differ
 

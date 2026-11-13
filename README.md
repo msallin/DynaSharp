@@ -7,7 +7,7 @@ A high-performance DynamoDB client for .NET. Items are mapped by a source genera
 **Documentation: [msallin.github.io/DynaSharp](https://msallin.github.io/DynaSharp/)**, with the full guide, the [API reference](https://msallin.github.io/DynaSharp/api/DynaSharp.html) and the [diagnostics](https://msallin.github.io/DynaSharp/diagnostics.html) of the analyzers.
 
 - **Fast:** a mapped `GetItem` or `PutItem` takes about a third of the time of EfficientDynamoDb and a sixth of the AWS SDK's `DynamoDBContext`, and a query of 100 items 9 % less than EfficientDynamoDb and a seventh of `DynamoDBContext`.
-- **Lean:** fewer bytes allocated per call than EfficientDynamoDb, from 11 % fewer for a query of 100 items to 3 times fewer for a `PutItem` (1.49 KB against 4.52 KB), and 12 to 29 times fewer than the AWS SDK's `DynamoDBContext`. See [Benchmarks](#benchmarks).
+- **Lean:** fewer bytes allocated per call than EfficientDynamoDb, from 11 % fewer for a query of 100 items to 3 times fewer for a `PutItem` (1.49 KB against 4.52 KB), and 12 to 29 times fewer than the AWS SDK's `DynamoDBContext`. See [Performance](https://msallin.github.io/DynaSharp/performance.html#benchmarks).
 - **Native AOT:** no reflection and no runtime code generation, see [Native AOT](https://msallin.github.io/DynaSharp/getting-started.html#native-aot).
 - **Single-table first, one table per entity just as well:** key templates, global and sparse indexes, mixed-type reads, fan-out queries, transactions across tables with typed failure reasons.
 - **Compile-time safety:** a key of the wrong entity or a clause an operation does not have fails at build time, and a broken expression is a build warning.
@@ -28,21 +28,14 @@ dotnet add package DynaSharp.Coordination   # locks and leader election, optiona
 
 ### A first table
 
-All requests go through `DynamoDbClient`: create one and keep it. With no options, region, endpoint and credentials come from the environment, the way the AWS SDKs read them. [Getting started](https://msallin.github.io/DynaSharp/getting-started.html) has the whole program to copy, a local emulator, the options and the credential chain.
+All requests go through `DynamoDbClient`: create one and keep it. With no options, region, endpoint and credentials come from the environment, the way the AWS SDKs read them. To try things offline, with no AWS account and no Docker, take a client of the in-memory [`FakeDynamoDb`](https://msallin.github.io/DynaSharp/testing.html#a-fake-dynamodb) instead.
 
 ```csharp
 using DynaSharp;
-
-using var client = new DynamoDbClient();
-```
-
-Without a region it throws `InvalidOperationException`. To try the code below offline, with no AWS account and no Docker, take a client of `FakeDynamoDb`, the in-memory DynamoDB of [`DynaSharp.Testing`](https://msallin.github.io/DynaSharp/testing.html#a-fake-dynamodb):
-
-```csharp
 using DynaSharp.Testing;
 
-var fake = new FakeDynamoDb();
-using var client = fake.CreateClient();
+using var client = new DynamoDbClient();
+// or, in memory: using var client = new FakeDynamoDb().CreateClient();
 ```
 
 Declare a `partial` type and say how it maps. The generator writes the code that reads and writes the item, plus `Keys`, which builds keys, and `Attrs`, a typed handle per attribute, see [Entities and keys](https://msallin.github.io/DynaSharp/entities.html).
@@ -62,7 +55,7 @@ public partial record Order
 }
 ```
 
-Open the table the entity declares once and keep it, create it if it is not there, and send commands. A command goes out with its last call: `SendAsync`, `ItemAsync` or `ItemsAsync`. The commands are extension methods of the namespace `DynaSharp`: without `using DynaSharp;` the compiler says CS1501 or CS0315 and names no missing `using`.
+Open the table, create it if it is not there, and send commands. A command goes out with its last call: `SendAsync`, `ItemAsync` or `ItemsAsync`.
 
 ```csharp
 var orders = client.Table<Order>();
@@ -77,20 +70,7 @@ await foreach (var placed in orders.Query(Order.Keys.Pk.Of("alice")).ItemsAsync(
 }
 ```
 
-The guide and the examples below use [a small shop on one table](https://msallin.github.io/DynaSharp/getting-started.html#the-shop), which [`samples`](https://github.com/msallin/DynaSharp/tree/main/samples) runs as a tour.
-
-### Coming from the AWS SDK or EfficientDynamoDb
-
-| AWS SDK `DynamoDBContext` | EfficientDynamoDb | DynaSharp |
-|---|---|---|
-| `LoadAsync` | `GetItemAsync` | `orders.Get(key).ItemAsync(ct)` |
-| `SaveAsync` | `PutItemAsync` | `orders.Put(order).SendAsync(ct)`, or `orders.Update(key).Set(...)` |
-| `QueryAsync` | `Query<T>()` | `orders.Query(partitionKey).ItemsAsync(ct)` |
-| `DeleteAsync` | `DeleteItemAsync` | `orders.Delete(key).SendAsync(ct)` |
-| `ScanAsync` | `Scan<T>()` | `orders.Scan().Filter(...).ItemsAsync(ct)` |
-| `CreateBatchWrite` | `BatchWrite()` | `orders.BatchWrite().PutAll(items).SendAsync(ct)` |
-
-There is no unit of work, so no `Add` and `SaveChanges`: a command is sent where its chain ends. [Migrating](https://msallin.github.io/DynaSharp/migrating.html) has the full table and what changes for stored data, [Adopting an existing table](https://msallin.github.io/DynaSharp/adopting.html) the rules for a table that other code wrote, and [How DynaSharp compares](https://msallin.github.io/DynaSharp/comparison.html) the features of the three.
+[Getting started](https://msallin.github.io/DynaSharp/getting-started.html) has the whole program, a local emulator, the options and the credential chain. The examples below use [a small shop on one table](https://msallin.github.io/DynaSharp/getting-started.html#the-shop), which [`samples`](https://github.com/msallin/DynaSharp/tree/main/samples) runs as a tour.
 
 ## Examples
 
@@ -146,8 +126,6 @@ await foreach (var item in shop.Query(Order.Keys.Pk.Of("alice")).Of<Customer, Or
 }
 ```
 
-Each item is a C# 15 union of its types, so the compiler warns when a `switch` misses one; C# 14 calls `item.Match(profile => ..., placed => ...)`.
-
 **Optimistic locking, and a retry on a conflict.** With `[Version]` on a property, a write of a copy that changed since it was read throws `ConditionalCheckFailedException`, and `RetryOnConflictAsync` runs the read-modify-write again with a fresh read. [Optimistic locking](https://msallin.github.io/DynaSharp/commands.html#optimistic-locking), [Retry on a conflict](https://msallin.github.io/DynaSharp/commands.html#retry-on-a-conflict)
 
 **Indexes, pages and batches.** `byStatus` is `orders.Index(Order.Indexes.ByStatus)`, which `[GlobalIndexKey("ByStatus", ...)]` declares on `Order`. [Paging for web APIs](https://msallin.github.io/DynaSharp/queries.html#paging-for-web-apis), [Batches](https://msallin.github.io/DynaSharp/transactions.html#batches)
@@ -166,8 +144,6 @@ while (page.HasMore);
 await products.BatchWrite().PutAll(catalog).SendAsync(ct);
 var found = await products.BatchGet().GetAll(skus.Select(Product.Keys.Of)).SendAsync(ct);
 ```
-
-`null` is the first page, and `page.Next` the next one while `HasMore` holds, which an empty page can still say, see [Page by page](https://msallin.github.io/DynaSharp/queries.html#page-by-page). A web API hands `page.Next.ToString()` to its client and takes it back with `ContinuationToken.Parse`.
 
 **Also:** one list over many partitions, `ToRequestJson()` to see what goes over the wire, converters of your own, [DynamoDB Streams](https://msallin.github.io/DynaSharp/streams.html) read as entities, locks with fencing tokens and leader election in [`DynaSharp.Coordination`](https://msallin.github.io/DynaSharp/coordination.html), and tests without DynamoDB through [`DynaSharp.Testing`](https://msallin.github.io/DynaSharp/testing.html), which fakes the wire:
 
@@ -200,42 +176,6 @@ One client and one pipeline, with four ways in. Use the highest level that fits,
 
 [Design principles](https://msallin.github.io/DynaSharp/design-principles.html) says what each one means for your code, and [How it is built](https://msallin.github.io/DynaSharp/design.html) why the client looks the way it does.
 
-## Benchmarks
-
-Allocations are exact. Times depend on the machine: they are the means of one run on an idle 8-core AMD EPYC with .NET 11 (SDK 11.0.100), each within 3 %. A KB is 1,024 bytes. All clients run on the same canned responses with no network, so these numbers show the client's own cost. [Performance](https://msallin.github.io/DynaSharp/performance.html) explains why the rows differ and how to run them.
-
-Time per call, mapped APIs, in µs:
-
-| Call | DynaSharp | EfficientDynamoDb | AWS `DynamoDBContext` |
-|---|---|---|---|
-| GetItem | 4.9 | 14.0 | 24.9 |
-| PutItem | 4.5 | 13.6 | 25.5 |
-| Query, 100 items | 113 | 119 | 701 |
-
-Bytes allocated per call, mapped APIs:
-
-| Call | DynaSharp | EfficientDynamoDb | AWS `DynamoDBContext` |
-|---|---|---|---|
-| GetItem | 2,384 | 5,456 | 36,041 |
-| PutItem | 1,528 | 4,632 | 39,667 |
-| Query, 100 items | 81,120 | 91,329 | 986,217 |
-
-Low-level APIs, in KB:
-
-| Call | DynaSharp request API | EfficientDynamoDb | AWS SDK |
-|---|---|---|---|
-| GetItem | 2.55 | 6.69 | 25.86 |
-| PutItem | 1.60 | 4.52 | 22.06 |
-| Query, 100 items | 98.03 | 201.74 | 374.44 |
-
-Inside DynaSharp, by API level, in bytes:
-
-| Call | Generated entity | `Table<Item>` | Request API |
-|---|---|---|---|
-| GetItem | 2,256 | 2,576 | 2,608 |
-| PutItem | 1,528 | n/a | 1,640 |
-| Query, 100 items | 68,320 | 100,320 | 100,456 |
-
 ## Compatibility
 
 Until 1.0, a minor release can break the public API, behaviour and analyzers, and the release notes say what to change; a patch release does not break. What an entity writes to a table changes only with a release note that says how to migrate. [Compatibility](https://msallin.github.io/DynaSharp/compatibility.html) has the details.
@@ -253,7 +193,3 @@ dotnet stryker                                           # mutation testing
 ```
 
 The documentation site is built with DocFX from `docs/`: build `src/DynaSharp.Testing` and `src/DynaSharp.Coordination` with `-c Release`, then `dotnet docfx docs/docfx.json --serve`.
-
-## License
-
-MIT

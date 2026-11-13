@@ -7,7 +7,7 @@
   - `tasks.md`: the blackboard. Claim a task before starting it, keep its status current, record decisions (with their why) and findings there.
 - `.claude/skills/`: procedures for one kind of task (releasing, mutation testing, the fidelity of the fake).
 - `docs/`: user documentation, published with DocFX (`docs/docfx.json`, `docs.yml`) at https://msallin.github.io/DynaSharp/, home page the README. Links between pages are relative (`tables.md#adding-an-index`). `docs/diagnostics.md` is the target of the analyzers' help links, so its headings are stable. `docs/design.md` holds the rationale a user sees.
-- `README.md`: the overview for users (intro, installation, getting started, a few examples, API levels, design principles, benchmarks). No plans or status; its numbers come from a benchmark run. It ships in the package, so it links to the site with absolute URLs.
+- `README.md`: the overview for users (intro, installation, getting started, a few examples, API levels, design principles). No plans or status; its numbers come from a benchmark run, whose tables are in `docs/performance.md`. It ships in the package, so it links to the site with absolute URLs.
 - The C# blocks of the README and `docs/` compile.
 
 ## Principles
