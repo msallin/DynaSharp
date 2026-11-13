@@ -196,6 +196,7 @@ DynaSharp.ContinuationToken.ToKey() -> DynaSharp.Item?
 DynaSharp.ContinuationTokenSigner
 DynaSharp.ContinuationTokenSigner.ContinuationTokenSigner(params System.ReadOnlySpan<byte[]!> keys) -> void
 DynaSharp.CreateTableCommand
+DynaSharp.CreateTableCommand.FailOnDrift() -> DynaSharp.CreateTableCommand!
 DynaSharp.CreateTableCommand.GetAwaiter() -> System.Runtime.CompilerServices.ValueTaskAwaiter<DynaSharp.CreateTableResult!>
 DynaSharp.CreateTableCommand.IfNotExists() -> DynaSharp.CreateTableCommand!
 DynaSharp.CreateTableCommand.Including<TOther>() -> DynaSharp.CreateTableCommand!
@@ -328,6 +329,7 @@ DynaSharp.DynamoDbClientOptions.TimeProvider.init -> void
 DynaSharp.DynamoDbClientOptions.TokenSigner.get -> DynaSharp.ContinuationTokenSigner?
 DynaSharp.DynamoDbClientOptions.TokenSigner.init -> void
 DynaSharp.DynamoDbException
+DynaSharp.DynamoDbException.ConflictAttempts.get -> int?
 DynaSharp.DynamoDbException.DynamoDbException(string! message, string! errorCode, System.Net.HttpStatusCode statusCode, string? requestId = null, System.Exception? innerException = null) -> void
 DynaSharp.DynamoDbException.ErrorCode.get -> string!
 DynaSharp.DynamoDbException.IsTransient.get -> bool
@@ -654,6 +656,9 @@ DynaSharp.Mapping.DynamoDbEnumAttribute
 DynaSharp.Mapping.DynamoDbEnumAttribute.DynamoDbEnumAttribute() -> void
 DynaSharp.Mapping.DynamoDbEnumAttribute.UnknownName.get -> DynaSharp.Mapping.UnknownEnumName
 DynaSharp.Mapping.DynamoDbEnumAttribute.UnknownName.set -> void
+DynaSharp.Mapping.DynamoDbEnumNameAttribute
+DynaSharp.Mapping.DynamoDbEnumNameAttribute.DynamoDbEnumNameAttribute(string! name) -> void
+DynaSharp.Mapping.DynamoDbEnumNameAttribute.Name.get -> string!
 DynaSharp.Mapping.DynamoDbIgnoreAttribute
 DynaSharp.Mapping.DynamoDbIgnoreAttribute.DynamoDbIgnoreAttribute() -> void
 DynaSharp.Mapping.DynamoDbIndexInfo
@@ -2040,6 +2045,11 @@ DynaSharp.Serialization.TimeSpanConverter
 DynaSharp.Serialization.TimeSpanConverter.TimeSpanConverter() -> void
 DynaSharp.SortKeyCondition
 DynaSharp.SortKeyCondition.SortKeyCondition() -> void
+DynaSharp.StreamUnavailableException
+DynaSharp.StreamUnavailableException.RequiredViewType.get -> DynaSharp.Requests.StreamViewType?
+DynaSharp.StreamUnavailableException.StreamUnavailableException(string! message, string! tableName, DynaSharp.Requests.StreamViewType? viewType, DynaSharp.Requests.StreamViewType? requiredViewType) -> void
+DynaSharp.StreamUnavailableException.TableName.get -> string!
+DynaSharp.StreamUnavailableException.ViewType.get -> DynaSharp.Requests.StreamViewType?
 DynaSharp.Streams.Change<T>
 DynaSharp.Streams.Change<T>.<Clone>$() -> DynaSharp.Streams.Change<T>!
 DynaSharp.Streams.Change<T>.After.get -> T?
@@ -2212,6 +2222,8 @@ DynaSharp.Streams.ReadShardRequest.EmptyPageDelay.init -> void
 DynaSharp.Streams.ReadShardRequest.Equals(DynaSharp.Streams.ReadShardRequest? other) -> bool
 DynaSharp.Streams.ReadShardRequest.Limit.get -> int?
 DynaSharp.Streams.ReadShardRequest.Limit.init -> void
+DynaSharp.Streams.ReadShardRequest.OnGap.get -> System.Action<string!>?
+DynaSharp.Streams.ReadShardRequest.OnGap.init -> void
 DynaSharp.Streams.ReadShardRequest.ReadShardRequest() -> void
 DynaSharp.Streams.ReadShardRequest.SequenceNumber.get -> string?
 DynaSharp.Streams.ReadShardRequest.SequenceNumber.init -> void
@@ -2226,6 +2238,8 @@ DynaSharp.Streams.ReadStreamRequest.<Clone>$() -> DynaSharp.Streams.ReadStreamRe
 DynaSharp.Streams.ReadStreamRequest.EmptyPageDelay.get -> System.TimeSpan
 DynaSharp.Streams.ReadStreamRequest.EmptyPageDelay.init -> void
 DynaSharp.Streams.ReadStreamRequest.Equals(DynaSharp.Streams.ReadStreamRequest? other) -> bool
+DynaSharp.Streams.ReadStreamRequest.OnGap.get -> System.Action<string!>?
+DynaSharp.Streams.ReadStreamRequest.OnGap.init -> void
 DynaSharp.Streams.ReadStreamRequest.OnJoined.get -> System.Action?
 DynaSharp.Streams.ReadStreamRequest.OnJoined.init -> void
 DynaSharp.Streams.ReadStreamRequest.ReadStreamRequest() -> void
@@ -2359,9 +2373,9 @@ DynaSharp.Table<T>.Of<TOther>() -> DynaSharp.Table<TOther>!
 DynaSharp.Table<T>.PartitionKeyName.get -> string!
 DynaSharp.Table<T>.Put(T item) -> DynaSharp.PutCommand<T>
 DynaSharp.Table<T>.Query<TKey>(TKey key) -> DynaSharp.QueryCommand<T>
-DynaSharp.Table<T>.ReadChangesAsync<T1, T2, T3, T4>(DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!, DynaSharp.Streams.ShardChangeRecord>? onMappingFailure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.MixedChange<T1, T2, T3, T4>>!
-DynaSharp.Table<T>.ReadChangesAsync<T1, T2, T3>(DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!, DynaSharp.Streams.ShardChangeRecord>? onMappingFailure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.MixedChange<T1, T2, T3>>!
-DynaSharp.Table<T>.ReadChangesAsync<T1, T2>(DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!, DynaSharp.Streams.ShardChangeRecord>? onMappingFailure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.MixedChange<T1, T2>>!
+DynaSharp.Table<T>.ReadChangesAsync<T1, T2, T3, T4>(DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!, DynaSharp.Streams.ShardChangeRecord>? onMappingFailure = null, System.Action<string!>? onGap = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.MixedChange<T1, T2, T3, T4>>!
+DynaSharp.Table<T>.ReadChangesAsync<T1, T2, T3>(DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!, DynaSharp.Streams.ShardChangeRecord>? onMappingFailure = null, System.Action<string!>? onGap = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.MixedChange<T1, T2, T3>>!
+DynaSharp.Table<T>.ReadChangesAsync<T1, T2>(DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!, DynaSharp.Streams.ShardChangeRecord>? onMappingFailure = null, System.Action<string!>? onGap = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.MixedChange<T1, T2>>!
 DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task!>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken), DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Action<int, DynaSharp.DynamoDbException!>? onConflict = null) -> System.Threading.Tasks.Task!
 DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken), DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Action<int, DynaSharp.DynamoDbException!>? onConflict = null) -> System.Threading.Tasks.Task!
 DynaSharp.Table<T>.RetryOnConflictAsync(System.Func<int, System.Threading.CancellationToken, System.Threading.Tasks.Task!>! operation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken), DynaSharp.ConflictKind retryOn = DynaSharp.ConflictKind.Any, int maxAttempts = 5, System.Action<int, DynaSharp.DynamoDbException!>? onConflict = null) -> System.Threading.Tasks.Task!
@@ -2386,6 +2400,10 @@ DynaSharp.TableDrift.IndexName.init -> void
 DynaSharp.TableDrift.Kind.get -> DynaSharp.TableDriftKind
 DynaSharp.TableDrift.Kind.init -> void
 DynaSharp.TableDrift.TableDrift(DynaSharp.TableDriftKind Kind, string? IndexName, string! Description) -> void
+DynaSharp.TableDriftException
+DynaSharp.TableDriftException.Drift.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.TableDrift!>!
+DynaSharp.TableDriftException.TableDriftException(string! tableName, System.Collections.Generic.IReadOnlyList<DynaSharp.TableDrift!>! drift) -> void
+DynaSharp.TableDriftException.TableName.get -> string!
 DynaSharp.TableDriftKind
 DynaSharp.TableDriftKind.IndexDiffers = 1 -> DynaSharp.TableDriftKind
 DynaSharp.TableDriftKind.IndexMissing = 0 -> DynaSharp.TableDriftKind
@@ -2567,6 +2585,7 @@ override DynaSharp.Credentials.AwsCredentials.ToString() -> string!
 override DynaSharp.DynamoDbClientOptions.Equals(object? obj) -> bool
 override DynaSharp.DynamoDbClientOptions.GetHashCode() -> int
 override DynaSharp.DynamoDbClientOptions.ToString() -> string!
+override DynaSharp.DynamoDbException.Message.get -> string!
 override DynaSharp.DynamoDbException.ToString() -> string!
 override DynaSharp.Item.Equals(object? obj) -> bool
 override DynaSharp.Item.GetHashCode() -> int
@@ -3376,8 +3395,8 @@ static DynaSharp.Streams.StreamRecord.operator !=(DynaSharp.Streams.StreamRecord
 static DynaSharp.Streams.StreamRecord.operator ==(DynaSharp.Streams.StreamRecord? left, DynaSharp.Streams.StreamRecord? right) -> bool
 static DynaSharp.Streams.StreamSummary.operator !=(DynaSharp.Streams.StreamSummary? left, DynaSharp.Streams.StreamSummary? right) -> bool
 static DynaSharp.Streams.StreamSummary.operator ==(DynaSharp.Streams.StreamSummary? left, DynaSharp.Streams.StreamSummary? right) -> bool
-static DynaSharp.Streams.TableStreamExtensions.ReadChangesAsync<T>(this DynaSharp.Table<T>! table, DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!, DynaSharp.Streams.ShardChangeRecord>? onMappingFailure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.Change<T>!>!
-static DynaSharp.Streams.TableStreamExtensions.ReadStreamAsync<T>(this DynaSharp.Table<T>! table, DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.ShardChangeRecord>!
+static DynaSharp.Streams.TableStreamExtensions.ReadChangesAsync<T>(this DynaSharp.Table<T>! table, DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<DynaSharp.DynamoDbMappingException!, DynaSharp.Streams.ShardChangeRecord>? onMappingFailure = null, System.Action<string!>? onGap = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.Change<T>!>!
+static DynaSharp.Streams.TableStreamExtensions.ReadStreamAsync<T>(this DynaSharp.Table<T>! table, DynaSharp.Streams.DynamoDbStreamsClient! streams, DynaSharp.Streams.ShardIteratorType shardIteratorType, System.TimeSpan? emptyPageDelay = null, System.Action? onJoined = null, System.Action<string!>? onGap = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<DynaSharp.Streams.ShardChangeRecord>!
 static DynaSharp.TableDrift.operator !=(DynaSharp.TableDrift? left, DynaSharp.TableDrift? right) -> bool
 static DynaSharp.TableDrift.operator ==(DynaSharp.TableDrift? left, DynaSharp.TableDrift? right) -> bool
 static DynaSharp.TransactWriteExtensions.Check<TChain, T, TKey>(this TChain chain, DynaSharp.Table<T>! table, TKey key) -> DynaSharp.ConditionStep

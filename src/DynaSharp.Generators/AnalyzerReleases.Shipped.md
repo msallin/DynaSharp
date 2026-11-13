@@ -163,3 +163,14 @@ DYNA243 | DynaSharp.Commands | Info | Set of a value that may be null
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
 DYNA124 | DynaSharp.Keys | Error | Enum without members in a key
+
+## Release 0.12.0
+
+### New Rules
+
+Rule ID | Category | Severity | Notes
+--------|----------|----------|-------
+DYNA044 | DynaSharp.Mapping | Error | Enum stored name is not one-to-one
+DYNA045 | DynaSharp.Mapping | Error | Enum stored name is invalid
+DYNA046 | DynaSharp.Mapping | Warning | [DynamoDbEnumName] has no effect
+DYNA125 | DynaSharp.Keys | Error | Enum stored name does not fit the key
