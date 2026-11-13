@@ -281,6 +281,52 @@ internal sealed class ConflictRetryTests
     }
 
     [Test]
+    [Arguments(1)]
+    [Arguments(5)]
+    public async Task RetryOnConflictAsync_RunsUsedUp_SetsTheAttemptsOnTheLastException(int maxAttempts)
+    {
+        // Arrange
+        var script = new Script([.. Enumerable.Range(0, 6).Select(static _ => Lost())]);
+        using var client = NewClient();
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, maxAttempts: maxAttempts));
+
+        // Assert
+        await Assert.That(failure.ConflictAttempts).IsEqualTo(maxAttempts);
+    }
+
+    [Test]
+    [Arguments(1, "RetryOnConflictAsync gave up after 1 attempt that lost to concurrent writes. The last one failed with: The conditional request failed.")]
+    [Arguments(5, "RetryOnConflictAsync gave up after 5 attempts that lost to concurrent writes. The last one failed with: The conditional request failed.")]
+    public async Task RetryOnConflictAsync_RunsUsedUp_MessageSaysThatItGaveUp(int maxAttempts, string expected)
+    {
+        // Arrange
+        var script = new Script([.. Enumerable.Range(0, 6).Select(static _ => Lost())]);
+        using var client = NewClient();
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(script.RunWithoutResultAsync, maxAttempts: maxAttempts));
+
+        // Assert
+        await Assert.That(failure.Message).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task RetryOnConflictAsync_ConflictThatRetryOnDoesNotName_HasNoAttempts()
+    {
+        // Arrange
+        var script = new Script(Lost());
+        using var client = NewClient();
+
+        // Act
+        var failure = await TestClient.CaptureAsync<ConditionalCheckFailedException>(() => Shop(client).RetryOnConflictAsync(script.RunAsync, CancellationToken.None, ConflictKind.TransactionConflict));
+
+        // Assert
+        await Assert.That((failure.ConflictAttempts, failure.Message)).IsEqualTo(((int?)null, "The conditional request failed."));
+    }
+
+    [Test]
     public async Task RetryOnConflictAsync_LastRunGetsThrough_ReturnsItsResult()
     {
         // Arrange (the fifth run is the last one, and it counts)

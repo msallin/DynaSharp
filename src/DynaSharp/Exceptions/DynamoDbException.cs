@@ -65,6 +65,22 @@ public class DynamoDbException : Exception
     public string? TableName { get; internal init; }
 
     /// <summary>
+    /// Gets the number of runs after which <c>RetryOnConflictAsync</c> gave up and passed this conflict on, the last run included, or <see langword="null"/> if the exception did not end such a retry.
+    /// The message then starts with it, so a log of the exception says that the retries ran out.
+    /// </summary>
+    /// <remarks>
+    /// A conflict that ends the retries stays the exception of its last run, so a <c>catch (ConditionalCheckFailedException)</c> around the call keeps catching it, and
+    /// <c>when (exception.ConflictAttempts is not null)</c> tells a retry that gave up from a conflict outside one. A retry with <c>maxAttempts</c> 1 that loses gives 1.
+    /// </remarks>
+    public int? ConflictAttempts { get; internal set; }
+
+    /// <inheritdoc/>
+    /// <remarks>The message DynamoDB sent, led by the number of runs when <see cref="ConflictAttempts"/> is set.</remarks>
+    public override string Message => ConflictAttempts is { } runs
+        ? $"RetryOnConflictAsync gave up after {runs} {(runs == 1 ? "attempt" : "attempts")} that lost to concurrent writes. The last one failed with: {base.Message}"
+        : base.Message;
+
+    /// <summary>
     /// Gets a value indicating whether the same call can succeed later without any change, as <see cref="System.Data.Common.DbException.IsTransient"/> says it for a database.
     /// </summary>
     /// <remarks>

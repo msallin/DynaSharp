@@ -1,1 +1,3 @@
 #nullable enable
+DynaSharp.DynamoDbException.ConflictAttempts.get -> int?
+override DynaSharp.DynamoDbException.Message.get -> string!

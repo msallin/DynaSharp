@@ -70,6 +70,8 @@ internal static class ConflictRetry
             {
                 if (run == maxAttempts)
                 {
+                    conflict.ConflictAttempts = run;
+
                     // One run asked for no retry, so there is nothing that gave up, as with MaxAttempts on a call.
                     if (maxAttempts > 1)
                     {

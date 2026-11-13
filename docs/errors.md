@@ -44,6 +44,8 @@ Every error DynamoDB returns is a `DynamoDbException` with `ErrorCode` (without 
 | `ItemCollectionSizeLimitExceededException` | A partition of a table with a local index would grow past 10 GB | No | |
 | `ExpiredIteratorException`, `TrimmedDataAccessException` | A DynamoDB Streams shard iterator is older than 15 minutes, or its records are gone | No | |
 
+A conflict that `RetryOnConflictAsync` passes on after its last run is the exception of that run, with `ConflictAttempts` set to the number of runs and a message that starts with `RetryOnConflictAsync gave up after`, see [Retry on a conflict](commands.md#retry-on-a-conflict). Any other has no `ConflictAttempts`.
+
 `IsTransient` on every `DynamoDbException` says whether the same call can succeed later unchanged, like `DbException.IsTransient`. True means the client's attempts ran out: try later, not at once in a loop.
 
 - **True:** every row retried above, `TransactionConflictException`, and a `TransactionCanceledException` whose failed actions are all `TransactionConflict` or `Throttled`. `BatchIncompleteException` and `BatchGetIncompleteException<T>` are true when they gave up on their rounds or on a transient failure.

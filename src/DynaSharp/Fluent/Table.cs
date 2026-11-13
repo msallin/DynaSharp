@@ -300,7 +300,7 @@ public sealed partial class Table<T>
 
     /// <summary>
     /// Runs a read-modify-write and repeats it, up to 5 runs with a short wait between them, when it loses to another writer: a <see cref="ConditionalCheckFailedException"/>, a
-    /// <see cref="TransactionConflictException"/>, or a <see cref="TransactionCanceledException"/> with one of those reasons. The failure of the last run is rethrown.
+    /// <see cref="TransactionConflictException"/>, or a <see cref="TransactionCanceledException"/> with one of those reasons. The failure of the last run is rethrown, with <see cref="DynamoDbException.ConflictAttempts"/> and a message that say the retries gave up.
     /// </summary>
     /// <example>
     /// <code>
@@ -376,7 +376,8 @@ public sealed partial class Table<T>
     /// Catch it around this call when <see cref="DynamoDbException.IsTransient"/> says so, and send it again after a wait of your own.
     /// </para>
     /// <para>
-    /// <b>Everything else surfaces at once:</b> any other exception of a run, also from the third run after two conflicts, and cancellation. After the last run its exception surfaces unchanged, so a
+    /// <b>Everything else surfaces at once:</b> any other exception of a run, also from the third run after two conflicts, and cancellation. After the last run its exception surfaces as the same instance, with
+    /// <see cref="DynamoDbException.ConflictAttempts"/> set to the number of runs and a message that starts with it, so a catch of its type keeps working and a log of it says that the retries gave up. A
     /// <see cref="ConditionalCheckFailedException"/> of the last run says which item gave up in <see cref="ConditionalCheckFailedException.Key"/>, which holds the key of a write of that run as the request named it. Neither its
     /// message nor telemetry show the key, and a transaction has none: there <see cref="TransactionCanceledException.ItemFor"/> is the way to an item.
     /// </para>

@@ -271,6 +271,23 @@ await carts.RetryOnConflictAsync(
     onConflict: (run, conflict) => Console.WriteLine($"Run {run} lost with {conflict.ErrorCode}, trying again"));
 ```
 
+When the runs are used up, the exception of the last run surfaces as it is, so a `catch` of its type keeps working, with `ConflictAttempts` set to the number of runs and a message that starts with it: `RetryOnConflictAsync gave up after 5 attempts that lost to concurrent writes. The last one failed with: The conditional request failed.` A conflict outside the loop has no `ConflictAttempts`.
+
+```csharp
+try
+{
+    await carts.RetryOnConflictAsync(async token =>
+    {
+        var cart = await carts.Get(Cart.Keys.Of("bob")).Consistent().ItemAsync(token);
+        await carts.Put(cart! with { Lines = lines }).SendAsync(token);
+    }, ct);
+}
+catch (ConditionalCheckFailedException exception) when (exception.ConflictAttempts is { } attempts)
+{
+    Console.WriteLine($"Saving the cart failed after {attempts} attempts due to concurrent writes.");
+}
+```
+
 The token comes right after the delegate, and the options after it: `RetryOnConflictAsync(run, ct, ConflictKind.TransactionConflict, maxAttempts: 10)`. A run whose failed condition is its answer, such as a claim on a value that is taken, passes `ConflictKind.TransactionConflict`: it runs again only when a transaction is in the way, and a failed condition surfaces at once, see [Uniqueness constraints](patterns-writes.md#uniqueness-constraints).
 
 The delegate can return a `ValueTask` or a `Task`, with a result or without, so a method of yours goes in by name: `carts.RetryOnConflictAsync(SaveAsync, ct)` for a `Task SaveAsync(CancellationToken)`. A lambda takes the `ValueTask` form.
