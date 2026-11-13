@@ -32,7 +32,7 @@ internal static class TypeRules
             return false;
         }
 
-        if (Unmappable(type) is { } reason)
+        if (Unmappable(type, kind) is { } reason)
         {
             bag.Report(Descriptors.UnmappableType, spot, type.Name, reason);
             return false;
@@ -135,12 +135,15 @@ internal static class TypeRules
         _ => false,
     };
 
-    private static string? Unmappable(INamedTypeSymbol type)
+    private static string? Unmappable(INamedTypeSymbol type, MappedKind kind)
     {
-        // First, since a union is also a struct, and may be generic: the generated mapping would read and write its fields, not the value it holds.
+        // First, since a union is also a struct, and may be generic: the generated mapping would read and write its fields, not the value it holds. An entity's types
+        // are entities read together; a document is a property's value, which a converter stores.
         if (IsUnion(type))
         {
-            return "it is a union. Map each of its types instead, and read them together with Of<T1, T2>()";
+            return kind == MappedKind.Entity
+                ? "it is a union. Map each of its types instead, and read them together with Of<T1, T2>()"
+                : "it is a union. Store a property of it with a converter instead: a [DynamoDbConverter] with an IDynamoDbConverter<T> of it";
         }
 
         if (type.TypeKind == TypeKind.Interface)

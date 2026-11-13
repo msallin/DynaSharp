@@ -12,6 +12,8 @@ public sealed class TypeDiagnosticsTests
 
     private const string Union = "it is a union. Map each of its types instead, and read them together with Of<T1, T2>()";
 
+    private const string DocumentUnion = "it is a union. Store a property of it with a converter instead: a [DynamoDbConverter] with an IDynamoDbConverter<T> of it";
+
     private const string Dyna035OfInitializer = "Remove the initializer, or make the property non-nullable";
 
     private const string LenientWind = "[DynamoDbEnum(UnknownName = UnknownEnumName.CountsAsMissing)] public enum Wind { Calm, Gale }\n";
@@ -537,10 +539,10 @@ public sealed class TypeDiagnosticsTests
     [Arguments("[DynamoDbDocument] public partial interface [|A|] { }", "it is an interface")]
     [Arguments("[DynamoDbDocument] file partial class [|A|] { }", "it is file-local")]
     [Arguments("file partial class Outer { [DynamoDbDocument] public partial class [|A|] { } }", "it is file-local")]
-    [Arguments("[DynamoDbDocument, System.Runtime.CompilerServices.Union] public partial struct [|A|] { public A(int x) => Value = x; public object? Value { get; } }", Union)]
-    [Arguments("[DynamoDbDocument] public partial struct [|A|] : System.Runtime.CompilerServices.IUnion { public object? Value => null; }", Union)]
+    [Arguments("[DynamoDbDocument, System.Runtime.CompilerServices.Union] public partial struct [|A|] { public A(int x) => Value = x; public object? Value { get; } }", DocumentUnion)]
+    [Arguments("[DynamoDbDocument] public partial struct [|A|] : System.Runtime.CompilerServices.IUnion { public object? Value => null; }", DocumentUnion)]
     [Arguments("""[DynamoDbEntity, Discriminator("A"), PartitionKey("A")] public partial struct [|A|] : System.Runtime.CompilerServices.IUnion { public object? Value => null; }""", Union)]
-    [Arguments("[DynamoDbDocument, System.Runtime.CompilerServices.Union] public partial struct [|A|]<T> { public A(T x) => Value = x; public object? Value { get; } }", Union)]
+    [Arguments("[DynamoDbDocument, System.Runtime.CompilerServices.Union] public partial struct [|A|]<T> { public A(T x) => Value = x; public object? Value { get; } }", DocumentUnion)]
     public async Task Build_ShapeThatCannotBeMapped_ReportsDyna007(string source, string reason)
     {
         // Arrange, Act
