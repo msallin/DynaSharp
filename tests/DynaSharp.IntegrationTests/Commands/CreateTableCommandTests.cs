@@ -289,11 +289,12 @@ public sealed class CreateTableCommandTests(Backend backend)
         var started = Stopwatch.GetTimestamp();
 
         // Act
-        var failure = await Items.FailureOfAsync<TableNotActiveException>(async () => await Tables.SendAsync(shop.CreateTable().Including<Ticket>().IfNotExists().WaitUntilActive()));
+        var failure = await Items.FailureOfAsync<TableDriftException>(async () => await Tables.SendAsync(shop.CreateTable().Including<Ticket>().IfNotExists().WaitUntilActive()));
         var elapsed = Stopwatch.GetElapsedTime(started);
 
         // Assert
-        await Assert.That((failure.PendingIndex, failure.LastStatus, elapsed < TimeSpan.FromMinutes(1))).IsEqualTo(((string?)"ByDesk", (TableStatus?)TableStatus.Active, true));
+        var drift = failure.Drift.Single();
+        await Assert.That((drift.Kind, drift.IndexName, elapsed < TimeSpan.FromMinutes(1))).IsEqualTo((TableDriftKind.IndexMissing, (string?)"ByDesk", true));
     }
 
     [Test]

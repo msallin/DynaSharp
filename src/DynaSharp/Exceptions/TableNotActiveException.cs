@@ -1,18 +1,19 @@
 namespace DynaSharp;
 
 /// <summary>
-/// A wait for a table and its global secondary indexes to turn <c>ACTIVE</c> ran out of time: <see cref="LastStatus"/> and <see cref="PendingIndex"/> say what held it up, and a longer
-/// wait is usually the answer.
+/// A wait for a table and its global secondary indexes to turn <c>ACTIVE</c> ran out of time: <see cref="PendingIndex"/> names the index that held it up, which the message leads with, and
+/// <see cref="LastStatus"/> the status of the table.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Where it comes from.</b> <see cref="Table{T}.WaitUntilActiveAsync(TimeSpan, CancellationToken)"/>, or <see cref="CreateTableCommand.WaitUntilActive(TimeSpan)"/>, which also ends early on a
-/// table that lacks an index the command declares. It is a <see cref="TimeoutException"/>, so a <c>catch (TimeoutException)</c> around a wait keeps working.
+/// <b>Where it comes from.</b> <see cref="Table{T}.WaitUntilActiveAsync(TimeSpan, CancellationToken)"/>, or <see cref="CreateTableCommand.WaitUntilActive(TimeSpan)"/>. It is a <see cref="TimeoutException"/>, because time
+/// ran out: a <c>catch (TimeoutException)</c> around a wait catches it. A table that <see cref="CreateTableCommand"/> finds without a global index the command declares is no timeout, since no wait adds the
+/// index, and throws <see cref="TableDriftException"/> within seconds instead.
 /// </para>
 /// <para>
 /// <b>Wait again or not.</b> A wait that ran out says nothing about whether the table will turn active: restoring a table, or an index that <c>UpdateTable</c> added, which takes minutes even on an empty table, can take longer than a wait, and DynamoDB goes on by itself, so wait again with a
-/// longer timeout. A status such as <see cref="TableStatus.Deleting"/> says otherwise, and so does the wait of <see cref="CreateTableCommand"/> that ends before its timeout because the table did not list an index
-/// the command declares, at five looks in a row: no wait adds that index, only an <c>UpdateTable</c>. <see cref="LastStatus"/> tells these apart, and a <see langword="null"/> there means that the last look did not find the table, which can be a
+/// longer timeout. A status such as <see cref="TableStatus.Deleting"/> says otherwise, and so does an index the table does not list, which the wait of a <see cref="Table{T}"/> waits for because an
+/// <c>UpdateTable</c> may be adding it: if none is, add it. <see cref="LastStatus"/> tells these apart, and a <see langword="null"/> there means that the last look did not find the table, which can be a
 /// wrong name, and then <see cref="Exception.InnerException"/> is the <see cref="ResourceNotFoundException"/>. <see cref="PendingIndex"/> names an index that held the wait up, which can happen with a table that reads
 /// <see cref="TableStatus.Active"/>.
 /// </para>

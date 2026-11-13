@@ -1,8 +1,11 @@
+using DynaSharp.Requests;
 using DynaSharp.Testing;
+using static DynaSharp.UnitTests.Http.RetryTestSupport;
 
 namespace DynaSharp.UnitTests.Fluent;
 
-// What FailOnDrift() does with the drift that IfNotExists() would report: it throws before anything waits or changes, or after time to live when only that differs.
+// What FailOnDrift() does with the drift that IfNotExists() would report: it throws before anything waits or changes, or after time to live when only that differs. And the drift
+// a wait throws without it, for a declared index the table does not list.
 public sealed partial class CreateTableCommandTests
 {
     private const string GsiMissing = "The table Shop lacks the global index GSI1 over the partition key gsi1pk (String) and sort key gsi1sk (String). Queries of it fail until UpdateTable adds it.";
@@ -102,6 +105,43 @@ public sealed partial class CreateTableCommandTests
 
         // Assert
         await Assert.That(logs.Entries.Count(static entry => entry.EventId.Id == 14)).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task SendAsync_WaitOverAFoundTableWithoutADeclaredIndex_ThrowsTheDriftOfTheFirstLookOnce()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler(_ => StubResponse.Json(Described($$"""{{OrderKey}},{{OrderAttributes}},"GlobalSecondaryIndexes":[{{ByTracking}}],"LocalSecondaryIndexes":[{{Lsi1}}]""")));
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        var sending = client.Table<SchemaOrder>("Shop").CreateTable().IfNotExists().WaitUntilActive().SendAsync().AsTask();
+        await AdvanceThroughDelaysAsync(sending, time, Forever);
+        var failure = await TestClient.CaptureAsync<TableDriftException>(() => sending);
+
+        // Assert
+        await Assert.That((failure.Drift.Single(), handler.Requests.Count)).IsEqualTo((new TableDrift(TableDriftKind.IndexMissing, "GSI1", GsiMissing), 1 + 5));
+    }
+
+    [Test]
+    public async Task SendAsync_WaitOverAnIndexTheFirstLookListedAndTheNextOnesDoNot_AddsItToTheOtherDrift()
+    {
+        // Arrange (the first look lacks the local index and the stream and finds the global index being created, and the next ones, from a replica that lags, lack that index)
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        var creating = Gsi1.Replace("ACTIVE", "CREATING", StringComparison.Ordinal);
+        handler.Enqueue(StubResponse.Json(Described($$"""{{OrderKey}},{{OrderAttributes}},"GlobalSecondaryIndexes":[{{creating}},{{ByTracking}}]""")));
+        handler.DefaultResponse = StubResponse.Json(Described($$"""{{OrderKey}},{{OrderAttributes}},"GlobalSecondaryIndexes":[{{ByTracking}}]"""));
+        using var client = TestClient.Create(handler, time);
+
+        // Act
+        var sending = client.Table<SchemaOrder>("Shop").CreateTable().Stream(StreamViewType.NewAndOldImages).IfNotExists().WaitUntilActive().SendAsync().AsTask();
+        await AdvanceThroughDelaysAsync(sending, time, Forever);
+        var failure = await TestClient.CaptureAsync<TableDriftException>(() => sending);
+
+        // Assert
+        await Assert.That(Kinds(failure.Drift)).IsEqualTo("IndexMissing:LSI1,StreamDiffers:,IndexMissing:GSI1");
     }
 
     [Test]

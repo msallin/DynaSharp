@@ -1354,7 +1354,7 @@ public sealed partial class CreateTableCommandTests
     }
 
     [Test]
-    public async Task SendAsync_IfNotExistsAndWaitUntilActiveOnATableThatNeverListsADeclaredIndex_FailsAtTheFifthLookNamingIt()
+    public async Task SendAsync_IfNotExistsAndWaitUntilActiveOnATableThatNeverListsADeclaredIndex_FailsAtTheFifthLookWithTheDrift()
     {
         // Arrange (an old table, which no wait gives the index: the five looks of 1.5 seconds and not the five minutes of the timeout)
         var time = new ManualTimeProvider();
@@ -1365,11 +1365,11 @@ public sealed partial class CreateTableCommandTests
         // Act
         var sending = client.Table<SchemaCustomer>("Shop").CreateTable().IfNotExists().WaitUntilActive().SendAsync().AsTask();
         await AdvanceThroughDelaysAsync(sending, time, Forever);
-        var failure = await TestClient.CaptureAsync<TableNotActiveException>(() => sending);
+        var failure = await TestClient.CaptureAsync<TableDriftException>(() => sending);
 
         // Assert
-        await Assert.That((failure.PendingIndex, failure.LastStatus, handler.Requests.Count, time.GetUtcNow() - started))
-            .IsEqualTo(((string?)"GSI1", (TableStatus?)TableStatus.Active, 1 + 5, TimeSpan.FromMilliseconds(1500)));
+        await Assert.That((Kinds(failure.Drift), handler.Requests.Count, time.GetUtcNow() - started))
+            .IsEqualTo(("IndexMissing:GSI1", 1 + 5, TimeSpan.FromMilliseconds(1500)));
     }
 
     [Test]
@@ -1383,11 +1383,11 @@ public sealed partial class CreateTableCommandTests
         // Act
         var sending = client.Table<SchemaCustomer>("Shop").CreateTable().IfNotExists().WaitUntilActive().SendAsync().AsTask();
         await AdvanceThroughDelaysAsync(sending, time, Forever);
-        var failure = await TestClient.CaptureAsync<TableNotActiveException>(() => sending);
+        var failure = await TestClient.CaptureAsync<TableDriftException>(() => sending);
 
         // Assert
         await Assert.That(failure.Message)
-            .IsEqualTo("The table Shop was Active, and the index GSI1 was not listed at 5 looks in a row. CreateTable adds no index to a table that exists: add it with UpdateTable first.");
+            .IsEqualTo("The table Shop differs from what CreateTable() declares in 1 way: The table Shop did not list the global index GSI1 at 5 looks in a row, and the command declares it. CreateTable adds no index to a table that exists: add it with UpdateTable.");
     }
 
     [Test]
@@ -1461,10 +1461,10 @@ public sealed partial class CreateTableCommandTests
         // Act
         var sending = client.Table<SchemaOrder>("Shop").CreateTable().WaitUntilActive().SendAsync().AsTask();
         await AdvanceThroughDelaysAsync(sending, time, Forever);
-        var failure = await TestClient.CaptureAsync<TableNotActiveException>(() => sending);
+        var failure = await TestClient.CaptureAsync<TableDriftException>(() => sending);
 
         // Assert
-        await Assert.That((failure.PendingIndex, handler.Requests.Count)).IsEqualTo(((string?)"GSI1", 1 + 6));
+        await Assert.That((Kinds(failure.Drift), handler.Requests.Count)).IsEqualTo(("IndexMissing:GSI1", 1 + 6));
     }
 
     [Test]
@@ -1478,10 +1478,10 @@ public sealed partial class CreateTableCommandTests
         // Act
         var sending = client.Table<SchemaOrder>("Shop").CreateTable().IfNotExists().WaitUntilActive(TimeSpan.FromHours(2)).SendAsync().AsTask();
         await AdvanceThroughDelaysAsync(sending, time, Forever);
-        var failure = await TestClient.CaptureAsync<TableNotActiveException>(() => sending);
+        var failure = await TestClient.CaptureAsync<TableDriftException>(() => sending);
 
         // Assert
-        await Assert.That((failure.PendingIndex, handler.Requests.Count)).IsEqualTo(((string?)"ByTracking", 6));
+        await Assert.That((Kinds(failure.Drift), handler.Requests.Count)).IsEqualTo(("IndexMissing:ByTracking", 6));
     }
 
     [Test]
@@ -1962,10 +1962,10 @@ public sealed partial class CreateTableCommandTests
         // Act
         var sending = client.Table<SchemaCustomer>("Shop").CreateTable().IfNotExists().TimeToLive("expires").SendAsync().AsTask();
         await AdvanceThroughDelaysAsync(sending, time, Forever);
-        var failure = await TestClient.CaptureAsync<TableNotActiveException>(() => sending);
+        var failure = await TestClient.CaptureAsync<TableDriftException>(() => sending);
 
         // Assert
-        await Assert.That((failure.PendingIndex, time.GetUtcNow() - started, Operations(handler).Contains("TimeToLive", StringComparison.Ordinal)))
+        await Assert.That((failure.Drift.Single().IndexName, time.GetUtcNow() - started, Operations(handler).Contains("TimeToLive", StringComparison.Ordinal)))
             .IsEqualTo(((string?)"GSI1", TimeSpan.FromMilliseconds(1500), false));
     }
 

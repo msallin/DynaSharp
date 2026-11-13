@@ -117,7 +117,7 @@ public sealed class CreateTableCommand
     /// </para>
     /// <para>
     /// Every global index that this command declares, by its entity and by <see cref="Including{TOther}"/>, has to be listed and active, and a local one needs no wait. With <see cref="IfNotExists"/> over an older table that lacks
-    /// a declared index, nothing adds the index, so this <b>fails instead of returning</b>, with a <see cref="TableNotActiveException"/> that names it. It does not wait out the timeout for that: an index still not listed at
+    /// a declared index, nothing adds the index, so this <b>fails instead of returning</b>, with a <see cref="TableDriftException"/> that lists it, and no timeout, since no wait adds it. It does not wait out the timeout for that: an index still not listed at
     /// the fifth look in a row, 1.5 seconds in, ends the wait, because a create lists all its indexes and only an <c>UpdateTable</c> sent before this command adds one. Add the index with <c>UpdateTable</c> in <c>DynaSharp.Requests</c> first.
     /// That needs an active table, which a table opened without an entity waits for, because it declares nothing: <c>client.Table(name, "pk", "sk").WaitUntilActiveAsync()</c>. Then this wait follows the backfill.
     /// </para>
@@ -162,7 +162,7 @@ public sealed class CreateTableCommand
     /// <remarks>
     /// <para>
     /// It needs an active table, so it implies <see cref="WaitUntilActive()"/>, with the five minutes of that method unless <see cref="WaitUntilActive(TimeSpan)"/> gave another timeout, and with all its rules: a wait that runs out
-    /// throws <see cref="TableNotActiveException"/> and leaves time to live as it was, also when a table <see cref="IfNotExists"/> found lacks a global index this command declares. So a program that adds an index to a table
+    /// throws <see cref="TableNotActiveException"/> and leaves time to live as it was, and so does the <see cref="TableDriftException"/> of a table <see cref="IfNotExists"/> found without a global index this command declares. So a program that adds an index to a table
     /// that exists calls this after it added the index.
     /// </para>
     /// <para>
@@ -341,13 +341,16 @@ public sealed class CreateTableCommand
     /// <exception cref="AccessDeniedException">The role lacks a permission of the calls this makes, which <see cref="IfNotExists"/> lists.</exception>
     /// <exception cref="LimitExceededException">The account has too many tables, or creates or deletes tables too fast.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the name is malformed or the table has too many indexes, or time to live cannot be turned on, as within the hour after a change of it.</exception>
-    /// <exception cref="TableDriftException">With <see cref="FailOnDrift"/>, the table <see cref="IfNotExists"/> found differs from what the command declares. <see cref="TableDriftException.Drift"/> lists how.</exception>
+    /// <exception cref="TableDriftException">
+    /// With <see cref="FailOnDrift"/>, the table <see cref="IfNotExists"/> found differs from what the command declares. Or, with <see cref="WaitUntilActive()"/> or <see cref="TimeToLive(string)"/>, the table did not
+    /// list a global index this command declares, which ends the wait early. <see cref="TableDriftException.Drift"/> lists how.
+    /// </exception>
     /// <exception cref="InvalidOperationException">
     /// <see cref="IfNotExists"/> found a table whose key differs from the key of the command, in attribute names, in having a sort key or in a type that both know. The message names the table, the expected and the found
     /// key. Nothing waits and nothing changes then.
     /// </exception>
     /// <exception cref="TableNotActiveException">
-    /// The table or an index of it was not active in time, with <see cref="WaitUntilActive()"/> or <see cref="TimeToLive(string)"/>, or the table did not list a global index this command declares, which ends the wait early.
+    /// The table or an index of it was not active in time, with <see cref="WaitUntilActive()"/> or <see cref="TimeToLive(string)"/>. The message and <see cref="TableNotActiveException.PendingIndex"/> name the index.
     /// </exception>
     /// <exception cref="TimeoutException">
     /// The command ran out of <see cref="Timeout(TimeSpan)"/>, with a message that names the table, the timeout and the step, and the <see cref="OperationCanceledException"/> of the call in flight inside it. Or a call ran out of
@@ -404,7 +407,7 @@ public sealed class CreateTableCommand
             progress?.At("waiting for the table to become active");
 
             // The create sent every declared index, and a table that exists gets one only from an UpdateTable sent before this command, so an index still not listed after the catch-up will not be.
-            description = await TableAdministration.WaitUntilActiveAsync(_table, declared, bound, unlistedIsFinal: true, cancellationToken).ConfigureAwait(false);
+            description = await TableAdministration.WaitUntilActiveAsync(_table, declared, bound, drift, cancellationToken).ConfigureAwait(false);
         }
 
         progress?.At("turning time to live on");

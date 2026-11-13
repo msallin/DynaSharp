@@ -134,14 +134,14 @@ internal static class TableAdministration
     /// <returns><see langword="true"/> if the table and all its indexes are active, and the declared ones are among them.</returns>
     public static bool IsActive(TableDescription description, IReadOnlyList<string> declared) => description.TableStatus == TableStatus.Active && FindPending(description, declared) is null;
 
-    /// <summary>Waits for a table as its entity declares it. See <see cref="WaitUntilActiveAsync(TableModel, IReadOnlyList{string}, TimeSpan, bool, CancellationToken)"/>.</summary>
+    /// <summary>Waits for a table as its entity declares it. See <see cref="WaitUntilActiveAsync(TableModel, IReadOnlyList{string}, TimeSpan, IReadOnlyList{TableDrift}, CancellationToken)"/>.</summary>
     /// <param name="table">The table.</param>
     /// <param name="timeout">How long to wait.</param>
     /// <param name="cancellationToken">Cancels the wait.</param>
     /// <returns>The description of the active table.</returns>
     /// <exception cref="TableNotActiveException">The table or an index of it was not active in time.</exception>
     public static ValueTask<TableDescription> WaitUntilActiveAsync(TableModel table, TimeSpan timeout, CancellationToken cancellationToken) =>
-        WaitUntilActiveAsync(table, GlobalIndexNames(table.Entity?.Indexes ?? []), timeout, unlistedIsFinal: false, cancellationToken);
+        WaitUntilActiveAsync(table, GlobalIndexNames(table.Entity?.Indexes ?? []), timeout, foundDrift: null, cancellationToken);
 
     /// <summary>
     /// Polls a table on the clock of the client until it and all its global secondary indexes are active. A table reads <c>ACTIVE</c> while an index backfills, so its status alone says too little, and
@@ -150,14 +150,16 @@ internal static class TableAdministration
     /// <param name="table">The table.</param>
     /// <param name="declared">The global secondary indexes that have to be listed.</param>
     /// <param name="timeout">How long to wait.</param>
-    /// <param name="unlistedIsFinal">
-    /// <see langword="true"/> if every <c>UpdateTable</c> that adds a declared index was sent before the wait, so that an index the table has not listed at <see cref="CatchUpLooks"/> looks in a row will not turn up,
-    /// and the wait ends there instead of at the timeout. A caller that cannot know, such as the wait of a <see cref="Table{T}"/>, passes <see langword="false"/>.
+    /// <param name="foundDrift">
+    /// Not <see langword="null"/> if every <c>UpdateTable</c> that adds a declared index was sent before the wait, so that an index the table has not listed at <see cref="CatchUpLooks"/> looks in a row will not turn up,
+    /// and the wait ends there instead of at the timeout, with a <see cref="TableDriftException"/> that lists this drift, which the caller found before, and the index if it is not among it. A caller that cannot
+    /// know, such as the wait of a <see cref="Table{T}"/>, passes <see langword="null"/>.
     /// </param>
     /// <param name="cancellationToken">Cancels the wait.</param>
     /// <returns>The description of the active table.</returns>
-    /// <exception cref="TableNotActiveException">The table or an index of it was not active in time, or, with <paramref name="unlistedIsFinal"/>, a declared index was not listed.</exception>
-    public static async ValueTask<TableDescription> WaitUntilActiveAsync(TableModel table, IReadOnlyList<string> declared, TimeSpan timeout, bool unlistedIsFinal, CancellationToken cancellationToken)
+    /// <exception cref="TableNotActiveException">The table or an index of it was not active in time.</exception>
+    /// <exception cref="TableDriftException">With <paramref name="foundDrift"/>, a declared index was not listed.</exception>
+    public static async ValueTask<TableDescription> WaitUntilActiveAsync(TableModel table, IReadOnlyList<string> declared, TimeSpan timeout, IReadOnlyList<TableDrift>? foundDrift, CancellationToken cancellationToken)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(timeout, TimeSpan.Zero);
         var clock = table.Core.TimeProvider;
@@ -182,7 +184,7 @@ internal static class TableAdministration
                 }
 
                 status = description.TableStatus;
-                unlisted = unlistedIsFinal ? FindUnlisted(description, declared) : null;
+                unlisted = foundDrift is null ? null : FindUnlisted(description, declared);
                 unlistedLooks = unlisted is null ? 0 : unlistedLooks + 1;
             }
             catch (ResourceNotFoundException exception)
@@ -193,17 +195,13 @@ internal static class TableAdministration
 
             if (unlistedLooks == CatchUpLooks)
             {
-                throw new TableNotActiveException(
-                    $"The table {table.Name} was {status}, and the index {unlisted} was not listed at {CatchUpLooks} looks in a row. CreateTable adds no index to a table that exists: add it with UpdateTable first.",
-                    table.Name,
-                    status,
-                    unlisted);
+                throw new TableDriftException(table.Name, WithUnlisted(table.Name, foundDrift!, unlisted!));
             }
 
             var left = timeout - clock.GetElapsedTime(start);
             if (left <= TimeSpan.Zero)
             {
-                throw new TableNotActiveException($"The table {table.Name} and its indexes were not ACTIVE after {timeout}: {LastLook(status, pending)}.", table.Name, status, pending?.Name, missing);
+                throw new TableNotActiveException(OutOfTime(table.Name, timeout, status, pending), table.Name, status, pending?.Name, missing);
             }
 
             await Task.Delay(left < ShortestDelay ? ShortestDelay : delay < left ? delay : left, clock, cancellationToken).ConfigureAwait(false);
@@ -267,11 +265,11 @@ internal static class TableAdministration
         {
             if (index.IndexStatus != IndexStatus.Active)
             {
-                return new PendingIndex(index.IndexName, $"was {index.IndexStatus}");
+                return new PendingIndex(index.IndexName, $"was {index.IndexStatus}", Listed: true);
             }
         }
 
-        return FindUnlisted(description, declared) is { } unlisted ? new PendingIndex(unlisted, "was not listed") : null;
+        return FindUnlisted(description, declared) is { } unlisted ? new PendingIndex(unlisted, "was not listed", Listed: false) : null;
     }
 
     private static string? FindUnlisted(TableDescription description, IReadOnlyList<string> declared)
@@ -287,14 +285,42 @@ internal static class TableAdministration
         return null;
     }
 
-    private static string LastLook(TableStatus? status, PendingIndex? pending)
+    // The index leads, because a table reads ACTIVE while an index holds the wait up, and a message that starts with the table reads as if the table were late.
+    private static string OutOfTime(string tableName, TimeSpan timeout, TableStatus? status, PendingIndex? pending)
     {
         if (status is not { } seen)
         {
-            return "the table was not found";
+            return $"The table {tableName} was not found within {timeout}.";
         }
 
-        return pending is { } index ? $"the table was {seen}, and the index {index.Name} {index.State}" : $"the table was {seen}";
+        if (pending is not { } index)
+        {
+            return $"The table {tableName} was {seen} after {timeout}, not ACTIVE.";
+        }
+
+        var next = index.Listed
+            ? "DynamoDB first provisions an index that UpdateTable added, which takes minutes, and then backfills it, which takes as long as the table is large: wait again with a longer timeout."
+            : "Only UpdateTable adds an index to a table that exists: if none is under way, add it.";
+        return $"The index {index.Name} of the table {tableName} {index.State} after {timeout}, and the table was {seen}. {next}";
+    }
+
+    // An index the first look of IfNotExists() found missing is in the drift already. One it listed, from a replica that lags, or one of a table this call created, gets a drift of its own.
+    private static List<TableDrift> WithUnlisted(string tableName, IReadOnlyList<TableDrift> foundDrift, string unlisted)
+    {
+        List<TableDrift> drift = [.. foundDrift];
+        foreach (var found in foundDrift)
+        {
+            if (found.Kind == TableDriftKind.IndexMissing && found.IndexName == unlisted)
+            {
+                return drift;
+            }
+        }
+
+        drift.Add(new TableDrift(
+            TableDriftKind.IndexMissing,
+            unlisted,
+            $"The table {tableName} did not list the global index {unlisted} at {CatchUpLooks} looks in a row, and the command declares it. CreateTable adds no index to a table that exists: add it with UpdateTable."));
+        return drift;
     }
 
     // The service model requires no member of these responses. A description that says nothing has the status Unknown, so a wait goes on, and a caller is spared a null DynamoDB does not send in practice.
@@ -308,5 +334,6 @@ internal static class TableAdministration
     /// <summary>The index that holds a wait up.</summary>
     /// <param name="Name">Its name.</param>
     /// <param name="State">How the last look found it, as a message says it.</param>
-    private readonly record struct PendingIndex(string? Name, string State);
+    /// <param name="Listed">Whether the table lists it, so that it only has to turn active.</param>
+    private readonly record struct PendingIndex(string? Name, string State, bool Listed);
 }

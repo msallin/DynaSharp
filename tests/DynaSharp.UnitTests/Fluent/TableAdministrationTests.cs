@@ -336,7 +336,7 @@ public sealed class TableAdministrationTests
         var failure = await TestClient.CaptureAsync<TableNotActiveException>(async () => await shop.WaitUntilActiveAsync(TimeSpan.Zero));
 
         // Assert
-        await Assert.That((failure.TableName, failure.LastStatus, failure.PendingIndex, failure.InnerException, failure.Message)).IsEqualTo(("Shop", (TableStatus?)TableStatus.Creating, null, null, "The table Shop and its indexes were not ACTIVE after 00:00:00: the table was Creating."));
+        await Assert.That((failure.TableName, failure.LastStatus, failure.PendingIndex, failure.InnerException, failure.Message)).IsEqualTo(("Shop", (TableStatus?)TableStatus.Creating, null, null, "The table Shop was Creating after 00:00:00, not ACTIVE."));
     }
 
     [Test]
@@ -415,7 +415,7 @@ public sealed class TableAdministrationTests
 
         // Assert
         await Assert.That((failure.LastStatus, failure.PendingIndex, failure.Message))
-            .IsEqualTo(((TableStatus?)TableStatus.Active, (string?)"ByTracking", "The table Shop and its indexes were not ACTIVE after 00:00:00: the table was Active, and the index ByTracking was not listed."));
+            .IsEqualTo(((TableStatus?)TableStatus.Active, (string?)"ByTracking", "The index ByTracking of the table Shop was not listed after 00:00:00, and the table was Active. Only UpdateTable adds an index to a table that exists: if none is under way, add it."));
     }
 
     [Test]
@@ -430,7 +430,7 @@ public sealed class TableAdministrationTests
         var failure = await TestClient.CaptureAsync<TableNotActiveException>(async () => await orders.WaitUntilActiveAsync(TimeSpan.Zero));
 
         // Assert
-        await Assert.That(failure.Message).IsEqualTo("The table Shop and its indexes were not ACTIVE after 00:00:00: the table was Active, and the index GSI1 was Creating.");
+        await Assert.That(failure.Message).IsEqualTo("The index GSI1 of the table Shop was Creating after 00:00:00, and the table was Active. DynamoDB first provisions an index that UpdateTable added, which takes minutes, and then backfills it, which takes as long as the table is large: wait again with a longer timeout.");
     }
 
     [Test]
@@ -488,7 +488,7 @@ public sealed class TableAdministrationTests
         var failure = await TestClient.CaptureAsync<TableNotActiveException>(async () => await shop.WaitUntilActiveAsync(TimeSpan.Zero));
 
         // Assert
-        await Assert.That((failure.LastStatus, failure.PendingIndex, failure.Message)).IsEqualTo(((TableStatus?)TableStatus.Active, (string?)"ByCity", "The table Shop and its indexes were not ACTIVE after 00:00:00: the table was Active, and the index ByCity was Creating."));
+        await Assert.That((failure.LastStatus, failure.PendingIndex, failure.Message)).IsEqualTo(((TableStatus?)TableStatus.Active, (string?)"ByCity", "The index ByCity of the table Shop was Creating after 00:00:00, and the table was Active. DynamoDB first provisions an index that UpdateTable added, which takes minutes, and then backfills it, which takes as long as the table is large: wait again with a longer timeout."));
     }
 
     [Test]
@@ -537,7 +537,7 @@ public sealed class TableAdministrationTests
         var failure = await TestClient.CaptureAsync<TableNotActiveException>(() => waiting);
 
         // Assert
-        await Assert.That((failure.LastStatus, failure.InnerException is ResourceNotFoundException, failure.Message)).IsEqualTo(((TableStatus?)null, true, "The table Shop and its indexes were not ACTIVE after 00:00:01: the table was not found."));
+        await Assert.That((failure.LastStatus, failure.InnerException is ResourceNotFoundException, failure.Message)).IsEqualTo(((TableStatus?)null, true, "The table Shop was not found within 00:00:01."));
     }
 
     [Test]
