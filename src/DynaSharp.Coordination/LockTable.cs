@@ -565,7 +565,18 @@ public sealed class LockTable
             // the holder goes on as it was. The client retries a request whose response was lost, and the retry fails the condition that its first
             // attempt met, or meets a transaction: then the owner is this one, and the lock is ours, from the first write of the claim that may have been
             // applied. If that attempt was due to take over, it counts as a takeover from the holder the read before it found, since the item it wrote over is gone.
-            var item = (exception as ConditionalCheckFailedException)?.Item ?? await Table.Get(partitionKey, sortKey).Consistent().ItemAsync(cancellationToken).ConfigureAwait(false);
+            Item? item;
+            try
+            {
+                item = (exception as ConditionalCheckFailedException)?.Item ?? await Table.Get(partitionKey, sortKey).Consistent().ItemAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // Without the read, the answer does not say whether the first attempt applied the write either.
+                claim.Unanswered(sent);
+                throw;
+            }
+
             var holder = LockItem.HolderOf(item, name, Table.Name);
             return holder?.Owner == owner
                 ? Acquired(name, owner, holder.FencingToken, leaseDuration, claim.FirstUnanswered ?? sent, due is null ? null : new(due, previousHolder))

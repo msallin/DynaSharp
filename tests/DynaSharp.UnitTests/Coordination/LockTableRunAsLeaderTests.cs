@@ -548,6 +548,50 @@ public sealed class LockTableRunAsLeaderTests
     }
 
     [Test]
+    public async Task RunAsLeaderAsync_AcquireAppliedRetryMeetsATransactionAndTheReadFails_LeadsOnTheLockItWrote()
+    {
+        // Arrange: a sighting of an earlier holder, which has released the lock; the acquire is applied and its answer lost, the retry of the
+        // client meets a transaction, and the read that would say who holds the lock fails as well
+        using var bench = new LockHarness(maxAttempts: 2);
+        await using (await bench.OtherProcess(new ManualTimeProvider()).AcquireAsync("leader", Lease))
+        {
+            await bench.Locks.TryAcquireAsync("leader", Lease);
+        }
+
+        var updates = 0;
+        var failedReads = 0;
+        bench.Intercept = (request, _) =>
+        {
+            if (request.Operation == "UpdateItem" && updates++ < 2)
+            {
+                if (updates == 1)
+                {
+                    bench.Fake.Answer(request);
+                    return Task.FromResult<StubResponse?>(StubResponse.DynamoDbError("InternalServerError", "Lost.", HttpStatusCode.InternalServerError));
+                }
+
+                return Task.FromResult<StubResponse?>(StubResponse.DynamoDbError("TransactionConflictException", "Transaction is ongoing for the item"));
+            }
+
+            return Task.FromResult<StubResponse?>(request.Operation == "GetItem" && updates == 2 && failedReads++ < 2
+                ? StubResponse.DynamoDbError("InternalServerError", "Try again.", HttpStatusCode.InternalServerError)
+                : null);
+        };
+        var terms = new List<long>();
+        Task Work(Lease lease, CancellationToken stop)
+        {
+            terms.Add(lease.FencingToken);
+            return Task.CompletedTask;
+        }
+
+        // Act
+        await bench.RunAsync(Completion(bench.Locks.RunAsLeaderAsync("leader", Lease, Work)), TimeSpan.FromSeconds(1));
+
+        // Assert: the next try reads the lock its own and leads on the token the first write raised
+        await Assert.That(string.Join(",", terms)).IsEqualTo("2");
+    }
+
+    [Test]
     public async Task RunAsLeaderAsync_AcquireAppliedAndItsErrorCameAfterTheLease_ReleasesTheLockAndContendsAgain()
     {
         // Arrange: the lease that the lost write took counts from that write, and has ended once the error comes
