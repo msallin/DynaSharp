@@ -38,7 +38,7 @@ public sealed partial class Table<T>
     /// <paramref name="shardIteratorType"/> is neither <see cref="ShardIteratorType.TrimHorizon"/> nor <see cref="ShardIteratorType.Latest"/>, or <paramref name="emptyPageDelay"/> is
     /// negative or 15 minutes or more.
     /// </exception>
-    /// <exception cref="InvalidOperationException">
+    /// <exception cref="StreamUnavailableException">
     /// The table has no enabled stream, or its view is not <see cref="StreamViewType.NewAndOldImages"/> (raised while reading).
     /// </exception>
     /// <exception cref="DynamoDbMappingException">An image of a type cannot be read as it and <paramref name="onMappingFailure"/> is <see langword="null"/> (raised while reading).</exception>
@@ -88,7 +88,7 @@ public sealed partial class Table<T>
     /// <paramref name="shardIteratorType"/> is neither <see cref="ShardIteratorType.TrimHorizon"/> nor <see cref="ShardIteratorType.Latest"/>, or <paramref name="emptyPageDelay"/> is
     /// negative or 15 minutes or more.
     /// </exception>
-    /// <exception cref="InvalidOperationException">
+    /// <exception cref="StreamUnavailableException">
     /// The table has no enabled stream, or its view is not <see cref="StreamViewType.NewAndOldImages"/> (raised while reading).
     /// </exception>
     /// <exception cref="DynamoDbMappingException">An image of a type cannot be read as it and <paramref name="onMappingFailure"/> is <see langword="null"/> (raised while reading).</exception>
@@ -140,7 +140,7 @@ public sealed partial class Table<T>
     /// <paramref name="shardIteratorType"/> is neither <see cref="ShardIteratorType.TrimHorizon"/> nor <see cref="ShardIteratorType.Latest"/>, or <paramref name="emptyPageDelay"/> is
     /// negative or 15 minutes or more.
     /// </exception>
-    /// <exception cref="InvalidOperationException">
+    /// <exception cref="StreamUnavailableException">
     /// The table has no enabled stream, or its view is not <see cref="StreamViewType.NewAndOldImages"/> (raised while reading).
     /// </exception>
     /// <exception cref="DynamoDbMappingException">An image of a type cannot be read as it and <paramref name="onMappingFailure"/> is <see langword="null"/> (raised while reading).</exception>

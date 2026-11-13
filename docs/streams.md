@@ -104,7 +104,7 @@ await foreach (var change in orders.ReadStreamAsync(streams, ShardIteratorType.L
 ```
 
 - **A new stream.** A stream that is switched off and on again is a new stream with a new ARN. A loop that starts after that reads the new one, so a reader that starts its loop again, after a failure for instance, follows the table. A loop that runs reads its stream until that ends.
-- **No stream.** A table whose stream is off, or that never had one, throws `InvalidOperationException` when the loop starts, with the name of the table.
+- **No stream.** A table whose stream is off, or that never had one, throws `StreamUnavailableException` when the loop starts, before any record, with `TableName` and a `ViewType` of null. It is an `InvalidOperationException`, and the one a reader that waits for the stream to be turned on catches, waits and starts again.
 - **The view.** It is not checked: under `KeysOnly` a record has no image. `DescribeTableAsync()` of the table tells the view, in `StreamSpecification.StreamViewType`. [`ReadChangesAsync`](#typed-changes), the typed reading, checks it.
 - **The clients.** The table describes itself through its own client, so the two clients go to the same account and region, as [the options of one client make the other](#creating-the-client). The reading takes `dynamodb:DescribeTable` besides the permissions of the stream.
 - **The rest.** `emptyPageDelay`, `onJoined` and `onGap` are those of `ReadStreamRequest`, and everything else is as above.
@@ -256,7 +256,7 @@ await foreach (Change<Order> change in shop.Of<Order>().ReadChangesAsync(streams
 }
 ```
 
-- **The view.** The reading needs `NewAndOldImages`, and checks it in the `DescribeTable` it starts with: another view throws `InvalidOperationException` with the name of the table and the view. Under `NewImage` a removal has no image to tell its type by, so a reader of orders would miss every deleted order without a word; under `OldImage` it would miss every new one. A table with another view reads its records with `ReadStreamAsync` and types them with `As<T>()`, knowing what the table above leaves out, or turns the stream off and on again with `NewAndOldImages`, which starts a new stream.
+- **The view.** The reading needs `NewAndOldImages`, and checks it in the `DescribeTable` it starts with: another view throws `StreamUnavailableException` with the name of the table, `ViewType` the view it has and `RequiredViewType` `NewAndOldImages` and the view. Under `NewImage` a removal has no image to tell its type by, so a reader of orders would miss every deleted order without a word; under `OldImage` it would miss every new one. A table with another view reads its records with `ReadStreamAsync` and types them with `As<T>()`, knowing what the table above leaves out, or turns the stream off and on again with `NewAndOldImages`, which starts a new stream.
 - **The rest.** The start, `emptyPageDelay`, `onJoined`, `onGap`, the stream that is read and every rule of the reading are those of `ReadStreamAsync`. An item whose type changed gives the removal of the old type, if it is the entity of the table, or the insert of the new one.
 
 ### Several entities

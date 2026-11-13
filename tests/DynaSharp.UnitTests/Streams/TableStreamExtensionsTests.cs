@@ -193,7 +193,7 @@ public sealed class TableStreamExtensionsTests
     }
 
     [Test]
-    public async Task ReadStreamAsync_TableWithoutAStream_ThrowsInvalidOperationException()
+    public async Task ReadStreamAsync_TableWithoutAStream_ThrowsStreamUnavailableException()
     {
         // Arrange
         var fake = FakeCalls.With(FakeCalls.Users);
@@ -204,12 +204,12 @@ public sealed class TableStreamExtensionsTests
         var act = async () => await client.Table("Users", "pk").ReadStreamAsync(streams, ShardIteratorType.TrimHorizon).ToListAsync();
 
         // Assert
-        await Assert.That(act).ThrowsExactly<InvalidOperationException>().WithMessage(
+        await Assert.That(act).ThrowsExactly<StreamUnavailableException>().WithMessage(
             "The table Users has no enabled stream. Turn one on with Stream(...) of CreateTable(), or with StreamSpecification of UpdateTableAsync.", StringComparison.Ordinal);
     }
 
     [Test]
-    public async Task ReadStreamAsync_StreamTurnedOff_ThrowsInvalidOperationException()
+    public async Task ReadStreamAsync_StreamTurnedOff_ThrowsStreamUnavailableException()
     {
         // Arrange: DescribeTable still names the stream that was switched off
         var fake = FakeStreams.UsersOn(new ManualTimeProvider(Start));
@@ -221,7 +221,7 @@ public sealed class TableStreamExtensionsTests
         var act = async () => await client.Table("Users", "pk").ReadStreamAsync(streams, ShardIteratorType.TrimHorizon).ToListAsync();
 
         // Assert
-        await Assert.That(act).ThrowsExactly<InvalidOperationException>();
+        await Assert.That(act).ThrowsExactly<StreamUnavailableException>();
     }
 
     [Test]
@@ -421,7 +421,7 @@ public sealed class TableStreamExtensionsTests
     [Arguments(StreamViewType.NewImage)]
     [Arguments(StreamViewType.OldImage)]
     [Arguments(StreamViewType.KeysOnly)]
-    public async Task ReadChangesAsync_ViewWithoutBothImages_ThrowsInvalidOperationException(StreamViewType view)
+    public async Task ReadChangesAsync_ViewWithoutBothImages_ThrowsStreamUnavailableException(StreamViewType view)
     {
         // Arrange
         var fake = Shop("Shop", view);
@@ -432,9 +432,66 @@ public sealed class TableStreamExtensionsTests
         var act = async () => await client.Table("Shop", "pk", "sk").ReadChangesAsync<Alpha, Beta>(streams, ShardIteratorType.TrimHorizon).ToListAsync();
 
         // Assert
-        await Assert.That(act).ThrowsExactly<InvalidOperationException>().WithMessage(
+        await Assert.That(act).ThrowsExactly<StreamUnavailableException>().WithMessage(
             $"The stream of the table Shop has the view {view}, and a typed read needs NewAndOldImages: without the old image a removal has nothing to be typed by, and without the new image an insert has not. Read the records with ReadStreamAsync, or switch the stream to NewAndOldImages, which starts a new stream.",
             StringComparison.Ordinal);
+    }
+
+    [Test]
+    [Arguments(StreamViewType.NewImage)]
+    [Arguments(StreamViewType.KeysOnly)]
+    public async Task ReadChangesAsync_ViewWithoutBothImages_NamesTheTableTheViewAndTheOneItNeeds(StreamViewType view)
+    {
+        // Arrange
+        var fake = Shop("Shop", view);
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+
+        // Act
+        var failure = await TestClient.CaptureAsync<StreamUnavailableException>(async () => await client.Table("Shop", "pk", "sk").ReadChangesAsync<Alpha, Beta>(streams, ShardIteratorType.TrimHorizon).ToListAsync());
+
+        // Assert
+        await Assert.That((failure.TableName, failure.ViewType, failure.RequiredViewType)).IsEqualTo(("Shop", (StreamViewType?)view, (StreamViewType?)StreamViewType.NewAndOldImages));
+    }
+
+    [Test]
+    public async Task ReadStreamAsync_TableWithoutAStream_SaysTheStreamIsOffAndNeedsNoView()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+
+        // Act
+        var failure = await TestClient.CaptureAsync<StreamUnavailableException>(async () => await client.Table("Users", "pk").ReadStreamAsync(streams, ShardIteratorType.TrimHorizon).ToListAsync());
+
+        // Assert
+        await Assert.That((failure.TableName, failure.ViewType, failure.RequiredViewType)).IsEqualTo(("Users", (StreamViewType?)null, (StreamViewType?)null));
+    }
+
+    [Test]
+    public async Task ReadChangesAsync_TableWithoutAStream_SaysTheStreamIsOffAndTheViewItNeeds()
+    {
+        // Arrange
+        var fake = FakeCalls.With(FakeCalls.Users);
+        using var client = fake.CreateClient();
+        using var streams = fake.CreateStreamsClient();
+
+        // Act
+        var failure = await TestClient.CaptureAsync<StreamUnavailableException>(async () => await client.Table("Users", "pk").ReadChangesAsync<Alpha, Beta>(streams, ShardIteratorType.TrimHorizon).ToListAsync());
+
+        // Assert
+        await Assert.That((failure.ViewType, failure.RequiredViewType, failure is InvalidOperationException)).IsEqualTo(((StreamViewType?)null, (StreamViewType?)StreamViewType.NewAndOldImages, true));
+    }
+
+    [Test]
+    public async Task StreamUnavailableException_NullTableName_Throws()
+    {
+        // Act
+        var failure = TestClient.Catch(() => _ = new StreamUnavailableException("m", null!, null, null));
+
+        // Assert
+        await Assert.That(((ArgumentNullException)failure).ParamName).IsEqualTo("tableName");
     }
 
     [Test]

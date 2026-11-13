@@ -555,7 +555,7 @@ public sealed class StreamTests(Backend backend)
     }
 
     [Test]
-    public async Task ReadChanges_StreamWithoutOldImages_ThrowsInvalidOperationException()
+    public async Task ReadChanges_StreamWithoutOldImages_ThrowsStreamUnavailableException()
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
@@ -563,10 +563,10 @@ public sealed class StreamTests(Backend backend)
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
 
         // Act
-        var act = async () => await sandbox.Client.Table(table, "pk", "sk").Of<Customer>().ReadChangesAsync(sandbox.Streams, ShardIteratorType.TrimHorizon, cancellationToken: timeout.Token).ToListAsync(timeout.Token);
+        var failure = await Items.FailureOfAsync<StreamUnavailableException>(async () => await sandbox.Client.Table(table, "pk", "sk").Of<Customer>().ReadChangesAsync(sandbox.Streams, ShardIteratorType.TrimHorizon, cancellationToken: timeout.Token).ToListAsync(timeout.Token));
 
         // Assert
-        await Assert.That(act).ThrowsExactly<InvalidOperationException>();
+        await Assert.That((failure.ViewType, failure.RequiredViewType)).IsEqualTo(((StreamViewType?)StreamViewType.NewImage, (StreamViewType?)StreamViewType.NewAndOldImages));
     }
 
     [Test]

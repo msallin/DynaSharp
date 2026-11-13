@@ -35,7 +35,7 @@ public static class TableStreamExtensions
     /// <paramref name="shardIteratorType"/> is neither <see cref="ShardIteratorType.TrimHorizon"/> nor <see cref="ShardIteratorType.Latest"/>, or <paramref name="emptyPageDelay"/> is
     /// negative or 15 minutes or more.
     /// </exception>
-    /// <exception cref="InvalidOperationException">
+    /// <exception cref="StreamUnavailableException">
     /// The table has no enabled stream: <see cref="StreamSpecification.StreamEnabled"/> is not <see langword="true"/>, or no stream is named (raised while reading).
     /// </exception>
     /// <exception cref="ResourceNotFoundException">The table does not exist (raised while reading), or what <see cref="DynamoDbStreamsClient.ReadStreamAsync"/> throws it for.</exception>
@@ -80,7 +80,7 @@ public static class TableStreamExtensions
     /// <para>
     /// <b>The view must be <see cref="StreamViewType.NewAndOldImages"/>.</b> The read is that of <see cref="ReadStreamAsync{T}"/>, with its <c>DescribeTable</c> at the start of each
     /// enumeration, and it also checks the view there: without the old image a removal could not be typed and would be missed without a word, and without the new image an insert would.
-    /// Another view throws <see cref="InvalidOperationException"/>; <see cref="ChangeRecord.As{T}"/> types what a record of any view has.
+    /// Another view throws <see cref="StreamUnavailableException"/>; <see cref="ChangeRecord.As{T}"/> types what a record of any view has.
     /// </para>
     /// <para>
     /// <b>Every change is read.</b> A stream cannot be filtered at its source, so every change of the table is read and typed here, from the discriminator of its images, and a change of no
@@ -93,7 +93,7 @@ public static class TableStreamExtensions
     /// <paramref name="shardIteratorType"/> is neither <see cref="ShardIteratorType.TrimHorizon"/> nor <see cref="ShardIteratorType.Latest"/>, or <paramref name="emptyPageDelay"/> is
     /// negative or 15 minutes or more.
     /// </exception>
-    /// <exception cref="InvalidOperationException">
+    /// <exception cref="StreamUnavailableException">
     /// The table has no enabled stream, or its view is not <see cref="StreamViewType.NewAndOldImages"/> (raised while reading).
     /// </exception>
     /// <exception cref="DynamoDbMappingException">An image of a type cannot be read as it and <paramref name="onMappingFailure"/> is <see langword="null"/> (raised while reading).</exception>
@@ -157,15 +157,21 @@ public static class TableStreamExtensions
         // LatestStreamArn stays after the stream was switched off, so the specification tells whether it is on.
         if (description.StreamSpecification?.StreamEnabled != true || description.LatestStreamArn is not { } streamArn)
         {
-            throw new InvalidOperationException(
-                $"The table {table.Name} has no enabled stream. Turn one on with Stream(...) of CreateTable(), or with StreamSpecification of UpdateTableAsync.");
+            throw new StreamUnavailableException(
+                $"The table {table.Name} has no enabled stream. Turn one on with Stream(...) of CreateTable(), or with StreamSpecification of UpdateTableAsync.",
+                table.Name,
+                viewType: null,
+                typed ? StreamViewType.NewAndOldImages : null);
         }
 
         if (typed && description.StreamSpecification.StreamViewType != StreamViewType.NewAndOldImages)
         {
-            throw new InvalidOperationException(
+            throw new StreamUnavailableException(
                 $"The stream of the table {table.Name} has the view {description.StreamSpecification.StreamViewType}, and a typed read needs NewAndOldImages: without the old image " +
-                "a removal has nothing to be typed by, and without the new image an insert has not. Read the records with ReadStreamAsync, or switch the stream to NewAndOldImages, which starts a new stream.");
+                "a removal has nothing to be typed by, and without the new image an insert has not. Read the records with ReadStreamAsync, or switch the stream to NewAndOldImages, which starts a new stream.",
+                table.Name,
+                description.StreamSpecification.StreamViewType,
+                StreamViewType.NewAndOldImages);
         }
 
         await foreach (var change in streams.ReadStreamAsync(request with { StreamArn = streamArn }, cancellationToken).ConfigureAwait(false))
