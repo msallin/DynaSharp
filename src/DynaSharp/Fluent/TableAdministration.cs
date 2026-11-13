@@ -108,13 +108,7 @@ internal static class TableAdministration
     /// <param name="drift">The differences, at least one. They name the schema alone: tables, indexes and attributes.</param>
     public static void LogDrift(TableModel table, List<TableDrift> drift)
     {
-        var descriptions = new string[drift.Count];
-        for (var i = 0; i < descriptions.Length; i++)
-        {
-            descriptions[i] = drift[i].Description;
-        }
-
-        ClientLog.DriftFound(table.Core.Logger, table.Name, drift.Count, string.Join(' ', descriptions));
+        ClientLog.DriftFound(table.Core.Logger, table.Name, drift.Count, TableDriftException.Join(drift));
     }
 
     /// <summary>Deletes a table.</summary>

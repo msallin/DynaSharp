@@ -39,7 +39,7 @@ public sealed class CreateTableResult
     /// <summary>
     /// Gets how a table that <see cref="CreateTableCommand.IfNotExists"/> found differs from what the command declares, in ways that let part of the code work: an index the entities declare that the table lacks or has
     /// with other keys, time to live on another attribute than the one asked for, and a stream that differs from <see cref="CreateTableCommand.Stream"/>. The command changes none of it, and logs it once as a warning
-    /// (event 14). It is empty for a table this call created, and when nothing differs.
+    /// (event 14), or throws a <see cref="TableDriftException"/> in its place with <see cref="CreateTableCommand.FailOnDrift"/>. It is empty for a table this call created, and when nothing differs.
     /// </summary>
     /// <remarks>
     /// What the table has beyond the command is no drift, since other code may use it: another index, another attribute, time to live or a stream the command does not ask for. A key that differs is no drift either:

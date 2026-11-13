@@ -65,6 +65,7 @@ The client throws these itself:
 | `DynamoDbMappingException` | An item does not fit its type: a `required` attribute is missing, a value cannot be read, or the item is of another type. Never retried; an update that throws it has been applied. A query or scan can skip such items, see [Queries](queries.md#skip-items-that-fail-to-map) | `EntityType`, `AttributeName` and `Key` |
 | `KeyFormatException` | A value cannot be part of a key, see [Generated code](generated-code.md#keysof-and-keystryof). An `ArgumentException` | `ParamName`, the placeholder |
 | `ArgumentException` | A key of `Table<Item>` is empty, an index is not declared by the entity, a fan-out repeats a partition key | |
+| `TableDriftException` | `CreateTable().FailOnDrift()` found a table that differs from what the command declares, see [A table that exists](tables.md#a-table-that-exists). An `InvalidOperationException` | `TableName` and `Drift`, each a `TableDrift` |
 | `InvalidOperationException` | The chain is wrong: a command used twice, a `[Version]` rule, `Value` of a `SelectResult` without an item. Or `CreateTable().IfNotExists()` found a table whose key differs from the entities', see [A table that exists](tables.md#a-table-that-exists) | |
 | `FormatException` | `ContinuationToken.Parse` got text that is no token of this version, or `PageAsync` got a token that does not fit the query or `TokenSigner`, see [Queries](queries.md#paging-for-web-apis). The message quotes nothing of the token | |
 

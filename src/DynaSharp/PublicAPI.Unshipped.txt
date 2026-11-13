@@ -1,3 +1,8 @@
 #nullable enable
 DynaSharp.DynamoDbException.ConflictAttempts.get -> int?
 override DynaSharp.DynamoDbException.Message.get -> string!
+DynaSharp.CreateTableCommand.FailOnDrift() -> DynaSharp.CreateTableCommand!
+DynaSharp.TableDriftException
+DynaSharp.TableDriftException.Drift.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.TableDrift!>!
+DynaSharp.TableDriftException.TableDriftException(string! tableName, System.Collections.Generic.IReadOnlyList<DynaSharp.TableDrift!>! drift) -> void
+DynaSharp.TableDriftException.TableName.get -> string!

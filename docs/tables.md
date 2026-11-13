@@ -169,7 +169,7 @@ await invoices.CreateTable().IfNotExists().WaitUntilActive().SendAsync(ct);
 
 - **Permissions.** Over a table that exists, a role needs `dynamodb:DescribeTable` and no `dynamodb:CreateTable`, and no failed call shows in CloudTrail. Creating the table takes both.
 - **A key that differs throws.** Another partition or sort key attribute, a sort key on one side only, or a key attribute of another type where both sides know it, is an `InvalidOperationException` that names the table, the key the command expects and the key it found, before any wait or time to live. Every read and write of the entities would fail on that table with a `ValidationException`, and DynamoDB cannot change the key of a table, so a deploy should stop there: give the entities a table of their own, or create a new one and move the items. A table opened without a model, `client.Table(name, "pk", "sk")`, knows its key names and not their types, so only the names count.
-- **Drift is reported.** What lets part of the code work does not throw: an index the entities declare that the table lacks, or has with other keys or as the other kind, or with a projection that leaves out the discriminator (`_type`, or the name the entity gives it), time to live on another attribute than the one asked for, and, with `.Stream(...)` on the chain, a stream that is off or of another view. Each is a `TableDrift` in `result.Drift`, with its `Kind`, the `IndexName` where it is about an index, and a `Description` that names what the command expects and what the table has. The client also logs them once as a warning (event 14, see [Observability](observability.md#logs)).
+- **Drift is reported.** What lets part of the code work does not throw: an index the entities declare that the table lacks, or has with other keys or as the other kind, or with a projection that leaves out the discriminator (`_type`, or the name the entity gives it), time to live on another attribute than the one asked for, and, with `.Stream(...)` on the chain, a stream that is off or of another view. Each is a `TableDrift` in `result.Drift`, with its `Kind`, the `IndexName` where it is about an index, and a `Description` that names what the command expects and what the table has. The client also logs them once as a warning (event 14, see [Observability](observability.md#logs)), or throws them with `FailOnDrift()`, below.
 - **Changes.** The command changes nothing about a table it finds unless time to live is asked for, by `TimeToLive` on the chain or a `[TimeToLive]` of an entity. Time to live that is off is turned on, which takes `dynamodb:DescribeTimeToLive` and `dynamodb:UpdateTimeToLive` and is no drift. Time to live on another attribute is left on, since moving it takes two changes an hour apart, and is drift.
 - **What is not drift.** An index, an attribute, a stream or time to live that the table has and the command does not ask for: other code may use them.
 - **The wait.** `WaitUntilActive()` waits for every global index the entities declare, so over a table that lacks one it fails within seconds with a `TableNotActiveException` that names the index. [Adding an index](#adding-an-index) says how to add it.
@@ -187,6 +187,14 @@ foreach (var drift in result.Drift)
 
 var missing = result.Drift.Where(drift => drift.Kind == TableDriftKind.IndexMissing).Select(drift => drift.IndexName).ToList();
 ```
+
+A start that must stop on a table that does not fit, such as an index the code queries that the table lacks, or time to live on another attribute so that items never expire, adds `FailOnDrift()`. The command then throws a `TableDriftException`, an `InvalidOperationException` like a key that differs, whose `Drift` lists each difference and whose message says them all, and logs no warning:
+
+```csharp
+await orders.CreateTable().Including<Customer>().IfNotExists().FailOnDrift().WaitUntilActive().SendAsync(ct);
+```
+
+`FailOnDrift()` implies `IfNotExists()`. Drift of an index or a stream throws before the wait and before time to live, so nothing changed; time to live on another attribute is found once the table is active, and is left as it is.
 
 A missing global index goes in with `UpdateTable`, see [Adding an index](#adding-an-index). A missing local index, which only a new table can have, and an index with other keys or without the discriminator in its projection need a decision: a new table, or a global index deleted and created again while the code that queries it waits. A stream goes on with `StreamSpecification` of `UpdateTable`, and time to live moves with `UpdateTimeToLive`, off and then on for the new attribute. A test that pins the schema asserts that `Drift` is empty.
 

@@ -50,6 +50,8 @@ public sealed class CreateTableCommand
 
     private TimeSpan? _timeout;
 
+    private bool _failOnDrift;
+
     /// <summary>Initializes a new instance of the <see cref="CreateTableCommand"/> class.</summary>
     /// <param name="table">The table.</param>
     /// <param name="entity">The entity of the table, as a message names it. A table without an entity has its name in messages instead.</param>
@@ -245,7 +247,7 @@ public sealed class CreateTableCommand
     /// so a deploy should stop there. A table opened without an entity, <c>client.Table(name, "pk", "sk")</c>, knows its key names and not their types, so only the names count.
     /// </para>
     /// <para>
-    /// What lets part of the code work is no exception, but <see cref="CreateTableResult.Drift"/>, which the command also logs once as a warning: an index the entities declare that the table lacks, or has with other keys
+    /// What lets part of the code work is no exception, unless <see cref="FailOnDrift"/> asks for one, but <see cref="CreateTableResult.Drift"/>, which the command also logs once as a warning: an index the entities declare that the table lacks, or has with other keys
     /// or as the other kind, time to live on another attribute than the one asked for, and, with <see cref="Stream"/> on the chain, a stream that is off or of another view. The command changes none of it, as the indexes
     /// and the stream of a command reach only a table it creates: a global index goes in with <c>UpdateTable</c>, and a local one only with a new table. What the table has beyond the command, such as an index or
     /// time to live it does not ask for, is no drift, since other code may use it. A table that is still being created is success with that status. A <see cref="WaitUntilActive()"/> still fails over a table that
@@ -270,6 +272,33 @@ public sealed class CreateTableCommand
     public CreateTableCommand IfNotExists()
     {
         KeepsExistingTable = true;
+        return this;
+    }
+
+    /// <summary>
+    /// Makes a table that <see cref="IfNotExists"/> finds fail the command with a <see cref="TableDriftException"/> that lists each way it differs from what the command declares, in place of
+    /// <see cref="CreateTableResult.Drift"/> and its warning. It implies <see cref="IfNotExists"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>For a start that must stop on a table that does not fit,</b> such as an index the code queries that the table lacks, or time to live on another attribute, so that items never expire. Without it the
+    /// command returns and logs the drift, since part of the code can work, and a program checks <see cref="CreateTableResult.Drift"/> itself. <see cref="IfNotExists"/> says what counts as drift.
+    /// </para>
+    /// <para>
+    /// <b>What it leaves.</b> Drift of an index or a stream is found from the first look, so the command throws before it waits or turns time to live on. Time to live on another attribute is found only once the table
+    /// is active, and then the command throws without changing it. A table this call creates has no drift.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// await orders.CreateTable().Including&lt;Customer&gt;().IfNotExists().FailOnDrift().SendAsync(ct);
+    /// </code>
+    /// </example>
+    /// <returns>This command.</returns>
+    public CreateTableCommand FailOnDrift()
+    {
+        KeepsExistingTable = true;
+        _failOnDrift = true;
         return this;
     }
 
@@ -312,6 +341,7 @@ public sealed class CreateTableCommand
     /// <exception cref="AccessDeniedException">The role lacks a permission of the calls this makes, which <see cref="IfNotExists"/> lists.</exception>
     /// <exception cref="LimitExceededException">The account has too many tables, or creates or deletes tables too fast.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the name is malformed or the table has too many indexes, or time to live cannot be turned on, as within the hour after a change of it.</exception>
+    /// <exception cref="TableDriftException">With <see cref="FailOnDrift"/>, the table <see cref="IfNotExists"/> found differs from what the command declares. <see cref="TableDriftException.Drift"/> lists how.</exception>
     /// <exception cref="InvalidOperationException">
     /// <see cref="IfNotExists"/> found a table whose key differs from the key of the command, in attribute names, in having a sort key or in a type that both know. The message names the table, the expected and the found
     /// key. Nothing waits and nothing changes then.
@@ -365,6 +395,7 @@ public sealed class CreateTableCommand
 
         // A table this call created is what it declares. One it found is compared before anything waits for it or changes it, so a key that does not fit throws first.
         var drift = created ? [] : Check(description!);
+        ThrowOnDrift(drift);
         var declared = _schema.GlobalIndexNames;
         var timeToLive = _timeToLive ?? _schema.TimeToLiveAttributeName;
         var timeout = _activeTimeout ?? (timeToLive is null ? null : TableAdministration.DefaultActiveTimeout);
@@ -390,6 +421,7 @@ public sealed class CreateTableCommand
             }
         }
 
+        ThrowOnDrift(drift);
         if (drift.Count > 0)
         {
             TableAdministration.LogDrift(_table, drift);
@@ -397,6 +429,14 @@ public sealed class CreateTableCommand
 
         progress?.At("describing the table");
         return new CreateTableResult(description ?? await TableAdministration.DescribeAsync(_table, cancellationToken).ConfigureAwait(false), created, timeToLiveEnabled, drift);
+    }
+
+    private void ThrowOnDrift(List<TableDrift> drift)
+    {
+        if (_failOnDrift && drift.Count > 0)
+        {
+            throw new TableDriftException(_table.Name, drift);
+        }
     }
 
     // The stream is compared only where the chain asks for one, and only with a description that holds a key schema, which TableSchema.Check says.
