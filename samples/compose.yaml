@@ -4,7 +4,7 @@
 #   docker compose -f samples/compose.yaml --profile dynamodb-local up -d  DynamoDB Local on http://localhost:8001
 services:
   dynoxide:
-    image: ghcr.io/nubo-db/dynoxide:1.5.0
+    image: ghcr.io/nubo-db/dynoxide:1.6.0
     ports:
       - "8000:8000"
 
