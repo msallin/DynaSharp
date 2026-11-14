@@ -31,6 +31,6 @@
     <PackageVersion Include="BenchmarkDotNet" Version="0.16.0-preview.2" />
     <!-- benchmarks only: the clients DynaSharp is compared with. Never referenced from src/. -->
     <PackageVersion Include="EfficientDynamoDb" Version="0.9.19" />
-    <PackageVersion Include="AWSSDK.DynamoDBv2" Version="4.0.110.2" />
+    <PackageVersion Include="AWSSDK.DynamoDBv2" Version="4.1.0" />
   </ItemGroup>
 </Project>
