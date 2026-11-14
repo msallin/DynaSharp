@@ -80,10 +80,11 @@ internal static class Analysis
     {
         var compilation = GeneratorRun.CreateCompilation(source, language).AddReferences(references);
         var run = GeneratorRun.CreateDriver(new DynaSharpGenerator(), language, trackSteps: true).RunGenerators(compilation).GetRunResult().Results[0];
-        return [.. new[] { TrackingNames.Entities, TrackingNames.Documents }
+        var results = new[] { TrackingNames.Entities, TrackingNames.Documents }
             .SelectMany(name => run.TrackedSteps.TryGetValue(name, out var steps) ? steps : [])
             .SelectMany(step => step.Outputs)
-            .Select(output => (BuildResult)output.Value)];
+            .Select(output => (BuildResult)output.Value);
+        return [.. results];
     }
 
     /// <summary>Compiles a small library, for a base type that lives in another assembly.</summary>

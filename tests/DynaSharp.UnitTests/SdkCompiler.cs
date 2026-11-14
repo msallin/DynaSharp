@@ -16,9 +16,12 @@ internal static partial class SdkCompiler
         using var directory = new TempDirectory();
         directory.Write("Source.cs", source);
         var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator).Select(static path => $"/r:\"{path}\"");
-        File.WriteAllLines(directory.Combine("csc.rsp"), [
-            "/nostdlib+", "/nologo", "/target:library", "/langversion:latest", "/nullable:enable",
-            $"/out:\"{directory.Combine("Source.dll")}\"", .. references, .. analyzers.Select(static path => $"/analyzer:\"{path}\""), $"\"{directory.Combine("Source.cs")}\""]);
+        File.WriteAllLines(
+            directory.Combine("csc.rsp"),
+            [
+                "/nostdlib+", "/nologo", "/target:library", "/langversion:latest", "/nullable:enable",
+                $"/out:\"{directory.Combine("Source.dll")}\"", .. references, .. analyzers.Select(static path => $"/analyzer:\"{path}\""), $"\"{directory.Combine("Source.cs")}\"",
+            ]);
 
         var root = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(typeof(object).Assembly.Location)!, "..", "..", ".."));
         var sdk = Directory.EnumerateDirectories(Path.Combine(root, "sdk"))

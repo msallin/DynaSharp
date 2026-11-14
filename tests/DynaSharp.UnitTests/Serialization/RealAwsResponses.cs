@@ -23,10 +23,11 @@ internal static class RealAwsResponses
         using var stream = typeof(RealAwsResponses).Assembly.GetManifestResourceStream("real_aws_responses.json")
             ?? throw new InvalidOperationException("The embedded resource real_aws_responses.json is missing.");
         using var document = JsonDocument.Parse(stream);
-        return [.. document.RootElement.GetProperty("responses").EnumerateArray()
+        var responses = document.RootElement.GetProperty("responses").EnumerateArray()
             .Select(element => new RealAwsResponse(
                 element.GetProperty("name").GetString()!,
                 element.GetProperty("operation").GetString()!,
-                element.GetProperty("wire").GetString()!))];
+                element.GetProperty("wire").GetString()!));
+        return [.. responses];
     }
 }
