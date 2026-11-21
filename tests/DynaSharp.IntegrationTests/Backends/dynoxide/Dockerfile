@@ -1,1 +1,1 @@
-FROM ghcr.io/nubo-db/dynoxide:1.5.0
+FROM ghcr.io/nubo-db/dynoxide:1.8.0
