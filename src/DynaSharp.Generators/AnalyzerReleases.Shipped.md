@@ -182,3 +182,11 @@ DYNA125 | DynaSharp.Keys | Error | Enum stored name does not fit the key
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
 DYNA126 | DynaSharp.Keys | Error | Converter ignored by a key template
+
+## Release 0.13.0
+
+### New Rules
+
+Rule ID | Category | Severity | Notes
+--------|----------|----------|-------
+DYNA047 | DynaSharp.Mapping | Warning | Index projection leaves out a required property

@@ -666,6 +666,8 @@ DynaSharp.Mapping.DynamoDbIndexInfo.<Clone>$() -> DynaSharp.Mapping.DynamoDbInde
 DynaSharp.Mapping.DynamoDbIndexInfo.Deconstruct(out string! IndexName, out string! PartitionKeyName, out string? SortKeyName, out bool Sparse, out bool IsLocal, out DynaSharp.Requests.ScalarAttributeType PartitionKeyType, out DynaSharp.Requests.ScalarAttributeType SortKeyType) -> void
 DynaSharp.Mapping.DynamoDbIndexInfo.DynamoDbIndexInfo(string! IndexName, string! PartitionKeyName, string? SortKeyName, bool Sparse, bool IsLocal = false, DynaSharp.Requests.ScalarAttributeType PartitionKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown, DynaSharp.Requests.ScalarAttributeType SortKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown) -> void
 DynaSharp.Mapping.DynamoDbIndexInfo.Equals(DynaSharp.Mapping.DynamoDbIndexInfo? other) -> bool
+DynaSharp.Mapping.DynamoDbIndexInfo.Include.get -> System.Collections.Generic.IReadOnlyList<string!>?
+DynaSharp.Mapping.DynamoDbIndexInfo.Include.init -> void
 DynaSharp.Mapping.DynamoDbIndexInfo.IndexName.get -> string!
 DynaSharp.Mapping.DynamoDbIndexInfo.IndexName.init -> void
 DynaSharp.Mapping.DynamoDbIndexInfo.IsLocal.get -> bool
@@ -712,6 +714,8 @@ DynaSharp.Mapping.DynamoDbKeyTemplate.Parse.init -> void
 DynaSharp.Mapping.DynamoDbKeyTemplate.Text.get -> string!
 DynaSharp.Mapping.GlobalIndexKeyAttribute
 DynaSharp.Mapping.GlobalIndexKeyAttribute.GlobalIndexKeyAttribute(string! indexName) -> void
+DynaSharp.Mapping.GlobalIndexKeyAttribute.Include.get -> string![]?
+DynaSharp.Mapping.GlobalIndexKeyAttribute.Include.set -> void
 DynaSharp.Mapping.GlobalIndexKeyAttribute.IndexName.get -> string!
 DynaSharp.Mapping.GlobalIndexKeyAttribute.PartitionKey.get -> string?
 DynaSharp.Mapping.GlobalIndexKeyAttribute.PartitionKey.set -> void
@@ -739,6 +743,8 @@ DynaSharp.Mapping.IKey<TEntity>
 DynaSharp.Mapping.KeyOnlyAttribute
 DynaSharp.Mapping.KeyOnlyAttribute.KeyOnlyAttribute() -> void
 DynaSharp.Mapping.LocalIndexKeyAttribute
+DynaSharp.Mapping.LocalIndexKeyAttribute.Include.get -> string![]?
+DynaSharp.Mapping.LocalIndexKeyAttribute.Include.set -> void
 DynaSharp.Mapping.LocalIndexKeyAttribute.IndexName.get -> string!
 DynaSharp.Mapping.LocalIndexKeyAttribute.LocalIndexKeyAttribute(string! indexName, string! sortKey) -> void
 DynaSharp.Mapping.LocalIndexKeyAttribute.SortKey.get -> string!

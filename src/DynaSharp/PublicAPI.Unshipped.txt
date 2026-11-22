@@ -1,7 +1,1 @@
 #nullable enable
-DynaSharp.Mapping.DynamoDbIndexInfo.Include.get -> System.Collections.Generic.IReadOnlyList<string!>?
-DynaSharp.Mapping.DynamoDbIndexInfo.Include.init -> void
-DynaSharp.Mapping.GlobalIndexKeyAttribute.Include.get -> string![]?
-DynaSharp.Mapping.GlobalIndexKeyAttribute.Include.set -> void
-DynaSharp.Mapping.LocalIndexKeyAttribute.Include.get -> string![]?
-DynaSharp.Mapping.LocalIndexKeyAttribute.Include.set -> void

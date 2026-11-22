@@ -5,4 +5,3 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
-DYNA047 | DynaSharp.Mapping | Warning | Index projection leaves out a required property
