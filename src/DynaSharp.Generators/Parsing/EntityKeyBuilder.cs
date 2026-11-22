@@ -59,6 +59,9 @@ internal sealed class EntityKeyBuilder(
 
     private readonly List<(KeyTemplate Template, Spot Spot, IReadOnlyCollection<string> Fallbacks)> _templates = [];
 
+    // The Include argument of each index that has one, for DYNA047.
+    private readonly Dictionary<string, Spot> _includeSpots = [];
+
     public EntityModel? Build(DiscriminatorInfo discriminator)
     {
         var partition = TableKey(PartitionSlot);
@@ -98,6 +101,7 @@ internal sealed class EntityKeyBuilder(
         RestoreKeyOnlyProperties();
         ReportRawWithoutKeyOnly(partition, sort);
         FindFallbackKeys();
+        ReportProjectionsThatLeaveOutRequired(indexes, partition!, sort, discriminator.Value is null ? null : discriminator.AttributeName);
         var built = new EquatableArray<IndexModel>([.. indexes.Select(index => WithGates(index, indexes))]);
         return new EntityModel(discriminator.Value, discriminator.AttributeName, partition!, sort, built, version, computedInputs, timeToLive);
     }
@@ -531,6 +535,7 @@ internal sealed class EntityKeyBuilder(
 
     private IndexModel Index(string name, KeyModel partition, KeyModel? sort, bool sparse, bool isLocal, AttributeData attribute, KeyModel?[] ownKeys)
     {
+        var include = Include(name, attribute);
         var inputs = NullableInputs([.. ownKeys.Select(static key => key?.Template)]);
         var plainInputs = ownKeys
             .Select(static key => key?.PlainProperty)
@@ -556,7 +561,55 @@ internal sealed class EntityKeyBuilder(
             }
         }
 
-        return new IndexModel(name, partition, sort, sparse, isLocal, all);
+        return new IndexModel(name, partition, sort, sparse, isLocal, all, include);
+    }
+
+    // The attributes of the properties Include names, or null without it, which projects all of them. A name that is no stored property is DYNA018: nothing could put it in the projection.
+    private EquatableArray<string>? Include(string name, AttributeData attribute)
+    {
+        if (AttributeReader.NamedTexts(attribute, "Include") is not { } names)
+        {
+            return null;
+        }
+
+        _includeSpots[name] = Spot.Argument(attribute, "Include", typeSpot);
+        var attributes = new List<string>();
+        foreach (var property in names)
+        {
+            if (!_stored.TryGetValue(property, out var stored))
+            {
+                ReportIndex(name, $"Include names '{property}', which is no stored property of '{type.Name}'", attribute);
+            }
+            else if (!attributes.Contains(stored.AttributeName))
+            {
+                attributes.Add(stored.AttributeName);
+            }
+        }
+
+        return new EquatableArray<string>([.. attributes]);
+    }
+
+    // DYNA047. A read of the index gets the keys, the discriminator and what Include names; a required property outside them fails the read, unless a key it is an input of gives it back.
+    private void ReportProjectionsThatLeaveOutRequired(List<IndexModel> indexes, KeyModel partition, KeyModel? sort, string? discriminator)
+    {
+        foreach (var index in indexes)
+        {
+            if (index.Include is not { } include)
+            {
+                continue;
+            }
+
+            var projected = new HashSet<string>(include) { partition.AttributeName, index.PartitionKey.AttributeName };
+            projected.UnionWith(new[] { sort?.AttributeName, index.SortKey?.AttributeName, discriminator }.OfType<string>());
+            var missing = _stored.Values
+                .Where(property => ModelBuilder.MissingOf(property) == MissingBehavior.Throw && !projected.Contains(property.AttributeName) && (property.FallbackKey is not { } fallback || !projected.Contains(fallback)))
+                .Select(static property => $"'{property.Name}'")
+                .ToList();
+            if (missing.Count > 0)
+            {
+                bag.Report(Descriptors.IndexProjectionLeavesOutRequired, _includeSpots[index.IndexName], index.IndexName, string.Join(", ", missing), type.Name);
+            }
+        }
     }
 
     private string? VersionProperty()

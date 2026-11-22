@@ -1,4 +1,5 @@
 using DynaSharp.Mapping;
+using DynaSharp.Operations;
 using DynaSharp.Requests;
 
 namespace DynaSharp.Fluent;
@@ -86,15 +87,17 @@ internal sealed class TableSchema
     {
         var globals = new List<GlobalSecondaryIndex>();
         var locals = new List<LocalSecondaryIndex>();
-        foreach (var (index, _, _) in _indexes)
+        foreach (var declared in _indexes)
         {
+            var index = declared.Index;
+            var projection = ProjectionOf(declared);
             if (index.IsLocal)
             {
-                locals.Add(new LocalSecondaryIndex { IndexName = index.IndexName, KeySchema = KeySchema(index.PartitionKeyName, index.SortKeyName), Projection = new IndexProjection { ProjectionType = ProjectionType.All } });
+                locals.Add(new LocalSecondaryIndex { IndexName = index.IndexName, KeySchema = KeySchema(index.PartitionKeyName, index.SortKeyName), Projection = projection });
             }
             else
             {
-                globals.Add(new GlobalSecondaryIndex { IndexName = index.IndexName, KeySchema = KeySchema(index.PartitionKeyName, index.SortKeyName), Projection = new IndexProjection { ProjectionType = ProjectionType.All }, ProvisionedThroughput = capacity });
+                globals.Add(new GlobalSecondaryIndex { IndexName = index.IndexName, KeySchema = KeySchema(index.PartitionKeyName, index.SortKeyName), Projection = projection, ProvisionedThroughput = capacity });
             }
         }
 
@@ -112,8 +115,8 @@ internal sealed class TableSchema
     }
 
     /// <summary>
-    /// Compares a table that exists with the union, as <see cref="CreateTableCommand.IfNotExists"/> says: a key of other names or types throws, and an index that is missing, has other keys or a projection
-    /// without the discriminator of an entity that declares it is drift. Only what both sides
+    /// Compares a table that exists with the union, as <see cref="CreateTableCommand.IfNotExists"/> says: a key of other names or types throws, and an index that is missing, has other keys or another
+    /// projection is drift. Only what both sides
     /// know is compared: a type of <see cref="ScalarAttributeType.Unknown"/> here, or an attribute the description does not define, matches any, and a description without a key schema, which DynamoDB always sends, is not
     /// compared at all. What the table has beyond the union is none of its business.
     /// </summary>
@@ -138,8 +141,9 @@ internal sealed class TableSchema
                 + "Every read and write of these entities would fail with a ValidationException, and DynamoDB does not change the key of a table: give them a table of their own, or create a new one and move the items.");
         }
 
-        foreach (var (index, _, discriminators) in _indexes)
+        foreach (var entry in _indexes)
         {
+            var index = entry.Index;
             var (isLocal, keySchema, projection) = FindIndex(found, index.IndexName);
             var declared = $"{(index.IsLocal ? "local" : "global")} index {index.IndexName} over the {DescribeKey(index.PartitionKeyName, index.SortKeyName)}";
             if (keySchema is null)
@@ -158,11 +162,9 @@ internal sealed class TableSchema
                 var differs = $"The table {tableName} has the index {index.IndexName} as a {(isLocal ? "local" : "global")} index over the {has}, and the entities declare a {declared}. Queries of it read other attributes than they expect, or fail.";
                 drift.Add(new TableDrift(TableDriftKind.IndexDiffers, index.IndexName, differs));
             }
-            else if (Unprojected(projection, discriminators, index) is { } discriminator)
+            else if (projection is { ProjectionType: not ProjectionType.Unknown } && ProjectionDrift(tableName, entry, projection) is { } differs)
             {
-                var lacks = $"The table {tableName} has the index {index.IndexName} with a projection of {projection!.ProjectionType}, which lacks {discriminator}, the discriminator of the entities. "
-                    + $"A typed read of it filters on {discriminator}, so it finds nothing or fails. An index keeps the projection it was created with: delete it and create it again with {discriminator} in the projection, or with ALL.";
-                drift.Add(new TableDrift(TableDriftKind.IndexDiffers, index.IndexName, lacks));
+                drift.Add(new TableDrift(TableDriftKind.IndexDiffers, index.IndexName, differs));
             }
         }
 
@@ -232,6 +234,12 @@ internal sealed class TableSchema
 
     private static string Describe(DynamoDbIndexInfo index) => $"{(index.IsLocal ? "local" : "global")} over {Describe(index.PartitionKeyName, index.SortKeyName)}";
 
+    private static bool Covers(IndexProjection projection, string name) =>
+        projection.ProjectionType == ProjectionType.All || (projection.ProjectionType == ProjectionType.Include && projection.NonKeyAttributes?.Contains(name) == true);
+
+    private static string Describe(IndexProjection projection) =>
+        projection.ProjectionType == ProjectionType.Include ? $"INCLUDE ({string.Join(", ", projection.NonKeyAttributes ?? [])})" : WireNames.ProjectionTypes.GetNameIfSet(projection.ProjectionType)!;
+
     private bool Matches(string partitionKey, string? sortKey, string? foundPartitionKey, string? foundSortKey, IReadOnlyList<AttributeDefinition> types) =>
         partitionKey == foundPartitionKey && sortKey == foundSortKey
         && Matches(TypeOf(partitionKey), TypeIn(types, foundPartitionKey))
@@ -239,28 +247,87 @@ internal sealed class TableSchema
 
     private string DescribeKey(string partitionKey, string? sortKey) => DescribeKey(partitionKey, TypeOf(partitionKey), sortKey, sortKey is null ? ScalarAttributeType.Unknown : TypeOf(sortKey));
 
-    // Every key attribute of the union is defined, by the constructor or by Add.
-    // The first discriminator attribute that a typed read of the index filters on and the projection leaves out. A key of the table or of the index is in every projection. A description without
-    // a projection says nothing, so it lacks nothing.
-    private string? Unprojected(IndexProjection? projection, List<string> discriminators, DynamoDbIndexInfo index)
+    // A projection that lacks the discriminator comes first: a typed read finds nothing at all. Then one that lacks other attributes, which a typed read needs if they are required, then one that copies more
+    // than the entities ask for, which costs on every write. The keys are in every projection, so neither side counts them.
+    private string? ProjectionDrift(string tableName, DeclaredIndex declared, IndexProjection found)
     {
-        if (projection is null || projection.ProjectionType is not (ProjectionType.KeysOnly or ProjectionType.Include))
+        var index = declared.Index;
+        var expected = ProjectionOf(declared);
+        var has = $"The table {tableName} has the index {index.IndexName} with a projection of {Describe(found)}";
+        var recreate = index.IsLocal ? "A local index keeps the projection it was created with: only a new table with the index changes it" : "An index keeps the projection it was created with: delete it and create it again";
+        foreach (var discriminator in declared.Discriminators)
         {
-            return null;
+            if (!IsKey(discriminator, index) && !Covers(found, discriminator))
+            {
+                return $"{has}, which lacks {discriminator}, the discriminator of the entities. "
+                    + $"A typed read of it filters on {discriminator}, so it finds nothing or fails. {recreate} with {discriminator} in the projection, or with ALL.";
+            }
         }
 
-        foreach (var discriminator in discriminators)
+        var lacks = Lacking(found, expected, index);
+        if (lacks is not null)
         {
-            var isKey = discriminator == _partitionKey || discriminator == _sortKey || discriminator == index.PartitionKeyName || discriminator == index.SortKeyName;
-            if (!isKey && projection.NonKeyAttributes?.Contains(discriminator) != true)
-            {
-                return discriminator;
-            }
+            return $"{has}, and the entities declare {Describe(expected)}, so it lacks {lacks}. A typed read of it fails for a required property it lacks. {recreate} with {Describe(expected)}.";
+        }
+
+        if (Lacking(expected, found, index) is { } extra)
+        {
+            return $"{has}, and the entities declare {Describe(expected)}, so every write copies {extra} into it as well, at the cost of write capacity and storage. {recreate} with {Describe(expected)}.";
         }
 
         return null;
     }
 
+    // The non-key attributes, among those that `wanted` copies, that `found` does not, as a message names them; every attribute when `wanted` is ALL and `found` is not.
+    private string? Lacking(IndexProjection found, IndexProjection wanted, DynamoDbIndexInfo index)
+    {
+        if (found.ProjectionType == ProjectionType.All)
+        {
+            return null;
+        }
+
+        if (wanted.ProjectionType == ProjectionType.All)
+        {
+            return "the other attributes";
+        }
+
+        var missing = new List<string>();
+        foreach (var name in wanted.NonKeyAttributes ?? [])
+        {
+            if (!IsKey(name, index) && !Covers(found, name))
+            {
+                missing.Add(name);
+            }
+        }
+
+        return missing.Count == 0 ? null : string.Join(", ", missing);
+    }
+
+    // What the union asks of an index: every attribute if an entity declares it without a list, else the attributes the lists name and the discriminators, without the keys, which every projection has.
+    private IndexProjection ProjectionOf(DeclaredIndex declared)
+    {
+        if (declared.Include is not { } include)
+        {
+            return new IndexProjection { ProjectionType = ProjectionType.All };
+        }
+
+        var nonKey = new List<string>();
+        foreach (var name in include.Concat(declared.Discriminators))
+        {
+            if (!IsKey(name, declared.Index) && !nonKey.Contains(name))
+            {
+                nonKey.Add(name);
+            }
+        }
+
+        return nonKey.Count == 0
+            ? new IndexProjection { ProjectionType = ProjectionType.KeysOnly }
+            : new IndexProjection { ProjectionType = ProjectionType.Include, NonKeyAttributes = nonKey };
+    }
+
+    private bool IsKey(string name, DynamoDbIndexInfo index) => name == _partitionKey || name == _sortKey || name == index.PartitionKeyName || name == index.SortKeyName;
+
+    // Every key attribute of the union is defined, by the constructor or by Add.
     private ScalarAttributeType TypeOf(string name) => _attributes.Find(attribute => attribute.Name == name).Type;
 
     private void Define(string name, ScalarAttributeType type, string declaredBy)
@@ -280,20 +347,33 @@ internal sealed class TableSchema
         }
     }
 
+    // An entity that declares the index without a list reads all of it, so the index copies everything; lists of several entities add up, since each reads its own attributes.
     private void Declare(DynamoDbIndexInfo index, string declaredBy, string? discriminator)
     {
         var known = _indexes.Find(candidate => candidate.Index.IndexName == index.IndexName);
         if (known is null)
         {
-            _indexes.Add(new DeclaredIndex(index, declaredBy, discriminator is null ? [] : [discriminator]));
+            _indexes.Add(new DeclaredIndex(index, declaredBy, discriminator is null ? [] : [discriminator], index.Include is null ? null : [.. index.Include]));
+            return;
         }
-        else if ((known.Index.IsLocal, known.Index.PartitionKeyName, known.Index.SortKeyName) != (index.IsLocal, index.PartitionKeyName, index.SortKeyName))
+
+        if ((known.Index.IsLocal, known.Index.PartitionKeyName, known.Index.SortKeyName) != (index.IsLocal, index.PartitionKeyName, index.SortKeyName))
         {
             throw new ArgumentException($"{known.DeclaredBy} declares the index {index.IndexName} as {Describe(known.Index)}, and {declaredBy} as {Describe(index)}.");
         }
-        else if (discriminator is not null && !known.Discriminators.Contains(discriminator))
+
+        if (discriminator is not null && !known.Discriminators.Contains(discriminator))
         {
             known.Discriminators.Add(discriminator);
+        }
+
+        if (index.Include is null)
+        {
+            known.Include = null;
+        }
+        else
+        {
+            known.Include?.AddRange(index.Include);
         }
     }
 
@@ -312,6 +392,16 @@ internal sealed class TableSchema
 
     private readonly record struct KeyAttribute(string Name, ScalarAttributeType Type, string DeclaredBy);
 
-    // The discriminator attributes of the entities that declare the index and have a discriminator, which their typed reads of it filter on.
-    private sealed record DeclaredIndex(DynamoDbIndexInfo Index, string DeclaredBy, List<string> Discriminators);
+    // The discriminator attributes of the entities that declare the index and have a discriminator, which their typed reads of it filter on, and the attributes their lists name, or null when one of them
+    // reads all of it.
+    private sealed class DeclaredIndex(DynamoDbIndexInfo index, string declaredBy, List<string> discriminators, List<string>? include)
+    {
+        public DynamoDbIndexInfo Index { get; } = index;
+
+        public string DeclaredBy { get; } = declaredBy;
+
+        public List<string> Discriminators { get; } = discriminators;
+
+        public List<string>? Include { get; set; } = include;
+    }
 }

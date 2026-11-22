@@ -56,4 +56,25 @@ public sealed class GlobalIndexKeyAttribute : Attribute
 
     /// <summary>Gets or sets the name of the attribute that holds the index sort key.</summary>
     public string? SortKeyAttributeName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the properties, by name, that the index copies besides the keys and the discriminator; an empty list copies keys only, and <see langword="null"/>, the default, copies every attribute.
+    /// A typed read of the index needs every required property, so leave one out only for an index you read with <c>Select</c> or without a model.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>What <c>CreateTable()</c> makes of it.</b> An index copies what its projection names into its own storage on every write of the item, and a read of it returns only that. A list of names makes the projection
+    /// <c>INCLUDE</c> with their attributes and the discriminator, an empty list <c>KEYS_ONLY</c> (or <c>INCLUDE</c> of the discriminator alone), and <see langword="null"/> <c>ALL</c>. The keys of the table and of the index are in
+    /// every projection. Entities that share an index copy the attributes that any of them names, and one that declares the index without this list makes it <c>ALL</c>.
+    /// </para>
+    /// <para>
+    /// <b>Fixed once created.</b> DynamoDB does not change the projection of an index: deleting the index and creating it again does. <c>CreateTable().IfNotExists()</c> reports an index whose projection differs from
+    /// this list as drift, and <c>FailOnDrift()</c> throws for it.
+    /// </para>
+    /// <para>
+    /// <b>Checked.</b> A name that is no stored property is <see href="https://msallin.github.io/DynaSharp/diagnostics.html#entities">DYNA018</see>, and a list that leaves out a property a read requires is
+    /// <see href="https://msallin.github.io/DynaSharp/diagnostics.html#entities">DYNA047</see>.
+    /// </para>
+    /// </remarks>
+    public string[]? Include { get; set; }
 }

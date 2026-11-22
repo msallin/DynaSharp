@@ -67,6 +67,31 @@ internal sealed class ModelBuilder
     public static TypeModel? ModelOf(INamedTypeSymbol type, MappedKind kind, Compilation compilation) =>
         new ModelBuilder(type, kind, compilation, new Spot(string.Empty, default), checksOblivious: true).Analyze();
 
+    /// <summary>What a read does when the item lacks the attribute of <paramref name="property"/>.</summary>
+    /// <param name="property">The property.</param>
+    /// <returns>The behaviour.</returns>
+    internal static MissingBehavior MissingOf(PropertyFacts property)
+    {
+        // The item is one to adopt, which a read that threw could not reach, also for a required version.
+        if (property.AllowsMissingVersion)
+        {
+            return MissingBehavior.KeepCurrent;
+        }
+
+        if (Types.Unwrap(property.Type).IsNullable)
+        {
+            // Null is left out on write, so a read that throws here would break the round trip of a `required string?`.
+            return MissingBehavior.KeepCurrent;
+        }
+
+        if (property.Resolved?.Model.EmptySet is not null)
+        {
+            return property.Parameter is null && StartsEmpty(property.Symbol) ? MissingBehavior.KeepCurrent : MissingBehavior.EmptySet;
+        }
+
+        return property.Symbol.IsRequired || property.Parameter is { HasExplicitDefaultValue: false } ? MissingBehavior.Throw : MissingBehavior.KeepCurrent;
+    }
+
     private static string Keyword(INamedTypeSymbol type)
     {
         if (type.IsRecord)
@@ -93,28 +118,6 @@ internal sealed class ModelBuilder
         }
 
         return false;
-    }
-
-    private static MissingBehavior MissingOf(PropertyFacts property)
-    {
-        // The item is one to adopt, which a read that threw could not reach, also for a required version.
-        if (property.AllowsMissingVersion)
-        {
-            return MissingBehavior.KeepCurrent;
-        }
-
-        if (Types.Unwrap(property.Type).IsNullable)
-        {
-            // Null is left out on write, so a read that throws here would break the round trip of a `required string?`.
-            return MissingBehavior.KeepCurrent;
-        }
-
-        if (property.Resolved?.Model.EmptySet is not null)
-        {
-            return property.Parameter is null && StartsEmpty(property.Symbol) ? MissingBehavior.KeepCurrent : MissingBehavior.EmptySet;
-        }
-
-        return property.Symbol.IsRequired || property.Parameter is { HasExplicitDefaultValue: false } ? MissingBehavior.Throw : MissingBehavior.KeepCurrent;
     }
 
     // A set the initializer leaves empty is already what a missing attribute means, so a read need not throw it away for another. A filled

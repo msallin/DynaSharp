@@ -287,6 +287,31 @@ var urgent = client.Table<Ticket>("Tickets").Index(Ticket.Indexes.ByPriority)
 - **Attributes.** Its sort key is the attribute `byprioritysk` by default (index name in lower case plus `sk`); `SortKeyAttributeName` names another. `Sparse = true` works as on a global index.
 - **Size.** A table with a local index holds at most 10 GB per partition; a write beyond throws `ItemCollectionSizeLimitExceededException`.
 
+## Index projections
+
+An index copies the attributes of its projection into storage of its own on every write of the item, and a read of it returns only those. By default `CreateTable()` gives an index every attribute (`ALL`). `Include` on `[GlobalIndexKey]` or `[LocalIndexKey]` names the properties it copies besides the keys and the discriminator, which a typed read filters on:
+
+```csharp
+[DynamoDbEntity(Table = "Devices")]
+[Discriminator("DEVICE")]
+[PartitionKey("DEVICE#{Id}")]
+[GlobalIndexKey("DeviceList", PartitionKey = "ALL", SortKey = "{ListOrder}", Include = [nameof(Name), nameof(Status)])]
+public partial record Device
+{
+    public required string Id { get; init; }
+    public required string ListOrder { get; init; }
+    public required string Name { get; init; }
+    public required string Status { get; init; }
+    public string? Configuration { get; init; }
+}
+```
+
+`CreateTable()` makes `DeviceList` an `INCLUDE` of `Name`, `Status` and `_type`. A write copies those into the index, not the whole item, and a page of the list reads them, so a large `Configuration` costs neither. `Include = []` copies the keys and the discriminator alone (`KEYS_ONLY` for an entity without one).
+
+- **A typed read needs every required property.** A read of `DeviceList` gets what the index holds, so `Configuration` reads as null there. A required property the index leaves out would throw `DynamoDbMappingException`, which the warning [`DYNA047`](diagnostics.md#entities) reports at the build. An input of a key that holds it without loss, such as `Id` in `DEVICE#{Id}`, reads back from that key. Read an index of fewer attributes with `Select(...)`, or [without a model](without-a-model.md), where the entity cannot do without them.
+- **Shared indexes.** Entities that share an index copy what any of them names, and one that declares it without `Include` makes it `ALL`.
+- **Fixed once created.** DynamoDB does not change the projection of an index. A global index changes by being deleted and created again, a local one only with a new table. `CreateTable().IfNotExists()` reports a projection that differs from `Include` as drift, see [A table that exists](tables.md#a-table-that-exists).
+
 ## Versions
 
 `[Version]` on one integer property turns every write of the entity into a compare-and-swap: a write of a copy that changed since it was read fails with `ConditionalCheckFailedException`, and a new item starts at 0.

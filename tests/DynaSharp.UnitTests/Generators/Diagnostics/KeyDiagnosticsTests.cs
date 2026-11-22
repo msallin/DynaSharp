@@ -457,6 +457,77 @@ public sealed class KeyDiagnosticsTests
     }
 
     [Test]
+    [Arguments("\"Note\"", "Note")]
+    [Arguments("null!", "")]
+    public async Task Build_IncludeOfAPropertyThatIsNotStored_ReportsDyna018(string included, string named)
+    {
+        // Arrange (a property the entity ignores has no attribute to copy, and null names none)
+        var source = $$"""
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), [|GlobalIndexKey("GSI1", PartitionKey = "ALL", Include = [{{included}}])|]]
+            public partial class E { public required string Id { get; init; } [DynamoDbIgnore] public string? Note { get; init; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, $"DYNA018 Error: Index 'GSI1' is invalid: Include names '{named}', which is no stored property of 'E'"));
+    }
+
+    [Test]
+    [Arguments("GSI1", """GlobalIndexKey("GSI1", PartitionKey = "ALL", Include = [|[]|])""")]
+    [Arguments("LSI1", """SortKey("S"), LocalIndexKey("LSI1", "{Id}", Include = [|[]|])""")]
+    public async Task Build_IncludeThatLeavesOutARequiredProperty_ReportsDyna047(string name, string index)
+    {
+        // Arrange (Id comes back from the table key, Note may be missing; Firmware is required and nowhere in the index)
+        var source = $$"""
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), {{index}}]
+            public partial class E { public required string Id { get; init; } public required string Firmware { get; init; } public string? Note { get; init; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(source, $"DYNA047 Warning: Index '{name}' leaves out 'Firmware', which a read of 'E' requires, so a typed read of the index throws DynamoDbMappingException. Add it to Include, make it not required, or read the index with Select(...) or without a model."));
+    }
+
+    [Test]
+    [Arguments("""Include = [nameof(E.Firmware)]""")]
+    [Arguments("""SortKey = "{Firmware}", Include = []""")]
+    [Arguments("""SortKey = "{Firmware}", SortKeyAttributeName = "Firmware", Include = []""")]
+    public async Task Build_IncludeThatAReadCanDoWith_ReportsNothing(string arguments)
+    {
+        // Arrange (named, an input of a key that holds it without loss, or the key itself)
+        var source = $$"""
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), GlobalIndexKey("GSI1", PartitionKey = "ALL", {{arguments}})]
+            public partial class E { public required string Id { get; init; } public required string Firmware { get; init; } public string? Note { get; init; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Build_IncludeOfAPropertyWhoseFallbackKeyIsAnotherIndex_ReportsNothing()
+    {
+        // Arrange (Firmware falls back on the key of GSI2, which GSI1 lacks, and GSI1 copies its attribute)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), GlobalIndexKey("GSI1", PartitionKey = "ALL", Include = [nameof(E.Firmware)]), GlobalIndexKey("GSI2", PartitionKey = "B", SortKey = "{Firmware}")]
+            public partial class E { public required string Id { get; init; } public required string Firmware { get; init; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
     public async Task Build_NullableInputInASparseIndex_ReportsNothing()
     {
         // Arrange

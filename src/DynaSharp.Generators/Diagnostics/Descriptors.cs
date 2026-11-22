@@ -285,6 +285,15 @@ internal static class Descriptors
         true,
         helpLinkUri: EntityHelp);
 
+    public static readonly DiagnosticDescriptor IndexProjectionLeavesOutRequired = new(
+        "DYNA047",
+        "Index projection leaves out a required property",
+        "Index '{0}' leaves out {1}, which a read of '{2}' requires, so a typed read of the index throws DynamoDbMappingException. Add it to Include, make it not required, or read the index with Select(...) or without a model.",
+        Mapping,
+        DiagnosticSeverity.Warning,
+        true,
+        helpLinkUri: EntityHelp);
+
     public static readonly DiagnosticDescriptor EnumStoredNameNotInKey = new(
         "DYNA125",
         "Enum stored name does not fit the key",
@@ -842,7 +851,7 @@ internal static class Descriptors
         CommandOutlivesExpression, ReadCommandNotAwaitable, CommandDiscarded, CommandReused, WriteOfTableKeyInput, IfNotExistsOnVersionedPut, UndeclaredIndex, ProjectionLeavesOutRequired, SelectOfKeyInput, StringInNamePosition, PlaceholderInExpression, ExpressionSyntaxError, PathMatchesNoAttribute, InvalidPath, HandleOfAnotherType, TextFunctionOnNumber, NestedConflictRetry, VersionReadBeforeRetry, WriteOfComputedInputSource,
         ReservedWordInExpression, FilterOnLosslessKey, FilterOnLossyKey, OverlappingUpdatePaths, KeyOfAnotherAttribute, IncludedKeyDiffers, IndexKeyWithoutAllInputs, ValueWithoutFound,
         KeyOfAnotherEntity, NotAnEntity, ValueOfAnotherType, AddWithoutNumberOrSet, ItemMethodOnRead,
-        UnreachableSetter, NullReadsBackAsInitialValue, IfVersionOnPut, VersionedBatchWrite, DateTimeWithoutKind, InvalidTimeToLive, NoIncludingAll, NamedLikeEntitiesClass, InvalidTableName, TableKeysDiffer, NoDeclaredTable, UnsettledVersionByKey, ObliviousProperty, ByReferenceParameter, NameTakenOverByGeneratedClass, EnumStoredNameTaken, InvalidEnumStoredName, IneffectiveEnumName, EntityLeftOutOfTable, UpdateCreatesUnreadableItem, AddOnTimeToLive, SetOfMaybeNull,
+        UnreachableSetter, NullReadsBackAsInitialValue, IfVersionOnPut, VersionedBatchWrite, DateTimeWithoutKind, InvalidTimeToLive, NoIncludingAll, NamedLikeEntitiesClass, InvalidTableName, TableKeysDiffer, NoDeclaredTable, UnsettledVersionByKey, ObliviousProperty, ByReferenceParameter, NameTakenOverByGeneratedClass, EnumStoredNameTaken, InvalidEnumStoredName, IneffectiveEnumName, IndexProjectionLeavesOutRequired, EntityLeftOutOfTable, UpdateCreatesUnreadableItem, AddOnTimeToLive, SetOfMaybeNull,
     ];
 
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById = All.ToDictionary(descriptor => descriptor.Id);

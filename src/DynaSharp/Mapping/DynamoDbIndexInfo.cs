@@ -24,4 +24,7 @@ public sealed record DynamoDbIndexInfo(
 {
     /// <summary>Gets the name of the key builder of the partition key under <c>Keys</c>, for a message that says which one to use, or <see langword="null"/> for metadata that does not name it.</summary>
     public string? PartitionKeyBuilder { get; init; }
+
+    /// <summary>Gets the attributes the index copies besides the keys and the discriminator, empty for keys only, or <see langword="null"/> for every attribute.</summary>
+    public IReadOnlyList<string>? Include { get; init; }
 }

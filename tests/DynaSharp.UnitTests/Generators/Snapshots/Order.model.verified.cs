@@ -443,6 +443,7 @@ Entity: EntityModel
       Sparse: False
       IsLocal: False
       NullableInputs: []
+      Include: null
     - IndexModel
       IndexName: GSI2
       PartitionKey: KeyModel
@@ -502,6 +503,7 @@ Entity: EntityModel
       NullableInputs: 
         - TrackingId
         - ShippedAt
+      Include: null
   VersionProperty: Revision
   ComputedInputs: []
   TimeToLiveAttribute: null

@@ -36,7 +36,7 @@ An index holds only the items that have its key attributes, so an item without t
 
 ## Projection
 
-Two things with one name. The projection of an index says which attributes it copies, and `CreateTable()` copies all of them, see [Creating a table](tables.md#creating-a-table). The projection of a read says which attributes come back, which is what `Project(...)` asks for, see [Projections](expressions.md#projections).
+Two things with one name. The projection of an index says which attributes it copies, and `CreateTable()` copies all of them unless the index declares `Include`, see [Index projections](entities.md#index-projections). The projection of a read says which attributes come back, which is what `Project(...)` asks for, see [Projections](expressions.md#projections).
 
 ## Fan-out
 

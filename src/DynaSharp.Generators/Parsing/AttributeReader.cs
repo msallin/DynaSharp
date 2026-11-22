@@ -44,6 +44,12 @@ internal static class AttributeReader
             .SelectMany(static argument => argument.Values)
             .Select(static value => value.Value as string ?? string.Empty);
 
+    /// <summary>The strings of a named array argument, null when it is not set or is null, and an empty one for a null among them.</summary>
+    public static string[]? NamedTexts(AttributeData attribute, string name) =>
+        attribute.NamedArguments.FirstOrDefault(argument => argument.Key == name) is { Key: not null, Value: { IsNull: false } value }
+            ? [.. value.Values.Select(static element => element.Value as string ?? string.Empty)]
+            : null;
+
     /// <summary>The string of a named argument, or null.</summary>
     public static string? Named(AttributeData attribute, string name) =>
         attribute.NamedArguments.FirstOrDefault(argument => argument.Key == name).Value.Value as string;

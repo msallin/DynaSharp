@@ -106,6 +106,7 @@ DYNA043 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA044 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA045 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA046 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
+DYNA047 | https://msallin.github.io/DynaSharp/diagnostics.html#entities
 DYNA240 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA241 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
 DYNA242 | https://msallin.github.io/DynaSharp/diagnostics.html#commands
@@ -218,6 +219,7 @@ DYNA043 | Error | DynaSharp.Mapping | A generated class takes over a type name |
 DYNA044 | Error | DynaSharp.Mapping | Enum stored name is not one-to-one | Enum '{0}' stores '{1}' as '{2}', which is {3}, so a read of '{2}' cannot tell them apart. Give each value a stored name of its own.
 DYNA045 | Error | DynaSharp.Mapping | Enum stored name is invalid | [DynamoDbEnumName] on '{0}' {1}, which no attribute or key can hold. Give it a name of visible characters.
 DYNA046 | Warning | DynaSharp.Mapping | [DynamoDbEnumName] has no effect | [DynamoDbEnumName] on '{0}' changes nothing, because {1}
+DYNA047 | Warning | DynaSharp.Mapping | Index projection leaves out a required property | Index '{0}' leaves out {1}, which a read of '{2}' requires, so a typed read of the index throws DynamoDbMappingException. Add it to Include, make it not required, or read the index with Select(...) or without a model.
 DYNA240 | Warning | DynaSharp.Commands | Entity of the table left out of CreateTable | CreateTable() of '{0}' leaves out entities that declare the table '{1}' as well: {2}. The table is created without what they declare, such as their indexes. Add Including<T>() for each.
 DYNA241 | Warning | DynaSharp.Commands | Update may create an item the entity cannot read | If no item has this key, the Update creates one without {0}, and every read of '{1}' then throws DynamoDbMappingException. Call IfExists() to update only an item that exists, or set {0} as well.
 DYNA242 | Error | DynaSharp.Commands | Add on a time to live | '{0}' is the time to live, which DynamoDB stores as seconds since 1970, and Add cannot add to the instant it holds. Write the new expiry with Set({0}, expiry), or add seconds to the stored number with Add(Expr.Attr<long>("{1}"), seconds).

@@ -27,7 +27,7 @@ namespace DynaSharp;
 /// <para>
 /// A key template is a string, and a plain key is what its converter writes: a number, a binary value, or a string for anything else. A custom converter says what it writes only by implementing
 /// <see cref="Serialization.IAddableConverter"/>, which makes the key a number; any other counts as a string, so a custom converter that writes binary needs <see cref="ToRequest"/>. <see cref="Stream"/> and
-/// <see cref="TimeToLive(string)"/> cover those two. For tags, a storage class or a projection of fewer attributes, take <see cref="ToRequest"/> and send it through <c>DynaSharp.Requests</c>.
+/// <see cref="TimeToLive(string)"/> cover those two. An index projects every attribute, or what <see cref="Mapping.GlobalIndexKeyAttribute.Include"/> names. For tags or a storage class, take <see cref="ToRequest"/> and send it through <c>DynaSharp.Requests</c>.
 /// </para>
 /// <para>
 /// Unlike the commands on items, this is an ordinary class: a clause changes the command and returns it, it can be kept in a field and sent again, and it is not thread-safe. A
@@ -248,7 +248,7 @@ public sealed class CreateTableCommand
     /// </para>
     /// <para>
     /// What lets part of the code work is no exception, unless <see cref="FailOnDrift"/> asks for one, but <see cref="CreateTableResult.Drift"/>, which the command also logs once as a warning: an index the entities declare that the table lacks, or has with other keys
-    /// or as the other kind, time to live on another attribute than the one asked for, and, with <see cref="Stream"/> on the chain, a stream that is off or of another view. The command changes none of it, as the indexes
+    /// or as the other kind or with another projection, time to live on another attribute than the one asked for, and, with <see cref="Stream"/> on the chain, a stream that is off or of another view. The command changes none of it, as the indexes
     /// and the stream of a command reach only a table it creates: a global index goes in with <c>UpdateTable</c>, and a local one only with a new table. What the table has beyond the command, such as an index or
     /// time to live it does not ask for, is no drift, since other code may use it. A table that is still being created is success with that status. A <see cref="WaitUntilActive()"/> still fails over a table that
     /// lacks a global index this command declares. <see cref="CreateTableResult.Created"/> says whether the table was found.

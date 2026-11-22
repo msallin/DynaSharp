@@ -7,10 +7,12 @@ namespace DynaSharp.Generators;
 /// <param name="Sparse">Whether all key attributes of the index are left out when any input is null.</param>
 /// <param name="IsLocal">Whether the index is local.</param>
 /// <param name="NullableInputs">The properties, by <see cref="PropertyModel.Name"/>, that decide whether a sparse index is written.</param>
+/// <param name="Include">The attributes the projection names besides the keys and the discriminator, or null for all of them.</param>
 internal sealed record IndexModel(
     string IndexName,
     KeyModel PartitionKey,
     KeyModel? SortKey,
     bool Sparse,
     bool IsLocal,
-    EquatableArray<string> NullableInputs);
+    EquatableArray<string> NullableInputs,
+    EquatableArray<string>? Include);

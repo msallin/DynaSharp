@@ -93,7 +93,8 @@ internal static class EntityEmitter
         {
             var names = $"{CodeText.Literal(index.IndexName)}, {CodeText.Literal(index.PartitionKey.AttributeName)}, {CodeText.OptionalLiteral(index.SortKey?.AttributeName)}";
             var kind = $"{(index.Sparse ? "true" : "false")}, {(index.IsLocal ? "true" : "false")}";
-            var builder = $" {{ PartitionKeyBuilder = {CodeText.Literal(index.PartitionKey.BuilderName)} }}";
+            var include = index.Include is { } projected ? $", Include = new string[] {{ {string.Join(", ", projected.Select(static name => CodeText.Literal(name)))} }}" : string.Empty;
+            var builder = $" {{ PartitionKeyBuilder = {CodeText.Literal(index.PartitionKey.BuilderName)}{include} }}";
             code.Line($"new __Map.DynamoDbIndexInfo({names}, {kind}, {WireType(index.PartitionKey)}, {WireType(index.SortKey)}){builder},");
         }
 

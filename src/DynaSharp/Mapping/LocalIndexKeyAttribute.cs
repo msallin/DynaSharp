@@ -32,4 +32,10 @@ public sealed class LocalIndexKeyAttribute : Attribute
 
     /// <summary>Gets or sets the name of the attribute that holds the index sort key.</summary>
     public string? SortKeyAttributeName { get; set; }
+
+    /// <inheritdoc cref="GlobalIndexKeyAttribute.Include"/>
+    /// <remarks>
+    /// Works as <see cref="GlobalIndexKeyAttribute.Include"/> does. A local index exists only if the table was created with it, so its projection can change only with a new table and a move of the items.
+    /// </remarks>
+    public string[]? Include { get; set; }
 }

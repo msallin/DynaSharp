@@ -25,7 +25,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 | `DYNA015` | The project is below C# 11 | Raise `LangVersion` |
 | `DYNA016` | A type a member needs is less visible than the generated code | Make it as visible as the entity. The code fix does, on each type the property's type is made of that is less visible, where all of them are in source |
 | `DYNA017` | A key whose type DynamoDB cannot hold | Use a string, number or binary, or a converter |
-| `DYNA018` | An index that cannot exist, as the message says | Fix its name or keys |
+| `DYNA018` | An index that cannot exist, as the message says, or an `Include` that names no stored property | Fix its name, keys or list |
 | `DYNA019` | The type is outside a nullable context; a property outside one in a type that is inside is `DYNA041` | Enable nullable reference types. The code fix adds `#nullable enable` at the top of the file, or turns the `#nullable disable` above the type into `#nullable enable` |
 | `DYNA020` | An entity has no discriminator, the value stored in each item that tells which entity the item is, so that several entities can share a table | Add the suggested `[Discriminator("EMAIL_CLAIM")]` (for `EmailClaim`: its name in upper snake case), or `[Discriminator(OptOut = true)]` for a table other tools write. `[assembly: DynamoDbDefaults(DiscriminatorOptOut = true)]`, also named in the message, does that for every entity of a project. The code fix offers the three; the last sets `DiscriminatorOptOut = true` on the `[assembly: DynamoDbDefaults]` the project has, or adds one beside its other attributes of the assembly or in the entity's file |
 | `DYNA021` | A plain key is `[DynamoDbIgnore]` | Remove one of the two; the code fix offers each |
@@ -126,6 +126,11 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 `DYNA046` (warning): `[DynamoDbEnumName]` on a member of an enum whose generated converter does not store names: a `[Flags]` enum is stored as a number, and an enum with its own `[DynamoDbConverter]` is written by that converter. Reported on the attribute, whether a type uses the enum or not.
 
 - **Fix.** Remove the attribute, or store the name in the converter. The code fix removes it.
+
+`DYNA047` (warning): an index with `Include` that leaves out a property a read of the entity requires, such as `Include = [nameof(Name)]` on an entity with `public required string Firmware`. A typed read of the index gets the keys, the discriminator and what `Include` names, so it throws `DynamoDbMappingException` for the missing property. Reported on `Include`.
+
+- **Fix.** Add the property to `Include`, make it not required (nullable, or with an initial value that is safe to keep), or read the index with `Select(...)` or [without a model](without-a-model.md) and suppress the warning.
+- **Not reported.** An input of a key that holds it without loss, which a read parses from that key, and a `[KeyOnly]` property.
 
 ## Key templates
 
