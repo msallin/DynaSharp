@@ -590,6 +590,7 @@ internal sealed class EntityKeyBuilder(
     }
 
     // DYNA047. A read of the index gets the keys, the discriminator and what Include names; a required property outside them fails the read, unless a key it is an input of gives it back.
+    // A [KeyOnly] property is no stored one and has only the key it is restored from, which may belong to another index.
     private void ReportProjectionsThatLeaveOutRequired(List<IndexModel> indexes, KeyModel partition, KeyModel? sort, string? discriminator)
     {
         foreach (var index in indexes)
@@ -603,6 +604,7 @@ internal sealed class EntityKeyBuilder(
             projected.UnionWith(new[] { sort?.AttributeName, index.SortKey?.AttributeName, discriminator }.OfType<string>());
             var missing = _stored.Values
                 .Where(property => ModelBuilder.MissingOf(property) == MissingBehavior.Throw && !projected.Contains(property.AttributeName) && (property.FallbackKey is not { } fallback || !projected.Contains(fallback)))
+                .Concat(properties.Where(property => property.KeyOnly is not null && property.RestoredFromKey is { } key && !projected.Contains(key) && ModelBuilder.MissingOf(property) == MissingBehavior.Throw))
                 .Select(static property => $"'{property.Name}'")
                 .ToList();
             if (missing.Count > 0)

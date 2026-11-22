@@ -103,28 +103,37 @@ public sealed class TableSchemaTests
     }
 
     [Test]
-    [Arguments("the same, in another order", "INCLUDE", "_type,total", "")]
     [Arguments("ALL where it names some", "ALL", "", "so every write copies the other attributes into it as well")]
     [Arguments("more than it names", "INCLUDE", "total,_type,note", "so every write copies note into it as well")]
     [Arguments("less than it names", "INCLUDE", "_type", "so it lacks total.")]
-    [Arguments("an unknown projection", "", "", "")]
     [Arguments("INCLUDE without attributes", "INCLUDE", "", "with a projection of INCLUDE (), which lacks _type")]
     public async Task Check_ProjectionOfTheTable_ReportsWhatDiffersFromInclude(string name, string type, string attributes, string differs)
     {
         // Arrange (the entity includes total, and the discriminator joins it)
         var schema = new TableSchema("Shop", "pk", "sk");
         schema.Add("First", Entity(Index with { Include = ["total"] }, "_type"));
-        var projection = new IndexProjection
-        {
-            ProjectionType = type switch { "ALL" => ProjectionType.All, "INCLUDE" => ProjectionType.Include, _ => ProjectionType.Unknown },
-            NonKeyAttributes = string.IsNullOrEmpty(attributes) ? null : attributes.Split(','),
-        };
 
         // Act
-        var drift = schema.Check("Shop", Described(projection));
+        var drift = schema.Check("Shop", Described(Projection(type, attributes)));
 
         // Assert
-        await Assert.That(drift.Count == 0 ? string.Empty : drift.Single().Description).Contains(differs).Because(name);
+        await Assert.That(drift.Single().Description).Contains(differs).Because(name);
+    }
+
+    [Test]
+    [Arguments("the same, in another order", "INCLUDE", "_type,total")]
+    [Arguments("an unknown projection", "", "")]
+    public async Task Check_ProjectionOfTheTableThatFitsInclude_ReportsNothing(string name, string type, string attributes)
+    {
+        // Arrange
+        var schema = new TableSchema("Shop", "pk", "sk");
+        schema.Add("First", Entity(Index with { Include = ["total"] }, "_type"));
+
+        // Act
+        var drift = schema.Check("Shop", Described(Projection(type, attributes)));
+
+        // Assert
+        await Assert.That(drift).IsEmpty().Because(name);
     }
 
     [Test]
@@ -180,6 +189,12 @@ public sealed class TableSchemaTests
         discriminatorAttributeName is null
             ? new DynamoDbEntityInfo(null, "pk", "sk", [index])
             : new DynamoDbEntityInfo("X", "pk", "sk", [index], discriminatorAttributeName: discriminatorAttributeName);
+
+    private static IndexProjection Projection(string type, string? attributes) => new()
+    {
+        ProjectionType = type switch { "ALL" => ProjectionType.All, "INCLUDE" => ProjectionType.Include, _ => ProjectionType.Unknown },
+        NonKeyAttributes = string.IsNullOrEmpty(attributes) ? null : attributes.Split(','),
+    };
 
     private static IndexProjection Included(params string[] attributes) => new() { ProjectionType = ProjectionType.Include, NonKeyAttributes = attributes };
 

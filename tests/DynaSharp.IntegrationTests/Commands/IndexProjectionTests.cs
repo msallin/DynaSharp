@@ -9,16 +9,16 @@ namespace DynaSharp.IntegrationTests.Commands;
 public sealed class IndexProjectionTests(Backend backend)
 {
     [Test]
-    public async Task CreateTable_Include_ProjectsItAndTheDiscriminatorAndATypedReadFindsTheItem()
+    public async Task CreateTable_Include_ProjectsItAndTheDiscriminatorAndATypedReadOfTheIndexFindsTheItem()
     {
         // Arrange
         await using var sandbox = await Sandbox.StartAsync(backend);
         var gadgets = sandbox.Client.Table<ListedGadget>(Tables.UniqueName());
 
-        // Act
+        // Act (a local index reads consistently, so the item is there at once; a global one shows it only once it propagates)
         var created = await sandbox.CreateTableAsync(gadgets, gadgets.CreateTable().WaitUntilActive());
         await gadgets.Put(new ListedGadget { Id = "1", Name = "Scale", Firmware = "2.1" }).SendAsync();
-        var listed = await gadgets.Index(ListedGadget.Indexes.DeviceList).Query(ListedGadget.Keys.DeviceListPk.Of()).ItemsAsync().ToListAsync();
+        var listed = await gadgets.Index(ListedGadget.Indexes.ByFirmware).Query(ListedGadget.Keys.Pk.Of("1")).Consistent().ItemsAsync().ToListAsync();
 
         // Assert
         var global = created.Table.GlobalSecondaryIndexes.Single().Projection!;

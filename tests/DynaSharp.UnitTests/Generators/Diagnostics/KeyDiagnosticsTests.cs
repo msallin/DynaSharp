@@ -512,6 +512,38 @@ public sealed class KeyDiagnosticsTests
     }
 
     [Test]
+    public async Task Build_IncludeWithoutTheKeyAKeyOnlyPropertyIsRestoredFrom_ReportsDyna047()
+    {
+        // Arrange (Email is restored from the key of ByEmail alone, which ByStatus lacks, and Include cannot name it)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), GlobalIndexKey("ByEmail", PartitionKey = "EMAIL#{Email}"), GlobalIndexKey("ByStatus", PartitionKey = "STATUS#{Status}", Include = [|[]|])]
+            public partial class E { public required string Id { get; init; } [KeyOnly] public required string Email { get; init; } public required string Status { get; init; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA047 Warning: Index 'ByStatus' leaves out 'Email', which a read of 'E' requires, so a typed read of the index throws DynamoDbMappingException. Add it to Include, make it not required, or read the index with Select(...) or without a model."));
+    }
+
+    [Test]
+    public async Task Build_IncludeOfTheIndexAKeyOnlyPropertyIsRestoredFrom_ReportsNothing()
+    {
+        // Arrange (ByEmail has its own key, so a read of it restores Email)
+        const string Source = """
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("E#{Id}"), GlobalIndexKey("ByEmail", PartitionKey = "EMAIL#{Email}", Include = [])]
+            public partial class E { public required string Id { get; init; } [KeyOnly] public required string Email { get; init; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
     public async Task Build_IncludeOfAPropertyWhoseFallbackKeyIsAnotherIndex_ReportsNothing()
     {
         // Arrange (Firmware falls back on the key of GSI2, which GSI1 lacks, and GSI1 copies its attribute)

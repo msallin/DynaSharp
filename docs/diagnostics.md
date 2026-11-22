@@ -130,7 +130,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 `DYNA047` (warning): an index with `Include` that leaves out a property a read of the entity requires, such as `Include = [nameof(Name)]` on an entity with `public required string Firmware`. A typed read of the index gets the keys, the discriminator and what `Include` names, so it throws `DynamoDbMappingException` for the missing property. Reported on `Include`.
 
 - **Fix.** Add the property to `Include`, make it not required (nullable, or with an initial value that is safe to keep), or read the index with `Select(...)` or [without a model](without-a-model.md) and suppress the warning.
-- **Not reported.** An input of a key that holds it without loss, which a read parses from that key, and a `[KeyOnly]` property.
+- **Not reported.** An input of a key that holds it without loss, which a read parses from that key, and a `[KeyOnly]` property, where the index has that key: the key of the table or one of its own. A `[KeyOnly]` property restored from the key of another index is reported, since `Include` cannot name it: make it not required, or read the index another way.
 
 ## Key templates
 
