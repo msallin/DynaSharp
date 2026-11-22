@@ -100,7 +100,7 @@ public ref struct KeyWriter
     /// </summary>
     public void WriteUpperBound() => WriteLiteral([0xF4, 0x8F, 0xBF, 0xBF]);
 
-    /// <summary>Appends a string as UTF-8, validated: not null or empty, well-formed UTF-16, no control character, no delimiter, no U+10FFFF. Sorts by UTF-8 bytes, that is by code point, not by culture.</summary>
+    /// <summary>Appends a string as UTF-8, validated: not null or empty, well-formed UTF-16, and, unless it is the whole key, no control character, no delimiter, no U+10FFFF. Sorts by UTF-8 bytes, that is by code point, not by culture.</summary>
     /// <param name="value">The value. Null counts as empty.</param>
     /// <param name="delimiters">The delimiters of the template.</param>
     /// <param name="placeholder">The name of the placeholder, for the exception.</param>
@@ -402,7 +402,7 @@ public ref struct KeyWriter
     // Validates text that is not in the buffer yet, then appends it.
     private void Append(scoped ReadOnlySpan<byte> text, scoped ReadOnlySpan<byte> delimiters, string placeholder)
     {
-        var problem = KeyText.Inspect(text, delimiters);
+        var problem = KeyText.Inspect(text, delimiters, IsWholeKey(delimiters));
         if (problem != SegmentProblem.None)
         {
             Reject(placeholder, problem);
@@ -416,7 +416,7 @@ public ref struct KeyWriter
     // Validates text that a formatter has written after the written part, then keeps it.
     private void Commit(int written, scoped ReadOnlySpan<byte> delimiters, string placeholder)
     {
-        var problem = KeyText.Inspect(_buffer.Slice(_length, written), delimiters);
+        var problem = KeyText.Inspect(_buffer.Slice(_length, written), delimiters, IsWholeKey(delimiters));
         if (problem != SegmentProblem.None)
         {
             Reject(placeholder, problem);
@@ -425,6 +425,9 @@ public ref struct KeyWriter
 
         _length += written;
     }
+
+    // A segment without delimiters ends the key, since no placeholder may follow a variable-width one directly (DYNA106), so one that starts it is all of it.
+    private readonly bool IsWholeKey(scoped ReadOnlySpan<byte> delimiters) => _length == 0 && delimiters.IsEmpty;
 
     // The one place a value is turned away, so that a writer that throws and one that does not reject the same values. Nothing is built for one that does not throw.
     private void Reject(string placeholder, SegmentProblem problem)

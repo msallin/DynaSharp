@@ -57,7 +57,55 @@ public sealed class KeyReaderTests
         // Act
         var result = ReadAll(
             "a\u0001b"u8,
-            static (ref KeyReader reader) => !reader.TryReadString(default, out var value) && value is null && reader.TryReadLiteral("a"u8));
+            static (ref KeyReader reader) => !reader.TryReadString("#"u8, out var value) && value is null && reader.TryReadLiteral("a"u8));
+
+        // Assert
+        await Assert.That(result).IsTrue();
+    }
+
+    [Test]
+    [Arguments("a\u0001b")]
+    [Arguments("a\U0010FFFFb")]
+    public async Task TryReadString_WholeKey_TakesWhatOnlyATemplateRefuses(string text)
+    {
+        // Arrange
+        var utf8 = Encoding.UTF8.GetBytes(text);
+
+        // Act
+        var result = ReadAll(utf8, (ref KeyReader reader) => reader.TryReadString(default, out var value) && value == text && reader.IsAtEnd);
+
+        // Assert
+        await Assert.That(result).IsTrue();
+    }
+
+    [Test]
+    public async Task TryReadString_WholeKeyThatIsIllFormed_ReturnsFalse()
+    {
+        // Arrange
+        // Act
+        var result = ReadAll([0xED, 0xA0, 0x80], static (ref KeyReader reader) => !reader.TryReadString(default, out _));
+
+        // Assert
+        await Assert.That(result).IsTrue();
+    }
+
+    [Test]
+    public async Task TryReadString_RawAfterALiteral_RefusesAControlCharacter()
+    {
+        // Arrange
+        // Act
+        var result = ReadAll("A#a\u0001b"u8, static (ref KeyReader reader) => reader.TryReadLiteral("A#"u8) && !reader.TryReadString(default, out _));
+
+        // Assert
+        await Assert.That(result).IsTrue();
+    }
+
+    [Test]
+    public async Task TryReadParsable_WholeKey_TakesAControlCharacter()
+    {
+        // Arrange
+        // Act
+        var result = ReadAll("a\u0001b"u8, static (ref KeyReader reader) => reader.TryReadParsable<RawText>(default, out var value) && value.Text == "a\u0001b");
 
         // Assert
         await Assert.That(result).IsTrue();

@@ -193,7 +193,7 @@ The source generator reports these on key templates. The grammar is under [Key g
 
 - **Fix.** Add a member, or write the value with `d<w>`: `{Status:d1}`, which the code fix writes.
 
-`DYNA125` (error): a placeholder without a format of an enum with a stored name that no key of the template can hold: one that holds a delimiter of the template, such as `[DynamoDbEnumName("LOADING#UNIT")]` under `{Owner}#{Key}`, a control character, U+10FFFF or text that is not well-formed. Every key of that member throws `KeyFormatException`, so every write of it does too.
+`DYNA125` (error): a placeholder without a format of an enum with a stored name that no key of the template can hold: one that holds a delimiter of the template, such as `[DynamoDbEnumName("LOADING#UNIT")]` under `{Owner}#{Key}`, a control character, U+10FFFF or text that is not well-formed. A template of one bare placeholder, `{Kind}`, takes a control character and U+10FFFF, so only an empty name or text that is not well-formed is reported there. Every key of that member throws `KeyFormatException`, so every write of it does too.
 
 - **Fix.** Change the stored name, or write the value with `d<w>`, which ignores the name.
 - **Not reported.** A placeholder with `d<w>`. A delimiter of another template, which the enum does not stand in.

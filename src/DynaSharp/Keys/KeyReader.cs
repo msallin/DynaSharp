@@ -27,6 +27,8 @@ namespace DynaSharp.Keys;
 [EditorBrowsable(EditorBrowsableState.Never)]
 public ref struct KeyReader
 {
+    private readonly int _length;
+
     private ReadOnlySpan<byte> _remaining;
 
     /// <summary>Initializes a new instance of the <see cref="KeyReader"/> struct.</summary>
@@ -34,6 +36,7 @@ public ref struct KeyReader
     public KeyReader(ReadOnlySpan<byte> utf8Text)
     {
         _remaining = utf8Text;
+        _length = utf8Text.Length;
     }
 
     /// <summary>Gets a value indicating whether all of the text has been read.</summary>
@@ -53,7 +56,7 @@ public ref struct KeyReader
         return true;
     }
 
-    /// <summary>Reads a string segment: not empty, well-formed UTF-8, no control character, no delimiter, no U+10FFFF.</summary>
+    /// <summary>Reads a string segment: not empty, well-formed UTF-8, and, unless it is the whole key, no control character, no delimiter, no U+10FFFF.</summary>
     /// <param name="delimiters">The delimiters of the template, which end the segment.</param>
     /// <param name="value">The string.</param>
     /// <returns><see langword="true"/> if there is a valid segment.</returns>
@@ -76,7 +79,7 @@ public ref struct KeyReader
     public bool TryReadUtf8Value(scoped ReadOnlySpan<byte> delimiters, out ReadOnlySpan<byte> value)
     {
         var segment = Segment(delimiters);
-        if (KeyText.Inspect(segment, delimiters) != SegmentProblem.None)
+        if (KeyText.Inspect(segment, delimiters, IsWholeKey(delimiters)) != SegmentProblem.None)
         {
             value = default;
             return false;
@@ -314,7 +317,7 @@ public ref struct KeyReader
     {
         value = default;
         var segment = Segment(delimiters);
-        if (KeyText.Inspect(segment, delimiters) != SegmentProblem.None
+        if (KeyText.Inspect(segment, delimiters, IsWholeKey(delimiters)) != SegmentProblem.None
             || !T.TryParse(segment, CultureInfo.InvariantCulture, out var parsed)
             || !FormatsAs(parsed, segment))
         {
@@ -364,6 +367,9 @@ public ref struct KeyReader
         _remaining = _remaining[segment.Length..];
         return true;
     }
+
+    // As in KeyWriter: a segment without delimiters runs to the end, so one that starts the text is all of it.
+    private readonly bool IsWholeKey(scoped ReadOnlySpan<byte> delimiters) => _remaining.Length == _length && delimiters.IsEmpty;
 
     // Everything up to the first delimiter, or to the end.
     private readonly ReadOnlySpan<byte> Segment(scoped ReadOnlySpan<byte> delimiters)

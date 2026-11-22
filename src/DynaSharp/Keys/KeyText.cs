@@ -58,8 +58,9 @@ internal static class KeyText
     /// <summary>Finds what keeps <paramref name="text"/> from being a segment of a key.</summary>
     /// <param name="text">The UTF-8 text of one placeholder.</param>
     /// <param name="delimiters">The delimiters of the template; ASCII, so a byte search is exact.</param>
+    /// <param name="isWholeKey">Whether the segment is all of the key, as in a template of one bare placeholder.</param>
     /// <returns>The first problem, or <see cref="SegmentProblem.None"/>.</returns>
-    internal static SegmentProblem Inspect(ReadOnlySpan<byte> text, scoped ReadOnlySpan<byte> delimiters)
+    internal static SegmentProblem Inspect(ReadOnlySpan<byte> text, scoped ReadOnlySpan<byte> delimiters, bool isWholeKey)
     {
         if (text.IsEmpty)
         {
@@ -69,6 +70,13 @@ internal static class KeyText
         if (!Utf8.IsValid(text))
         {
             return SegmentProblem.NotWellFormed;
+        }
+
+        // The rest protects the structure of a template: delimiters, and the U+10FFFF of an upper bound after a prefix. A key of one
+        // value has neither, so it takes what DynamoDB takes, as a plain key and an index key over the property's own attribute do.
+        if (isWholeKey)
+        {
+            return SegmentProblem.None;
         }
 
         if (text.IndexOfAnyInRange((byte)0x00, (byte)0x1F) >= 0)

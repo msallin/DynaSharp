@@ -324,6 +324,71 @@ public sealed class KeyWriterTests
     }
 
     [Test]
+    [Arguments("a\u0001b")]
+    [Arguments("a\U0010FFFFb")]
+    public async Task WriteString_WholeKey_TakesWhatOnlyATemplateRefuses(string value)
+    {
+        // Arrange
+        // Act
+        var written = Text((ref KeyWriter writer) => writer.WriteString(value, default, Name));
+
+        // Assert
+        await Assert.That(written).IsEqualTo(value);
+    }
+
+    [Test]
+    [Arguments("")]
+    [Arguments("a\uD800b")]
+    public async Task WriteString_WholeKeyEmptyOrIllFormed_ThrowsKeyFormatException(string value)
+    {
+        // Arrange
+        // Act
+        var act = () => Write((ref KeyWriter writer) => writer.WriteString(value, default, Name));
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<KeyFormatException>().WithParameterName(Name);
+    }
+
+    [Test]
+    public async Task WriteString_RawAfterALiteral_RefusesAControlCharacter()
+    {
+        // Arrange
+        // Act
+        var act = () => Write((ref KeyWriter writer) =>
+        {
+            writer.WriteLiteral("A#"u8);
+            writer.WriteString("a\u0001b", default, Name);
+        });
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<KeyFormatException>().WithParameterName(Name);
+    }
+
+    [Test]
+    public async Task WriteUtf8Value_WholeKey_TakesAControlCharacter()
+    {
+        // Arrange
+        // Act
+        var written = Text((ref KeyWriter writer) => writer.WriteUtf8Value("a\u0001b"u8, default, Name));
+
+        // Assert
+        await Assert.That(written).IsEqualTo("a\u0001b");
+    }
+
+    [Test]
+    public async Task WriteFormattable_WholeKey_TakesAControlCharacter()
+    {
+        // Arrange
+        var value = new RawText("a\u0001b");
+
+        // Act
+        var written = Text((ref KeyWriter writer) => writer.WriteFormattable(value, default, Name));
+
+        // Assert
+        await Assert.That(written).IsEqualTo("a\u0001b");
+    }
+
+    [Test]
     public async Task WriteFormattable_IllFormedUtf8_ThrowsKeyFormatException()
     {
         // Arrange

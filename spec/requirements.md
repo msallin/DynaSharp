@@ -226,6 +226,11 @@ silence. Case folding and normalization are never applied: ElectroDB's default l
   of other keys. A value that is not well-formed UTF-16 throws, because lone surrogates collapse into U+FFFD and two
   different strings would share a key. U+0000 to U+001F throw too, and so does U+10FFFF, which `UpperBound` reserves. Keys over 2048 bytes (partition) or 1024 bytes (sort)
   are left to DynamoDB to reject.
+- A template that is one bare placeholder, such as `{ListOrder}`, has no delimiter and no `UpperBound`, so its value meets only
+  the first two rules: not empty, well-formed. U+0000 to U+001F and U+10FFFF are fine there, as DynamoDB takes them and as
+  the same placeholder over the property's own attribute (a key that writes nothing extra) always took them, so naming
+  the attribute or not never decides what a value may hold. The writer and the reader tell such a segment by the same
+  sign: no delimiters, at the start of the key, which `DYNA106` makes the whole key.
 - `Format`, `Prefix` at every depth, `UpperBound`, `Of`, `Keys.Of` and `Parse` validate alike, at the call. Violations throw
   `KeyFormatException`, an `ArgumentException` naming the placeholder and never the value, so a key built from user input
   fails as a bad argument. `TryOf` returns `null` for exactly those values, without an exception.

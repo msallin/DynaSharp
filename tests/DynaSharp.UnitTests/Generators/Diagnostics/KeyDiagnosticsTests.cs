@@ -1008,6 +1008,40 @@ public sealed class KeyDiagnosticsTests
     }
 
     [Test]
+    public async Task Build_StoredNameWithTheHighestScalarInABareTemplate_ReportsNothing()
+    {
+        // Arrange (a key of one value has no upper bound to reserve U+10FFFF for)
+        const string Source = """
+            public enum Mode { [DynamoDbEnumName("A\uDBFF\uDFFF")] A, B }
+            [DynamoDbEntity, Discriminator("E"), PartitionKey("{Status}")]
+            public partial class E { public Mode Status { get; set; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEmpty();
+    }
+
+    [Test]
+    public async Task Build_StoredNameIllFormedInABareTemplate_ReportsDyna125()
+    {
+        // Arrange (a lone surrogate is no text in any key)
+        const string Source = """
+            public enum Mode { [DynamoDbEnumName("A\uD800")] A, B }
+            [DynamoDbEntity, Discriminator("E"), PartitionKey([|"{Status}"|])]
+            public partial class E { public Mode Status { get; set; } }
+            """;
+
+        // Act
+        var report = Analysis.Report(Source);
+
+        // Assert
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA125 Error: Placeholder 'Status' writes the stored name 'A\uD800' of enum 'Shop.Mode', which is not well-formed text, so every key of that member throws KeyFormatException. Change the stored name, or use d<w>."));
+    }
+
+    [Test]
     public async Task Build_StoredNameWithADelimiterUnderD1_ReportsNothing()
     {
         // Arrange (d<w> writes the value and ignores the name)

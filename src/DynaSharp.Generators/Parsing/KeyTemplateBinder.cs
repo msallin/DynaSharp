@@ -168,7 +168,7 @@ internal static class KeyTemplateBinder
 
             foreach (var name in encoding.StoredNames)
             {
-                if (WhyNotInKey(name, delimiters) is { } reason)
+                if (WhyNotInKey(name, delimiters, isWholeKey: segments.Count == 1) is { } reason)
                 {
                     problems.Add(new KeyProblem(Descriptors.EnumStoredNameNotInKey, [placeholder.Property, name, encoding.EnumType.Replace("global::", string.Empty), reason], KeepsModel: true));
                 }
@@ -176,8 +176,8 @@ internal static class KeyTemplateBinder
         }
     }
 
-    // What KeyText.Inspect refuses of a value, in its order: an empty one, one that is no well-formed text, a control character, a delimiter, and U+10FFFF.
-    private static string? WhyNotInKey(string name, string delimiters)
+    // What KeyText.Inspect refuses of a value, in its order: an empty one, one that is no well-formed text, and, unless the value is the whole key, a control character, a delimiter, and U+10FFFF.
+    private static string? WhyNotInKey(string name, string delimiters, bool isWholeKey)
     {
         if (name.Length == 0)
         {
@@ -194,6 +194,11 @@ internal static class KeyTemplateBinder
             {
                 return "is not well-formed text";
             }
+        }
+
+        if (isWholeKey)
+        {
+            return null;
         }
 
         if (name.Any(static character => character < ' '))

@@ -17,7 +17,7 @@ namespace DynaSharp.Mapping;
 /// stored as an attribute of its own as well, so without it every item gets an extra <c>Key</c>, and nothing says so.
 /// </para>
 /// <para>
-/// <c>raw</c> lifts the delimiter check and nothing else. An empty value, a lone surrogate, a control character and U+10FFFF still throw <see cref="KeyFormatException"/>, on a write and through <c>Keys.Of</c> on a read, so
+/// <c>raw</c> lifts the delimiter check and nothing else. An empty value, a lone surrogate, a control character and U+10FFFF still throw <see cref="KeyFormatException"/>, on a write and through <c>Keys.Of</c> on a read (a template that is one bare placeholder refuses only the first two), so
 /// <c>Keys.TryOf</c> is the tool for a value from outside. A stored key that holds one does not fit the template, and a read that restores an input from it throws <see cref="DynamoDbMappingException"/>.
 /// </para>
 /// <para>
