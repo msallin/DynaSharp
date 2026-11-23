@@ -25,8 +25,9 @@ internal sealed class DiagnosticBag
 
     /// <summary>
     /// Reports an error that leaves the model whole, so the type is generated beside it and every use of it compiles: only the error fails the build, not the <c>CS0311</c> and <c>CS0426</c> a missing
-    /// <c>Keys</c> would add on each use. That holds for a missing discriminator alone, whose model is the one of an opt-out, and for a key format that does not fit its type or is out of range,
-    /// whose placeholder takes the default encoding of the type. Every other error means that some part of the model cannot be built.
+    /// <c>Keys</c> would add on each use. That holds for a missing discriminator alone (<c>DYNA020</c>), whose model is the one of an opt-out; for a key format that does not fit its type or is
+    /// out of range (<c>DYNA104</c>, <c>DYNA105</c>), whose placeholder takes the default encoding of the type; and for a placeholder that keeps its encoding although some of its values would not
+    /// make the key the author meant (<c>DYNA125</c>, <c>DYNA126</c>). Every other error means that some part of the model cannot be built.
     /// </summary>
     /// <param name="descriptor">The descriptor, an error.</param>
     /// <param name="spot">Where it is.</param>
