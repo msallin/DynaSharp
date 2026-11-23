@@ -12,11 +12,9 @@ namespace DynaSharp.Generators;
 /// <param name="isEntity">Whether the properties belong to an entity, where an entity stored as a document is DYNA031.</param>
 internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, ProjectDefaults defaults, bool isEntity)
 {
-    private const string Serialization = "global::DynaSharp.Serialization.";
+    private const string AttributeValueConverter = CodeText.Serialization + "AttributeValueConverter";
 
-    private const string AttributeValueConverter = Serialization + "AttributeValueConverter";
-
-    private const string NumberConverter = Serialization + "NumberConverter";
+    private const string NumberConverter = CodeText.Serialization + "NumberConverter";
 
     private const string DefaultHint = "Add a [DynamoDbConverter] or use a supported type";
 
@@ -24,11 +22,11 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
 
     private const string ListHint = "Use IReadOnlyList<T>, or add a [DynamoDbConverter]";
 
-    private const string SetArrayConverter = Serialization + "SetArrayConverter<";
+    private const string SetArrayConverter = CodeText.Serialization + "SetArrayConverter<";
 
-    private const string EpochSecondsConverter = Serialization + "EpochSecondsConverter";
+    private const string EpochSecondsConverter = CodeText.Serialization + "EpochSecondsConverter";
 
-    private const string BoolAsNumberConverter = Serialization + "BoolAsNumberConverter";
+    private const string BoolAsNumberConverter = CodeText.Serialization + "BoolAsNumberConverter";
 
     private static readonly HashSet<string> Numbers =
     [
@@ -39,22 +37,22 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
     // Everything with a key-compatible wire type, that is S, N or B. bool, AttributeValue and JsonElement are added to the full table below.
     private static readonly Dictionary<string, string> KeyScalars = new()
     {
-        ["string"] = Serialization + "StringConverter",
-        ["global::System.Guid"] = Serialization + "GuidConverter",
-        ["global::System.DateTimeOffset"] = Serialization + "DateTimeOffsetConverter",
-        ["global::System.DateTime"] = Serialization + "DateTimeConverter",
-        ["global::System.DateOnly"] = Serialization + "DateOnlyConverter",
-        ["global::System.TimeOnly"] = Serialization + "TimeOnlyConverter",
-        ["global::System.TimeSpan"] = Serialization + "TimeSpanConverter",
-        ["byte[]"] = Serialization + "BinaryConverter",
-        ["global::System.ReadOnlyMemory<byte>"] = Serialization + "ReadOnlyMemoryConverter",
+        ["string"] = CodeText.Serialization + "StringConverter",
+        ["global::System.Guid"] = CodeText.Serialization + "GuidConverter",
+        ["global::System.DateTimeOffset"] = CodeText.Serialization + "DateTimeOffsetConverter",
+        ["global::System.DateTime"] = CodeText.Serialization + "DateTimeConverter",
+        ["global::System.DateOnly"] = CodeText.Serialization + "DateOnlyConverter",
+        ["global::System.TimeOnly"] = CodeText.Serialization + "TimeOnlyConverter",
+        ["global::System.TimeSpan"] = CodeText.Serialization + "TimeSpanConverter",
+        ["byte[]"] = CodeText.Serialization + "BinaryConverter",
+        ["global::System.ReadOnlyMemory<byte>"] = CodeText.Serialization + "ReadOnlyMemoryConverter",
     };
 
     private static readonly Dictionary<string, string> OtherScalars = new()
     {
-        ["bool"] = Serialization + "BoolConverter",
+        ["bool"] = CodeText.Serialization + "BoolConverter",
         ["global::DynaSharp.AttributeValue"] = AttributeValueConverter,
-        ["global::System.Text.Json.JsonElement"] = Serialization + "JsonElementConverter",
+        ["global::System.Text.Json.JsonElement"] = CodeText.Serialization + "JsonElementConverter",
     };
 
     private static readonly Dictionary<string, string> Lists = new()
@@ -125,7 +123,7 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
         }
 
         // A built-in named in the attribute writes what it writes without the attribute.
-        return name.StartsWith(Serialization, StringComparison.Ordinal) ? WireTypeOf(inner) : KeyWireType.Unknown;
+        return name.StartsWith(CodeText.Serialization, StringComparison.Ordinal) ? WireTypeOf(inner) : KeyWireType.Unknown;
     }
 
     /// <summary>
@@ -144,7 +142,7 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
             return true;
         }
 
-        return converter is null || name!.StartsWith(Serialization, StringComparison.Ordinal) ? KeyInputCatalog.IsInteger(inner) : IsAddable(converter);
+        return converter is null || name!.StartsWith(CodeText.Serialization, StringComparison.Ordinal) ? KeyInputCatalog.IsInteger(inner) : IsAddable(converter);
     }
 
     /// <summary>The converter that the property, the type of its value or the assembly names for all of the value, which leaves a built-in out.</summary>
@@ -245,11 +243,11 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
     }
 
     private static string Wrapped(ITypeSymbol inner, string converter) =>
-        $"{Serialization}{(inner.IsValueType ? "NullableConverter" : "NullableReferenceConverter")}<{Names.Of(inner)}, {converter}>";
+        $"{CodeText.Serialization}{(inner.IsValueType ? "NullableConverter" : "NullableReferenceConverter")}<{Names.Of(inner)}, {converter}>";
 
     // What a handle wraps a converter in, which passes the question on through a type parameter: a member that a converter implements explicitly can only be reached that way.
     private static string NullableHandle(ITypeSymbol inner, string converter) =>
-        $"{Serialization}{(inner.IsValueType ? "NullableHandleConverter" : "NullableReferenceHandleConverter")}<{Names.Of(inner)}, {converter}>";
+        $"{CodeText.Serialization}{(inner.IsValueType ? "NullableHandleConverter" : "NullableReferenceHandleConverter")}<{Names.Of(inner)}, {converter}>";
 
     // Generated code calls Write on the type of the converter, and only a read goes through a type parameter. An explicit member cannot be called
     // that way, and the wrappers of null can: they take the value and pass it on through their own parameter.
@@ -366,7 +364,7 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
             bag.Report(Descriptors.EntityInsideEntity, property.Spot, property.Name, type.Name);
         }
 
-        return $"{Serialization}DocumentConverter<{code}>";
+        return $"{CodeText.Serialization}DocumentConverter<{code}>";
     }
 
     // A set that is an element is refused empty before it is written, since only a set property can be left out; see NonEmptySetConverter.
@@ -395,8 +393,8 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
                 return Unsupported(property, DefaultHint);
             }
 
-            var converter = $"{Serialization}{set}<{Names.Of(named.TypeArguments[0])}, {element}>";
-            return isElement ? $"{Serialization}NonEmptySetConverter<{Names.Of(named)}, {Names.Of(named.TypeArguments[0])}, {converter}>" : converter;
+            var converter = $"{CodeText.Serialization}{set}<{Names.Of(named.TypeArguments[0])}, {element}>";
+            return isElement ? $"{CodeText.Serialization}NonEmptySetConverter<{Names.Of(named)}, {Names.Of(named.TypeArguments[0])}, {converter}>" : converter;
         }
 
         if (Dictionaries.TryGetValue(definition, out var dictionary) && named.TypeArguments[0].SpecialType == SpecialType.System_String)
@@ -408,7 +406,7 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
     }
 
     private string? Element(string collection, ITypeSymbol element, PropertyFacts property) =>
-        Inner(element, property, isElement: true) is { } converter ? $"{Serialization}{collection}<{Names.Of(element)}, {converter}>" : null;
+        Inner(element, property, isElement: true) is { } converter ? $"{CodeText.Serialization}{collection}<{Names.Of(element)}, {converter}>" : null;
 
     // A DynamoDB set holds strings, numbers or binary and never null, so a nullable element has no converter.
     private string? SetElement(ITypeSymbol element)
@@ -436,10 +434,10 @@ internal sealed class ConverterResolver(EnumRegistry enums, DiagnosticBag bag, P
 
         return code switch
         {
-            "string" => Serialization + "StringSetElement",
-            "byte[]" => Serialization + "BinarySetElement",
-            "global::System.Guid" => Serialization + "GuidSetElement",
-            _ => Numbers.Contains(code) ? $"{Serialization}NumberSetElement<{code}>" : null,
+            "string" => CodeText.Serialization + "StringSetElement",
+            "byte[]" => CodeText.Serialization + "BinarySetElement",
+            "global::System.Guid" => CodeText.Serialization + "GuidSetElement",
+            _ => Numbers.Contains(code) ? $"{CodeText.Serialization}NumberSetElement<{code}>" : null,
         };
     }
 

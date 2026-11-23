@@ -19,7 +19,7 @@ internal sealed record EntityModel(
     string? VersionProperty,
     EquatableArray<ComputedInput> ComputedInputs,
     string? TimeToLiveAttribute,
-    string? TableName = null)
+    string? TableName)
 {
     /// <summary>Returns every key of the table and its indexes.</summary>
     /// <returns>The keys.</returns>

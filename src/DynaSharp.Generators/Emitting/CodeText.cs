@@ -15,6 +15,9 @@ internal static class CodeText
     /// </summary>
     public const string GeneratedCode = "[global::System.CodeDom.Compiler.GeneratedCode(\"DynaSharp.Generators\", \"" + GeneratorVersion + "\")]";
 
+    /// <summary>The namespace of the converters, readers and writers of the library, as generated code names it, up to the dot before a type.</summary>
+    public const string Serialization = "global::DynaSharp.Serialization.";
+
     /// <summary>A C# string literal: <c>a"b</c> gives <c>"a\"b"</c>.</summary>
     public static string Literal(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
 

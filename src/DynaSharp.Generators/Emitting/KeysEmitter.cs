@@ -130,7 +130,7 @@ internal static class KeysEmitter
         }
 
         code.Line("/// <inheritdoc/>");
-        code.Line("public void WriteKey(global::DynaSharp.Serialization.DynamoDbWriter writer)");
+        code.Line($"public void WriteKey({CodeText.Serialization}DynamoDbWriter writer)");
         code.Open();
         if (inputs.Count > 0)
         {

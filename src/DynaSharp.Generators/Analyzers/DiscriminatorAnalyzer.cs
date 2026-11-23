@@ -12,8 +12,6 @@ namespace DynaSharp.Generators;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 internal sealed class DiscriminatorAnalyzer : DiagnosticAnalyzer
 {
-    private const string DefaultAttributeName = "_type";
-
     /// <inheritdoc/>
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Descriptors.DuplicateDiscriminator];
 
@@ -36,7 +34,7 @@ internal sealed class DiscriminatorAnalyzer : DiagnosticAnalyzer
             && AttributeReader.Find(type, WellKnownNames.DiscriminatorAttribute) is { } attribute
             && AttributeReader.Text(attribute, 0) is { Length: > 0 } value)
         {
-            var attributeName = AttributeReader.Named(attribute, WellKnownNames.AttributeNameArgument) ?? DefaultAttributeName;
+            var attributeName = AttributeReader.Named(attribute, WellKnownNames.AttributeNameArgument) ?? ModelBuilder.DefaultDiscriminatorAttribute;
             claims.Add(new Claim(type.Name, attributeName, value, attribute.ApplicationSyntaxReference!.GetSyntax().GetLocation()));
         }
     }

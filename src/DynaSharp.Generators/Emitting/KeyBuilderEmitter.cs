@@ -392,7 +392,7 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
     private void EmitWrite()
     {
         var parameters = _placeholders.Count == 0 ? string.Empty : ", " + Signature(_placeholders);
-        code.Line($"internal static void Write(global::DynaSharp.Serialization.DynamoDbWriter __writer{parameters})");
+        code.Line($"internal static void Write({CodeText.Serialization}DynamoDbWriter __writer{parameters})");
         code.Open();
         if (_placeholders.Count == 0)
         {

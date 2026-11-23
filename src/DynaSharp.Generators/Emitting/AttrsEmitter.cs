@@ -14,8 +14,6 @@ internal static class AttrsEmitter
     /// <summary>The name of the converter of a version that takes an item without one for version 0. An entity has one version, so one name will do.</summary>
     public const string VersionConverter = ForwarderPrefix + "VersionConverter";
 
-    private const string Serialization = "global::DynaSharp.Serialization.";
-
     public static void Emit(IndentedCode code, TypeModel type)
     {
         var handles = type.Properties.Where(static property => property.Converter is not null && IsPlainName(property.AttributeName)).ToList();
@@ -63,7 +61,7 @@ internal static class AttrsEmitter
         converter = handle.OmitEmptyConverter is { } wrapper ? $"{wrapper}{converter}>" : converter;
 
         // A handle holds the type without its ?, for Set and the conditions, so this is the one place that tells a nullable property from another.
-        converter = handle.Converter.ReadConverter == handle.Converter.WriteConverter ? converter : $"{Serialization}{NullableHandle(handle)}<{handle.InnerValueType()}, {converter}>";
+        converter = handle.Converter.ReadConverter == handle.Converter.WriteConverter ? converter : $"{CodeText.Serialization}{NullableHandle(handle)}<{handle.InnerValueType()}, {converter}>";
         converter = handle.ReadsMissingAsZero ? VersionConverter : converter;
         code.Line($"/// <summary>The attribute <c>{CodeText.Xml(handle.AttributeName)}</c>.</summary>");
         code.Line($"{Accessibility(handle.IsPublic)} static global::DynaSharp.Attr<{handle.InnerValueType()}, {converter}> {handle.Identifier} => new({CodeText.Literal(handle.AttributeName)});");
@@ -72,7 +70,7 @@ internal static class AttrsEmitter
     // A nullable property reads through NullableConverter<T, C> if it is a value type and NullableReferenceConverter<T, C> if not. A model holds its converters as text so that it stays
     // comparable in an incremental pipeline, with no symbol left to ask, and the name that text starts with is what tells them apart.
     private static string NullableHandle(PropertyModel handle) =>
-        handle.Converter!.ReadConverter.StartsWith(Serialization + "NullableConverter<", StringComparison.Ordinal) ? "NullableHandleConverter" : "NullableReferenceHandleConverter";
+        handle.Converter!.ReadConverter.StartsWith(CodeText.Serialization + "NullableConverter<", StringComparison.Ordinal) ? "NullableHandleConverter" : "NullableReferenceHandleConverter";
 
     private static string Accessibility(bool isPublic) => isPublic ? "public" : "internal";
 
@@ -83,13 +81,13 @@ internal static class AttrsEmitter
         code.Line($"/// <summary>The converter of <c>{CodeText.Xml(version.Name)}</c>, which reads a missing attribute as 0.</summary>");
         code.Line(CodeText.GeneratedCode);
         code.Line("[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
-        code.Line($"{Accessibility(version.IsPublic)} readonly struct {VersionConverter} : {Serialization}IDynamoDbConverter<{type}>, {Serialization}IAddableConverter");
+        code.Line($"{Accessibility(version.IsPublic)} readonly struct {VersionConverter} : {CodeText.Serialization}IDynamoDbConverter<{type}>, {CodeText.Serialization}IAddableConverter");
         code.Open();
         code.Line("/// <inheritdoc/>");
-        code.Line($"public static void Write({Serialization}DynamoDbWriter writer, {type} value) => {converter}.Write(writer, value);");
+        code.Line($"public static void Write({CodeText.Serialization}DynamoDbWriter writer, {type} value) => {converter}.Write(writer, value);");
         code.Blank();
         code.Line("/// <inheritdoc/>");
-        code.Line($"public static {type} Read(ref {Serialization}DynamoDbReader reader, global::DynaSharp.AttributeType type) => {converter}.Read(ref reader, type);");
+        code.Line($"public static {type} Read(ref {CodeText.Serialization}DynamoDbReader reader, global::DynaSharp.AttributeType type) => {converter}.Read(ref reader, type);");
         code.Blank();
         code.Line("/// <inheritdoc/>");
         code.Line($"public static bool TryReadMissing(out {type} value)");
@@ -105,25 +103,25 @@ internal static class AttrsEmitter
         // HashSetConverter<E, C>, ReadOnlySetConverter<E, C> and SetArrayConverter<E, C> are where a converter serves as a set element.
         var arguments = $"<{model.FullName}, {model.ConverterName}>";
         var isElement = users.Exists(handle => handle.Converter!.WriteConverter.Contains("SetConverter" + arguments) || handle.Converter.WriteConverter.Contains("SetArrayConverter" + arguments));
-        var converter = $"{Serialization}IDynamoDbConverter<{model.FullName}>";
-        var element = isElement ? $", {Serialization}IDynamoDbSetElementConverter<{model.FullName}>" : string.Empty;
+        var converter = $"{CodeText.Serialization}IDynamoDbConverter<{model.FullName}>";
+        var element = isElement ? $", {CodeText.Serialization}IDynamoDbSetElementConverter<{model.FullName}>" : string.Empty;
         code.Line($"/// <summary>The converter of <c>{CodeText.Xml(model.FullName)}</c>, in a form that a handle can name.</summary>");
         code.Line(CodeText.GeneratedCode);
         code.Line("[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
         code.Line($"{Accessibility(users.Exists(static handle => handle.IsPublic))} readonly struct {ForwarderPrefix}{model.ConverterName} : {converter}{element}");
         code.Open();
         code.Line("/// <inheritdoc/>");
-        code.Line($"public static void Write({Serialization}DynamoDbWriter writer, {model.FullName} value) => {model.ConverterName}.Write(writer, value);");
+        code.Line($"public static void Write({CodeText.Serialization}DynamoDbWriter writer, {model.FullName} value) => {model.ConverterName}.Write(writer, value);");
         code.Blank();
         code.Line("/// <inheritdoc/>");
-        code.Line($"public static {model.FullName} Read(ref {Serialization}DynamoDbReader reader, global::DynaSharp.AttributeType type) => {model.ConverterName}.Read(ref reader, type);");
+        code.Line($"public static {model.FullName} Read(ref {CodeText.Serialization}DynamoDbReader reader, global::DynaSharp.AttributeType type) => {model.ConverterName}.Read(ref reader, type);");
 
         // Select asks the converter of the handle, so a name the enum lacks gives there what it gives a read of the entity.
         if (model.CountsUnknownAsMissing)
         {
             code.Blank();
             code.Line("/// <inheritdoc/>");
-            code.Line($"public static bool CountsAsMissing(in {Serialization}DynamoDbReader reader, global::DynaSharp.AttributeType type) => {model.ConverterName}.CountsAsMissing(in reader, type);");
+            code.Line($"public static bool CountsAsMissing(in {CodeText.Serialization}DynamoDbReader reader, global::DynaSharp.AttributeType type) => {model.ConverterName}.CountsAsMissing(in reader, type);");
         }
 
         if (isElement)
@@ -133,10 +131,10 @@ internal static class AttrsEmitter
             code.Line($"public static global::DynaSharp.AttributeType SetType => {model.ConverterName}.SetType;");
             code.Blank();
             code.Line("/// <inheritdoc/>");
-            code.Line($"public static void WriteElement({Serialization}DynamoDbWriter writer, {model.FullName} value) => {model.ConverterName}.WriteElement(writer, value);");
+            code.Line($"public static void WriteElement({CodeText.Serialization}DynamoDbWriter writer, {model.FullName} value) => {model.ConverterName}.WriteElement(writer, value);");
             code.Blank();
             code.Line("/// <inheritdoc/>");
-            code.Line($"public static {model.FullName} ReadElement(ref {Serialization}DynamoDbReader reader) => {model.ConverterName}.ReadElement(ref reader);");
+            code.Line($"public static {model.FullName} ReadElement(ref {CodeText.Serialization}DynamoDbReader reader) => {model.ConverterName}.ReadElement(ref reader);");
         }
 
         code.Close();

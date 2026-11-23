@@ -18,7 +18,7 @@ namespace DynaSharp.Generators;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 internal sealed class DateTimeKindAnalyzer : DiagnosticAnalyzer
 {
-    private const string Converter = "global::DynaSharp.Serialization.DateTimeConverter";
+    private const string Converter = CodeText.Serialization + "DateTimeConverter";
 
     private const string KeysClass = "Keys";
 
