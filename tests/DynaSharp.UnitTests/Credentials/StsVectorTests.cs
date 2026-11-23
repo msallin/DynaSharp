@@ -191,7 +191,7 @@ public sealed class StsVectorTests
         var accepted = true;
         try
         {
-            _ = new WebIdentityCredentialsProvider(TokenPath, RoleArn, region, vector.Text("name"));
+            _ = new WebIdentityCredentialsProvider(TokenPath, RoleArn, vector.Text("name"), new StsOptions { Region = region });
         }
         catch (ArgumentException)
         {

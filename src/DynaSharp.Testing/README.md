@@ -221,12 +221,12 @@ A credentials provider does not go through `HttpHandler`, so `StubSts` is a serv
 using var sts = new StubSts();
 sts.Enqueue(StubStsResponse.Credentials(new AwsCredentials("ASIAIOSFODNN7EXAMPLE", "secret", "token")));
 
-var provider = new WebIdentityCredentialsProvider(tokenFile, roleArn, sts.Endpoint);
+var provider = new WebIdentityCredentialsProvider(tokenFile, roleArn, options: new StsOptions { StsEndpoint = sts.Endpoint });
 var credentials = await provider.GetCredentialsAsync(ct);
 Console.WriteLine(sts.Requests[0].RoleArn);
 ```
 
-That constructor reads no variable, so the test can run in parallel. A test of the default chain sets `AWS_ENDPOINT_URL_STS` to `sts.Endpoint`, with `AWS_WEB_IDENTITY_TOKEN_FILE` and `AWS_ROLE_ARN`, and does not run in parallel; without that endpoint the token goes to the real STS. The test writes the token file itself.
+With `StsEndpoint` the provider reads no variable, so the test can run in parallel. A test of the default chain sets `AWS_ENDPOINT_URL_STS` to `sts.Endpoint`, with `AWS_WEB_IDENTITY_TOKEN_FILE` and `AWS_ROLE_ARN`, and does not run in parallel; without that endpoint the token goes to the real STS. The test writes the token file itself.
 
 `AssumeRoleCredentialsProvider` goes to the stub through `StsEndpoint`, and reads no variable when `Region` is set too. The stub takes any signature, and `Requests` holds the form.
 

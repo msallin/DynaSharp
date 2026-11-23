@@ -44,3 +44,16 @@ DynaSharp.Mapping.DynamoDbKeyInput.DynamoDbKeyInput(string! propertyName, string
 *REMOVED*static DynaSharp.Mapping.DynamoDbIndexInfo.operator ==(DynaSharp.Mapping.DynamoDbIndexInfo? left, DynaSharp.Mapping.DynamoDbIndexInfo? right) -> bool
 *REMOVED*static DynaSharp.Mapping.DynamoDbKeyInput.operator !=(DynaSharp.Mapping.DynamoDbKeyInput? left, DynaSharp.Mapping.DynamoDbKeyInput? right) -> bool
 *REMOVED*static DynaSharp.Mapping.DynamoDbKeyInput.operator ==(DynaSharp.Mapping.DynamoDbKeyInput? left, DynaSharp.Mapping.DynamoDbKeyInput? right) -> bool
+*REMOVED*DynaSharp.Credentials.AssumeRoleOptions.Region.get -> DynaSharp.AwsRegion?
+*REMOVED*DynaSharp.Credentials.AssumeRoleOptions.Region.init -> void
+*REMOVED*DynaSharp.Credentials.AssumeRoleOptions.StsEndpoint.get -> System.Uri?
+*REMOVED*DynaSharp.Credentials.AssumeRoleOptions.StsEndpoint.init -> void
+*REMOVED*DynaSharp.Credentials.WebIdentityCredentialsProvider.WebIdentityCredentialsProvider(string! tokenFile, string! roleArn, DynaSharp.AwsRegion! region, string? roleSessionName = null) -> void
+*REMOVED*DynaSharp.Credentials.WebIdentityCredentialsProvider.WebIdentityCredentialsProvider(string! tokenFile, string! roleArn, System.Uri! stsEndpoint, string? roleSessionName = null) -> void
+DynaSharp.Credentials.StsOptions
+DynaSharp.Credentials.StsOptions.Region.get -> DynaSharp.AwsRegion?
+DynaSharp.Credentials.StsOptions.Region.init -> void
+DynaSharp.Credentials.StsOptions.StsEndpoint.get -> System.Uri?
+DynaSharp.Credentials.StsOptions.StsEndpoint.init -> void
+DynaSharp.Credentials.StsOptions.StsOptions() -> void
+DynaSharp.Credentials.WebIdentityCredentialsProvider.WebIdentityCredentialsProvider(string! tokenFile, string! roleArn, string? roleSessionName = null, DynaSharp.Credentials.StsOptions? options = null) -> void
