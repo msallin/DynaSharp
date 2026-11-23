@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Text;
+using System.Text.Json;
 using DynaSharp.Mapping;
 using DynaSharp.Serialization;
 
@@ -473,14 +474,13 @@ public sealed class Item : IReadOnlyDictionary<string, AttributeValue>, IEquatab
         where TSource : IDynamoDbDocument<TSource>
         where TTarget : IDynamoDbDocument<TTarget>
     {
-        using var buffer = new PooledByteBuffer(256);
-        using (var json = WireJson.CreateWriter(buffer))
+        using var buffer = WireJson.Render(ref value, static (Utf8JsonWriter json, ref TSource source) =>
         {
             var writer = DynamoDbWriter.ForDisplay(json);
             writer.WriteStartItem();
-            TSource.WriteAttributes(writer, value);
+            TSource.WriteAttributes(writer, source);
             writer.WriteEndItem();
-        }
+        });
 
         var reader = new DynamoDbReader(buffer.WrittenSpan);
         reader.ReadStartItem();

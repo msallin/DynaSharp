@@ -90,6 +90,42 @@ internal static class WireJson
     /// <returns>The writer. Dispose it (or call <see cref="Utf8JsonWriter.Flush"/>) before reading the output.</returns>
     internal static Utf8JsonWriter CreateWriter(IBufferWriter<byte> output) => new(output, WriterOptions);
 
+    /// <summary>Writes JSON into a pooled buffer, for a value that is written in one form and read back in another.</summary>
+    /// <typeparam name="TState">The type of the state.</typeparam>
+    /// <param name="state">What the JSON is written from.</param>
+    /// <param name="write">Writes the JSON.</param>
+    /// <param name="initialCapacity">The minimum initial capacity of the buffer in bytes.</param>
+    /// <returns>The buffer, flushed. The caller reads it and disposes it.</returns>
+    internal static PooledByteBuffer Render<TState>(ref TState state, JsonWrite<TState> write, int initialCapacity = 256)
+        where TState : allows ref struct
+    {
+        var buffer = new PooledByteBuffer(initialCapacity);
+        try
+        {
+            using var json = CreateWriter(buffer);
+            write(json, ref state);
+        }
+        catch
+        {
+            buffer.Dispose();
+            throw;
+        }
+
+        return buffer;
+    }
+
+    /// <summary>Writes JSON into a <see cref="JsonElement"/> that owns its memory.</summary>
+    /// <typeparam name="TState">The type of the state.</typeparam>
+    /// <param name="state">What the JSON is written from.</param>
+    /// <param name="write">Writes one JSON value.</param>
+    /// <returns>The element.</returns>
+    internal static JsonElement ToElement<TState>(ref TState state, JsonWrite<TState> write)
+        where TState : allows ref struct
+    {
+        using var buffer = Render(ref state, write);
+        return JsonElement.Parse(buffer.WrittenSpan, DocumentOptions);
+    }
+
     private static char[] AllSurrogates()
     {
         var all = new char[0xE000 - 0xD800];

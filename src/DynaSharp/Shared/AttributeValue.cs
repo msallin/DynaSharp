@@ -300,13 +300,8 @@ public readonly struct AttributeValue : IEquatable<AttributeValue>
     /// <exception cref="ArgumentException">A string made by hand holds a lone surrogate, which is no text.</exception>
     public JsonElement ToJson()
     {
-        using var buffer = new PooledByteBuffer(256);
-        using (var json = WireJson.CreateWriter(buffer))
-        {
-            WriteJson(json);
-        }
-
-        return JsonElement.Parse(buffer.WrittenSpan, WireJson.DocumentOptions);
+        var value = this;
+        return WireJson.ToElement(ref value, static (Utf8JsonWriter json, ref AttributeValue value) => value.WriteJson(json));
     }
 
     /// <summary>
@@ -331,12 +326,8 @@ public readonly struct AttributeValue : IEquatable<AttributeValue>
             throw new InvalidOperationException("A default AttributeValue has no type, so it has no JSON.");
         }
 
-        using var buffer = new PooledByteBuffer(256);
-        using (var json = WireJson.CreateWriter(buffer))
-        {
-            AttributeValueConverter.Write(new DynamoDbWriter(json), this);
-        }
-
+        var value = this;
+        using var buffer = WireJson.Render(ref value, static (Utf8JsonWriter json, ref AttributeValue value) => AttributeValueConverter.Write(new DynamoDbWriter(json), value));
         var reader = new DynamoDbReader(buffer.WrittenSpan);
         JsonBridge.Read(ref reader, reader.ReadStartAttribute(), writer);
     }
@@ -469,12 +460,11 @@ public readonly struct AttributeValue : IEquatable<AttributeValue>
     // The JSON goes to DynamoDB JSON and is read back by the reader of responses, so a value from JSON has the form of a value from DynamoDB, maps and all.
     private static AttributeValue FromJson(ReadOnlySpan<byte> utf8Json, JsonReaderOptions options, string paramName)
     {
-        using var buffer = new PooledByteBuffer(Math.Max(256, utf8Json.Length));
-        using (var json = WireJson.CreateWriter(buffer))
-        {
-            JsonBridge.Write(new DynamoDbWriter(json), utf8Json, options, paramName);
-        }
-
+        var source = new JsonSource(utf8Json, options, paramName);
+        using var buffer = WireJson.Render(
+            ref source,
+            static (Utf8JsonWriter json, ref JsonSource source) => JsonBridge.Write(new DynamoDbWriter(json), source.Utf8Json, source.Options, source.ParamName),
+            Math.Max(256, utf8Json.Length));
         var reader = new DynamoDbReader(buffer.WrittenSpan);
         return AttributeValueConverter.Read(ref reader, reader.ReadStartAttribute());
     }
@@ -549,6 +539,15 @@ public readonly struct AttributeValue : IEquatable<AttributeValue>
         => Type == expected
             ? (T)Value!
             : throw new InvalidOperationException($"The attribute value has type {Type}, not {expected}.");
+
+    private readonly ref struct JsonSource(ReadOnlySpan<byte> utf8Json, JsonReaderOptions options, string paramName)
+    {
+        public ReadOnlySpan<byte> Utf8Json { get; } = utf8Json;
+
+        public JsonReaderOptions Options { get; } = options;
+
+        public string ParamName { get; } = paramName;
+    }
 
     private sealed class BinaryContentComparer : IEqualityComparer<ReadOnlyMemory<byte>>
     {

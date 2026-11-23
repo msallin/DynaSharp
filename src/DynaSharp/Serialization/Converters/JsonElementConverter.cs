@@ -42,12 +42,17 @@ public readonly struct JsonElementConverter : IDynamoDbConverter<JsonElement>
     /// <exception cref="FormatException">A number is not in the form of a JSON number, which DynamoDB never sends.</exception>
     public static JsonElement Read(ref DynamoDbReader reader, AttributeType type)
     {
-        using var buffer = new PooledByteBuffer(256);
-        using (var json = WireJson.CreateWriter(buffer))
-        {
-            JsonBridge.Read(ref reader, type, json);
-        }
+        var source = new ValueSource(reader, type);
+        var element = WireJson.ToElement(ref source, static (Utf8JsonWriter json, ref ValueSource source) => JsonBridge.Read(ref source.Reader, source.Type, json));
+        reader = source.Reader;
+        return element;
+    }
 
-        return JsonElement.Parse(buffer.WrittenSpan, WireJson.DocumentOptions);
+    // The reader is copied in and back out, because a field cannot refer to it.
+    private ref struct ValueSource(DynamoDbReader reader, AttributeType type)
+    {
+        public readonly AttributeType Type = type;
+
+        public DynamoDbReader Reader = reader;
     }
 }
