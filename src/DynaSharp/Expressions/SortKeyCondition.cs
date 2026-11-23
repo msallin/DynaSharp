@@ -1,3 +1,4 @@
+using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Serialization;
 
@@ -18,6 +19,7 @@ namespace DynaSharp;
 public readonly struct SortKeyCondition
 {
     private readonly Kind _kind;
+    private readonly ComparisonOperator _comparison;
     private readonly AttributeValue _first;
     private readonly AttributeValue _second;
 
@@ -28,14 +30,16 @@ public readonly struct SortKeyCondition
         _second = second;
     }
 
+    private SortKeyCondition(ComparisonOperator comparison, AttributeValue value)
+        : this(Kind.Compare, value)
+    {
+        _comparison = comparison;
+    }
+
     private enum Kind
     {
         None,
-        Equal,
-        Less,
-        LessOrEqual,
-        Greater,
-        GreaterOrEqual,
+        Compare,
         Between,
         BeginsWith,
     }
@@ -46,27 +50,27 @@ public readonly struct SortKeyCondition
     /// <summary>Selects the one sort key equal to a value.</summary>
     /// <param name="value">The value.</param>
     /// <returns>The condition.</returns>
-    public static SortKeyCondition Eq(AttributeValue value) => new(Kind.Equal, value);
+    public static SortKeyCondition Eq(AttributeValue value) => new(ComparisonOperator.Equal, value);
 
     /// <summary>Selects sort keys below a value. Strings compare by their UTF-8 bytes.</summary>
     /// <param name="value">The value.</param>
     /// <returns>The condition.</returns>
-    public static SortKeyCondition Lt(AttributeValue value) => new(Kind.Less, value);
+    public static SortKeyCondition Lt(AttributeValue value) => new(ComparisonOperator.Less, value);
 
     /// <summary>Selects sort keys up to a value.</summary>
     /// <param name="value">The value.</param>
     /// <returns>The condition.</returns>
-    public static SortKeyCondition Le(AttributeValue value) => new(Kind.LessOrEqual, value);
+    public static SortKeyCondition Le(AttributeValue value) => new(ComparisonOperator.LessOrEqual, value);
 
     /// <summary>Selects sort keys above a value.</summary>
     /// <param name="value">The value.</param>
     /// <returns>The condition.</returns>
-    public static SortKeyCondition Gt(AttributeValue value) => new(Kind.Greater, value);
+    public static SortKeyCondition Gt(AttributeValue value) => new(ComparisonOperator.Greater, value);
 
     /// <summary>Selects sort keys from a value on.</summary>
     /// <param name="value">The value.</param>
     /// <returns>The condition.</returns>
-    public static SortKeyCondition Ge(AttributeValue value) => new(Kind.GreaterOrEqual, value);
+    public static SortKeyCondition Ge(AttributeValue value) => new(ComparisonOperator.GreaterOrEqual, value);
 
     /// <summary>Selects sort keys in a range, both bounds included.</summary>
     /// <param name="low">The low bound.</param>
@@ -102,15 +106,7 @@ public readonly struct SortKeyCondition
         }
 
         writer.Placeholders.AppendName(text, sortKeyName);
-        text.Append(_kind switch
-        {
-            Kind.Equal => " = "u8,
-            Kind.Less => " < "u8,
-            Kind.LessOrEqual => " <= "u8,
-            Kind.Greater => " > "u8,
-            Kind.GreaterOrEqual => " >= "u8,
-            _ => " BETWEEN "u8,
-        });
+        text.Append(_kind == Kind.Between ? " BETWEEN "u8 : ComparisonOperatorText.Of(_comparison));
         writer.Placeholders.AppendValue<AttributeValue, AttributeValueConverter>(text, _first);
         if (_kind == Kind.Between)
         {
