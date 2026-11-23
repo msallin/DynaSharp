@@ -89,7 +89,7 @@ public sealed class IniFileTests
     }
 
     [Test]
-    public async Task Parse_NestedBlockLineStartingWithEquals_ReadsAnEmptyKey()
+    public async Task Parse_NestedBlockLineStartingWithEquals_IsABlock()
     {
         // Arrange (the line "= 1" splits at the first character, like the line "a = 1" splits after the "a")
         const string text = "[default]\ns3 =\n  = 1\n";
@@ -98,7 +98,7 @@ public sealed class IniFileTests
         var sections = IniFile.Parse(text, "config");
 
         // Assert
-        await Assert.That(sections[0].Values["s3"].Block![string.Empty]).IsEqualTo("1");
+        await Assert.That(sections[0].Values["s3"].IsBlock).IsTrue();
     }
 
     [Test]

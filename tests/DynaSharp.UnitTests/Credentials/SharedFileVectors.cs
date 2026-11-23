@@ -90,11 +90,18 @@ internal static class SharedFileVectors
     {
         var entries = settings
             .OrderBy(p => p.Key, StringComparer.Ordinal)
-            .Select(p => p.Value.Block is null
-                ? $"{p.Key}={Quote(p.Value.Text)}"
-                : $"{p.Key}={{{DescribeBlock(p.Value.Block)}}}");
+            .Select(p => p.Value.IsBlock
+                ? $"{p.Key}={{{DescribeBlock(ParseBlock(p.Value.Text))}}}"
+                : $"{p.Key}={Quote(p.Value.Text)}");
         return string.Join("; ", entries);
     }
+
+    // The lines of a block by name, as botocore nests them: each splits at its first '='.
+    private static Dictionary<string, string> ParseBlock(string text) =>
+        text.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => (Name: line[..line.IndexOf('=', StringComparison.Ordinal)].Trim(), Value: line[(line.IndexOf('=', StringComparison.Ordinal) + 1)..].Trim()))
+            .GroupBy(entry => entry.Name, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Last().Value, StringComparer.Ordinal);
 
     private static string DescribeBlock(IReadOnlyDictionary<string, string> block) =>
         string.Join(", ", block.OrderBy(b => b.Key, StringComparer.Ordinal).Select(b => $"{b.Key}={Quote(b.Value)}"));
