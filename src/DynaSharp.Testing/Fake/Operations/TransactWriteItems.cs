@@ -197,7 +197,7 @@ internal static class TransactWriteItems
                 reasons[i] = new CancellationReason
                 {
                     Code = "ConditionalCheckFailed",
-                    Message = "The conditional request failed",
+                    Message = FakeError.ConditionFailedMessage,
                     Item = action.OnFailure == ReturnValuesOnConditionCheckFailure.AllOld ? current : null,
                 };
                 cancelled = true;
