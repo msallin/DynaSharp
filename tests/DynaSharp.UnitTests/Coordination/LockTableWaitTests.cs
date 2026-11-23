@@ -10,9 +10,9 @@ public sealed class LockTableWaitTests
     private static readonly TimeSpan Lease = TimeSpan.FromSeconds(30);
 
     [Test]
-    [Arguments(0L)]
+    [Arguments(-1L)]
     [Arguments(-20_000_000L)]
-    public async Task AcquireAsync_WaitNotPositive_ThrowsArgumentOutOfRangeException(long ticks)
+    public async Task AcquireAsync_WaitNegative_ThrowsArgumentOutOfRangeException(long ticks)
     {
         // Arrange
         using var bench = new LockHarness();
@@ -69,6 +69,21 @@ public sealed class LockTableWaitTests
     }
 
     [Test]
+    public async Task AcquireAsync_ZeroWaitOnAHeldLock_ThrowsTimeoutExceptionAfterOneTry()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        await bench.Locks.SimulateHolderAsync("job", Lease);
+        var before = bench.Handler.Requests.Count;
+
+        // Act
+        await TestClient.CaptureAsync<TimeoutException>(() => bench.Locks.AcquireAsync("job", Lease, TimeSpan.Zero));
+
+        // Assert
+        await Assert.That(bench.Handler.Requests.Count - before).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task AcquireAsync_HolderOutlastsTheWait_SaysAnotherHolderHadIt()
     {
         // Arrange
@@ -107,9 +122,9 @@ public sealed class LockTableWaitTests
     }
 
     [Test]
-    [Arguments(0L)]
+    [Arguments(-1L)]
     [Arguments(-20_000_000L)]
-    public async Task TryAcquireAsync_WaitNotPositive_ThrowsArgumentOutOfRangeException(long ticks)
+    public async Task TryAcquireAsync_WaitNegative_ThrowsArgumentOutOfRangeException(long ticks)
     {
         // Arrange
         using var bench = new LockHarness();
@@ -119,6 +134,56 @@ public sealed class LockTableWaitTests
 
         // Assert
         await Assert.That(act).ThrowsExactly<ArgumentOutOfRangeException>().WithParameterName("wait");
+    }
+
+    [Test]
+    public async Task TryAcquireAsync_ZeroWaitOnAHeldLock_ReturnsNullAfterOneTry()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        await bench.Locks.SimulateHolderAsync("job", Lease);
+        var before = bench.Handler.Requests.Count;
+
+        // Act
+        var lease = await bench.Locks.TryAcquireAsync("job", Lease, TimeSpan.Zero);
+
+        // Assert
+        await Assert.That((lease, bench.Handler.Requests.Count - before)).IsEqualTo(((DynaSharp.Coordination.Lease?)null, 1));
+    }
+
+    [Test]
+    public async Task TryAcquireAsync_TokenAloneOnAHeldLock_ReturnsNullAfterOneTry()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        using var cancellation = new CancellationTokenSource();
+        await bench.Locks.SimulateHolderAsync("job", Lease);
+        var before = bench.Handler.Requests.Count;
+
+        // Act
+        var lease = await bench.Locks.TryAcquireAsync("job", Lease, cancellation.Token);
+
+        // Assert
+        await Assert.That((lease, bench.Handler.Requests.Count - before)).IsEqualTo(((DynaSharp.Coordination.Lease?)null, 1));
+    }
+
+    [Test]
+    public async Task AcquireAsync_TokenAloneOnAHeldLock_WaitsUntilTheTokenIsCancelled()
+    {
+        // Arrange
+        using var bench = new LockHarness();
+        using var cancellation = new CancellationTokenSource();
+        await bench.Locks.SimulateHolderAsync("job", Lease);
+        var refused = bench.Locks.WaitForRefusalAsync("job");
+        var waiting = bench.Locks.AcquireAsync("job", Lease, cancellation.Token);
+        await refused;
+
+        // Act
+        await cancellation.CancelAsync();
+
+        // Assert
+        Func<Task> act = () => waiting;
+        await Assert.That(act).Throws<OperationCanceledException>();
     }
 
     [Test]
