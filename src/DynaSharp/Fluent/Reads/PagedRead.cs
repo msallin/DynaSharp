@@ -169,7 +169,7 @@ internal static class PagedRead<TOperation, T>
             foreach (var failure in skipped)
             {
                 report(failure);
-                state.Table.Core.CountSkippedItem(TOperation.Name, state.Table.Name);
+                state.Table.Core.Telemetry.CountSkippedItem(TOperation.Name, state.Table.Name);
             }
         }
 

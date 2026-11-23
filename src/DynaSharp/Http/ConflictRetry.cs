@@ -1,4 +1,5 @@
 using DynaSharp.Retries;
+using DynaSharp.Telemetry;
 
 namespace DynaSharp.Http;
 
@@ -10,6 +11,9 @@ internal static class ConflictRetry
 {
     /// <summary>The number of runs of a conflict retry, the first included, unless the caller says otherwise.</summary>
     public const int DefaultMaxAttempts = 5;
+
+    // What the telemetry of a conflict says for an exception that did not come from a response, which a delegate can throw.
+    private const string UnknownOperation = "(unknown operation)";
 
     /// <summary>Runs a read-modify-write, which is what the methods of that name on a table come to. What is wrong with the call throws here, at the call, which an asynchronous method could not do.</summary>
     /// <typeparam name="T">What a run gives.</typeparam>
@@ -49,6 +53,14 @@ internal static class ConflictRetry
         ArgumentOutOfRangeException.ThrowIfLessThan(maxAttempts, 1);
     }
 
+    // The one event of a conflict retry that no single call sees.
+    private static void ReportExhausted(ClientCore core, DynamoDbException conflict, int runs)
+    {
+        var operationName = conflict.OperationName ?? UnknownOperation;
+        core.Telemetry.CountConflictExhausted(operationName, conflict.TableName, conflict);
+        ClientLog.ConflictRunsExhausted(core.Logger, operationName, conflict.TableName ?? ClientLog.NoSingleTable, OperationTelemetry.GetErrorType(conflict), runs);
+    }
+
     // The delegate of the caller goes in as state, so that a run of any shape costs no closure of its own.
     private static async Task<T> RunAsync<T, TOperation>(
         ClientCore core,
@@ -75,19 +87,19 @@ internal static class ConflictRetry
                     // One run asked for no retry, so there is nothing that gave up, as with MaxAttempts on a call.
                     if (maxAttempts > 1)
                     {
-                        core.ReportConflictsExhausted(conflict, run);
+                        ReportExhausted(core, conflict, run);
                     }
 
                     throw;
                 }
 
-                core.CountConflictRetry(conflict);
+                core.Telemetry.CountConflictRetry(conflict.OperationName ?? UnknownOperation, conflict.TableName, conflict);
 
                 // Inside the catch, so that what the hook throws ends the loop in place of the conflict.
                 onConflict?.Invoke(run, conflict);
             }
 
-            await core.ConflictBackoffAsync(run, cancellationToken).ConfigureAwait(false);
+            await core.DelayAsync(core.Retries.GetConflictDelay(run), cancellationToken).ConfigureAwait(false);
             run++;
         }
     }

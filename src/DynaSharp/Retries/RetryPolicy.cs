@@ -8,7 +8,8 @@ namespace DynaSharp.Retries;
 /// </summary>
 /// <param name="maxAttempts">The number of attempts including the first. 1 disables retries.</param>
 /// <param name="random">The source of the jitter. A seam for tests.</param>
-internal sealed class RetryPolicy(int maxAttempts, Random random)
+/// <param name="quota">The retry quota of the client.</param>
+internal sealed class RetryPolicy(int maxAttempts, Random random, RetryQuota quota)
 {
     public const int RetryCost = 5;
     public const int TimeoutRetryCost = 10;
@@ -30,11 +31,6 @@ internal sealed class RetryPolicy(int maxAttempts, Random random)
     // reader backs off from a second, to at most half a minute between two tries, which a shard's five GetRecords per second shrug off.
     public const double ShardRetryBaseMilliseconds = 1_000;
     public const double MaxShardRetryDelayMilliseconds = 30_000;
-
-    private readonly RetryQuota _quota = new();
-
-    /// <summary>Gets the retry quota tokens left.</summary>
-    public int AvailableQuota => _quota.Available;
 
     /// <summary>Decides what follows a failed attempt, and takes the quota a retry needs.</summary>
     /// <param name="kind">How the attempt failed.</param>
@@ -65,14 +61,14 @@ internal sealed class RetryPolicy(int maxAttempts, Random random)
         }
 
         var cost = kind == FailureKind.Timeout ? TimeoutRetryCost : RetryCost;
-        return _quota.TryAcquire(cost)
+        return quota.TryAcquire(cost)
             ? new RetryDecision(RetryVerdict.Retry, GetDelay(kind, attempt), cost)
             : new RetryDecision(RetryVerdict.QuotaExhausted);
     }
 
     /// <summary>Returns quota after a request succeeded.</summary>
     /// <param name="lastRetryCost">The quota the last retry of the request took, or zero if it was not retried.</param>
-    public void OnSuccess(int lastRetryCost) => _quota.Release(lastRetryCost > 0 ? lastRetryCost : SuccessRefund);
+    public void OnSuccess(int lastRetryCost) => quota.Release(lastRetryCost > 0 ? lastRetryCost : SuccessRefund);
 
     /// <summary>
     /// Picks a delay uniformly from zero to <c>min(20 s, base * 2^(attempt - 1))</c> ("full jitter"), so that clients that failed at

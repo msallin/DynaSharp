@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using DynaSharp.Configuration;
 using DynaSharp.Credentials;
 using DynaSharp.Http;
@@ -19,7 +20,7 @@ public sealed class ClientCoreTests
         using var core = ClientCore.Create<DynamoDbClient>(AwsService.DynamoDb, options, static _ => null, null, null, null, null);
 
         // Assert
-        await Assert.That(core.Http.Timeout).IsEqualTo(Timeout.InfiniteTimeSpan);
+        await Assert.That(HttpOf(core).Timeout).IsEqualTo(Timeout.InfiniteTimeSpan);
     }
 
     [Test]
@@ -33,7 +34,7 @@ public sealed class ClientCoreTests
         using var core = ClientCore.Create<DynamoDbClient>(AwsService.DynamoDb, options, static _ => null, null, null, null, null);
 
         // Assert
-        await Assert.That(core.Http.Timeout).IsEqualTo(Timeout.InfiniteTimeSpan);
+        await Assert.That(HttpOf(core).Timeout).IsEqualTo(Timeout.InfiniteTimeSpan);
     }
 
     [Test]
@@ -41,7 +42,7 @@ public sealed class ClientCoreTests
     {
         // Arrange
         var core = ClientCore.Create<DynamoDbClient>(AwsService.DynamoDb, Options(), static _ => null, null, null, null, null);
-        var handler = (SocketsHttpHandler)core.Handler;
+        var handler = (SocketsHttpHandler)HandlerOf(HttpOf(core));
 
         // Act
         core.Dispose();
@@ -79,6 +80,12 @@ public sealed class ClientCoreTests
         // Assert
         await Assert.That(sources.Single()).IsEqualTo(source.Name);
     }
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_http")]
+    private static extern ref HttpClient HttpOf(ClientCore core);
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_handler")]
+    private static extern ref HttpMessageHandler HandlerOf(HttpMessageInvoker invoker);
 
     private static DynamoDbClientOptions Options(HttpMessageHandler? handler = null) => new()
     {

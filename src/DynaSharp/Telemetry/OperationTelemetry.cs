@@ -134,11 +134,7 @@ internal sealed class OperationTelemetry
     /// <param name="tableName">The table of the call, if it has a single one.</param>
     /// <param name="call">The call.</param>
     /// <param name="response">The response.</param>
-    public void RecordResponse<TCall, TResponse>(Activity? activity, string? tableName, in TCall call, TResponse response)
-        where TCall : struct, IWireCall<TResponse>
-        => RecordResponse<TCall, TResponse>(activity, tableName, in call, response, DynaSharpTelemetry.ConsumedCapacity.Enabled);
-
-    // The metric's listeners are process-wide, so only a parameter makes "nobody observes" reproducible next to tests that listen.
+    /// <param name="metering">Whether the consumed capacity metric has a listener, which the caller reads as it reads that of the duration.</param>
     public void RecordResponse<TCall, TResponse>(Activity? activity, string? tableName, in TCall call, TResponse response, bool metering)
         where TCall : struct, IWireCall<TResponse>
     {

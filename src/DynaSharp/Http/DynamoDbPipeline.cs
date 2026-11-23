@@ -32,12 +32,6 @@ internal sealed class DynamoDbPipeline : IDisposable
     private const string UserAgentHeaderName = "User-Agent";
     private const string ContentTypeHeaderName = "Content-Type";
 
-    // What the log messages of the retry events say for a call that addresses several tables, or none, as most of DynamoDB Streams.
-    private const string NoSingleTable = "(no single table)";
-
-    // What the telemetry of a conflict says for an exception that did not come from a response, which a delegate of a conflict retry can throw.
-    private const string UnknownOperation = "(unknown operation)";
-
     // How many idle timeout sources the pipeline keeps. A source costs about 150 bytes and a timer; more calls than this in flight at
     // once simply make new ones.
     private const int TimeoutPoolCapacity = 64;
@@ -73,7 +67,7 @@ internal sealed class DynamoDbPipeline : IDisposable
         ArrayPool<byte> pool,
         ActivitySource activitySource,
         ILogger logger,
-        Random random,
+        RetryPolicy retryPolicy,
         int maxResponseLength)
     {
         _maxResponseLength = maxResponseLength;
@@ -81,7 +75,7 @@ internal sealed class DynamoDbPipeline : IDisposable
         _pool = pool;
         Telemetry = new OperationTelemetry(activitySource, configuration.TimeProvider, configuration.Region.Name, configuration.Endpoint);
         _logger = logger;
-        _retryPolicy = new RetryPolicy(configuration.MaxAttempts, random);
+        _retryPolicy = retryPolicy;
         _clock = configuration.Clock;
         _credentials = configuration.Credentials;
         _refreshableCredentials = configuration.Credentials as IRefreshableCredentialsProvider;
@@ -166,11 +160,11 @@ internal sealed class DynamoDbPipeline : IDisposable
 
                 lastRetryCost = decision.LastRetryCost;
                 attempt++;
-                await DelayAsync(decision.Delay, cancellationToken).ConfigureAwait(false);
+                await DelayAsync(decision.Delay, _timeProvider, cancellationToken).ConfigureAwait(false);
             }
 
             // After the loop, not inside it: a failure here must not be mistaken for a failed attempt and retried.
-            Telemetry.RecordResponse<TCall, TResponse>(activity, tableName, in call, result);
+            Telemetry.RecordResponse<TCall, TResponse>(activity, tableName, in call, result, DynaSharpTelemetry.ConsumedCapacity.Enabled);
             return result;
         }
         catch (Exception exception)
@@ -203,94 +197,23 @@ internal sealed class DynamoDbPipeline : IDisposable
     }
 
     /// <summary>
-    /// Waits before a batch sends what DynamoDB left unprocessed, with the backoff and the jitter of a throttled attempt and on the clock of the
-    /// client. It is not a retry of a failed call, so it takes nothing from the retry quota.
+    /// Waits on a clock. A cancellation throws an <see cref="OperationCanceledException"/> with <paramref name="cancellationToken"/>, the same exception as from an attempt,
+    /// where <see cref="Task.Delay(TimeSpan, TimeProvider, CancellationToken)"/> throws a <see cref="TaskCanceledException"/>.
     /// </summary>
-    /// <param name="attempt">The number of the round that came back without progress, starting at 1.</param>
+    /// <param name="delay">How long.</param>
+    /// <param name="timeProvider">The clock.</param>
     /// <param name="cancellationToken">Cancels the wait.</param>
     /// <returns>A task that completes when the wait is over.</returns>
-    public Task BackoffAsync(int attempt, CancellationToken cancellationToken) =>
-        DelayAsync(_retryPolicy.GetDelay(FailureKind.Throttling, attempt), cancellationToken);
-
-    /// <summary>Logs that a batch gave up, the one retry event of a batch that no single call sees.</summary>
-    /// <param name="operationName">The operation of the batch.</param>
-    /// <param name="tableName">The table of the batch, if it has a single one.</param>
-    /// <param name="unprocessed">How many actions are left.</param>
-    /// <param name="requests">How many requests were sent.</param>
-    public void LogBatchIncomplete(string operationName, string? tableName, int unprocessed, int requests) =>
-        ClientLog.BatchIncomplete(_logger, operationName, tableName ?? NoSingleTable, unprocessed, requests);
-
-    /// <summary>
-    /// Waits between two runs of a conflict retry, with the jitter of the retry policy and on the clock of the client. It is not a retry of a failed call, so it takes nothing from
-    /// the retry quota, and <see cref="RetryPolicy.GetConflictDelay"/> says why it has a backoff of its own.
-    /// </summary>
-    /// <param name="run">The number of the run that failed, starting at 1.</param>
-    /// <param name="cancellationToken">Cancels the wait.</param>
-    /// <returns>A task that completes when the wait is over.</returns>
-    public Task ConflictBackoffAsync(int run, CancellationToken cancellationToken) =>
-        DelayAsync(_retryPolicy.GetConflictDelay(run), cancellationToken);
-
-    /// <summary>
-    /// Waits before <c>ReadStreamAsync</c> reads a shard again after a transient failure, with the jitter of the retry policy and on the clock of the client. The calls it
-    /// repeats take from the retry quota as any call does, so the wait takes nothing.
-    /// </summary>
-    /// <param name="retry">The number of the retry of this outage of the shard, starting at 1.</param>
-    /// <param name="cancellationToken">Cancels the wait.</param>
-    /// <returns>A task that completes when the wait is over.</returns>
-    public Task ShardRetryBackoffAsync(int retry, CancellationToken cancellationToken) =>
-        DelayAsync(_retryPolicy.GetShardRetryDelay(retry), cancellationToken);
-
-    /// <summary>Counts a run of a conflict retry that lost and is repeated.</summary>
-    /// <param name="conflict">The failure of the run.</param>
-    public void CountConflictRetry(DynamoDbException conflict) =>
-        Telemetry.CountConflictRetry(conflict.OperationName ?? UnknownOperation, conflict.TableName, conflict);
-
-    /// <summary>Counts an item that a read skipped because its type could not read it.</summary>
-    /// <param name="operationName">The operation of the read.</param>
-    /// <param name="tableName">The table of the read.</param>
-    public void CountSkippedItem(string operationName, string tableName) =>
-        Telemetry.CountSkippedItem(operationName, tableName);
-
-    /// <summary>Logs that a shard of a stream was read to its end, an event of the reading of a stream and of no single call.</summary>
-    /// <param name="shardId">The shard.</param>
-    /// <param name="children">How many child shards are read next.</param>
-    public void LogShardFinished(string shardId, int children) => ClientLog.ShardFinished(_logger, shardId, children);
-
-    /// <summary>Logs that DynamoDB listed a child of a shard only on a later look, the event the reader of a stream looks again for.</summary>
-    /// <param name="childShardId">The child.</param>
-    /// <param name="shardId">The shard it continues.</param>
-    /// <param name="elapsed">The time since the first look for the children of the shard.</param>
-    public void LogChildListedLate(string childShardId, string shardId, TimeSpan elapsed) => ClientLog.ChildListedLate(_logger, childShardId, shardId, elapsed);
-
-    /// <summary>Reports that the reading of a shard failed transiently and is tried again, once per outage of the shard, an event of the reading of a stream and of no single call.</summary>
-    /// <param name="shardId">The shard.</param>
-    /// <param name="failure">The failure that started the outage.</param>
-    /// <param name="window">How long the reader tries before the failure surfaces.</param>
-    public void LogShardRetrying(string shardId, Exception failure, TimeSpan window) =>
-        ClientLog.ShardRetrying(_logger, shardId, OperationTelemetry.GetErrorType(failure), window);
-
-    /// <summary>Logs that the reading of a shard works again after an outage.</summary>
-    /// <param name="shardId">The shard.</param>
-    /// <param name="elapsed">The time since the failure that started the outage.</param>
-    /// <param name="retries">How many times the shard was tried again.</param>
-    public void LogShardRecovered(string shardId, TimeSpan elapsed, int retries) => ClientLog.ShardRecovered(_logger, shardId, elapsed, retries);
-
-    /// <summary>Counts and logs that a shard read from <c>Latest</c> whose iterator expired before it handed out a record is read from <c>Latest</c> again, which skips what was written in between.</summary>
-    /// <param name="shardId">The shard.</param>
-    public void ReportStreamGap(string shardId)
+    public static async Task DelayAsync(TimeSpan delay, TimeProvider timeProvider, CancellationToken cancellationToken)
     {
-        Telemetry.CountStreamGap();
-        ClientLog.StreamGap(_logger, shardId);
-    }
-
-    /// <summary>Reports that a conflict retry gave up, the one event of a conflict retry that no single call sees.</summary>
-    /// <param name="conflict">The failure of the last run.</param>
-    /// <param name="runs">How many runs there were.</param>
-    public void ReportConflictsExhausted(DynamoDbException conflict, int runs)
-    {
-        var operationName = conflict.OperationName ?? UnknownOperation;
-        Telemetry.CountConflictExhausted(operationName, conflict.TableName, conflict);
-        ClientLog.ConflictRunsExhausted(_logger, operationName, conflict.TableName ?? NoSingleTable, OperationTelemetry.GetErrorType(conflict), runs);
+        try
+        {
+            await Task.Delay(delay, timeProvider, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException exception)
+        {
+            throw new OperationCanceledException(exception.Message, exception, cancellationToken);
+        }
     }
 
     /// <summary>Releases the timeout sources that wait to be reused. Calls that are still running dispose theirs as they finish.</summary>
@@ -512,10 +435,10 @@ internal sealed class DynamoDbPipeline : IDisposable
         switch (decision.Verdict)
         {
             case RetryVerdict.AttemptsExhausted:
-                ClientLog.RetriesExhausted(_logger, operationName, tableName ?? NoSingleTable, OperationTelemetry.GetErrorType(exception), attempt);
+                ClientLog.RetriesExhausted(_logger, operationName, tableName ?? ClientLog.NoSingleTable, OperationTelemetry.GetErrorType(exception), attempt);
                 break;
             case RetryVerdict.QuotaExhausted:
-                ClientLog.RetryQuotaExhausted(_logger, operationName, tableName ?? NoSingleTable, OperationTelemetry.GetErrorType(exception), attempt);
+                ClientLog.RetryQuotaExhausted(_logger, operationName, tableName ?? ClientLog.NoSingleTable, OperationTelemetry.GetErrorType(exception), attempt);
                 break;
             case RetryVerdict.Resend or RetryVerdict.Retry:
                 Telemetry.CountRetry(operationName, tableName, exception);
@@ -523,19 +446,6 @@ internal sealed class DynamoDbPipeline : IDisposable
         }
 
         return decision;
-    }
-
-    private async Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await Task.Delay(delay, _timeProvider, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException exception)
-        {
-            // Task.Delay throws a TaskCanceledException. Callers expect the same exception, with their token, as from an attempt.
-            throw new OperationCanceledException(exception.Message, exception, cancellationToken);
-        }
     }
 
     [InlineArray(SHA256.HashSizeInBytes)]

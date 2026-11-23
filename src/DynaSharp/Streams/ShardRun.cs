@@ -1,5 +1,6 @@
 using DynaSharp.Http;
 using DynaSharp.Retries;
+using DynaSharp.Telemetry;
 
 namespace DynaSharp.Streams;
 
@@ -31,12 +32,6 @@ internal sealed class ShardRun(ClientCore core, string shardId, Action? position
     /// <summary>Gets how many times the shard was read again, over all its outages.</summary>
     public int Retries { get; private set; }
 
-    /// <summary>Tells whether a failure is one the same call can pass later: <see cref="DynamoDbException.IsTransient"/>, or what the pipeline repeats of the others.</summary>
-    /// <param name="failure">The failure of the last attempt of a call.</param>
-    /// <returns><see langword="true"/> for a throttling or server error, a network failure and a timeout of an attempt.</returns>
-    public static bool IsTransient(Exception failure) =>
-        failure is DynamoDbException dynamoDb ? dynamoDb.IsTransient : FailureClassifier.Classify(failure) != FailureKind.Permanent;
-
     /// <summary>Says once that the shard holds an iterator, or that it has none to hold.</summary>
     public void Positioned()
     {
@@ -53,7 +48,7 @@ internal sealed class ShardRun(ClientCore core, string shardId, Action? position
             return;
         }
 
-        core.LogShardRecovered(shardId, core.TimeProvider.GetElapsedTime(_outageStarted), _outageRetries);
+        ClientLog.ShardRecovered(core.Logger, shardId, core.TimeProvider.GetElapsedTime(_outageStarted), _outageRetries);
         _outageRetries = 0;
     }
 
@@ -61,7 +56,7 @@ internal sealed class ShardRun(ClientCore core, string shardId, Action? position
     /// <param name="failure">The failure of the last attempt of a call.</param>
     /// <returns><see langword="true"/> to wait with <see cref="WaitAsync"/> and send the call again.</returns>
     public bool CanRetry(Exception failure) =>
-        IsTransient(failure) && (_outageRetries == 0 || core.TimeProvider.GetElapsedTime(_outageStarted) < RetryWindow);
+        FailureClassifier.IsTransient(failure) && (_outageRetries == 0 || core.TimeProvider.GetElapsedTime(_outageStarted) < RetryWindow);
 
     /// <summary>Counts and, at the start of an outage, logs a retry, and waits the backoff before it.</summary>
     /// <param name="failure">The failure.</param>
@@ -72,12 +67,12 @@ internal sealed class ShardRun(ClientCore core, string shardId, Action? position
         if (_outageRetries == 0)
         {
             _outageStarted = core.TimeProvider.GetTimestamp();
-            core.LogShardRetrying(shardId, failure, RetryWindow);
+            ClientLog.ShardRetrying(core.Logger, shardId, OperationTelemetry.GetErrorType(failure), RetryWindow);
         }
 
         _outageRetries++;
         Retries++;
         core.Telemetry.CountStreamRetry(failure);
-        return core.ShardRetryBackoffAsync(_outageRetries, cancellationToken);
+        return core.DelayAsync(core.Retries.GetShardRetryDelay(_outageRetries), cancellationToken);
     }
 }

@@ -28,7 +28,7 @@ internal sealed class RetryPolicyTests
     public async Task GetDelay_FixedRandom_IsTheShareOfTheCeiling(FailureKind kind, int attempt, double random, double expectedMilliseconds)
     {
         // Arrange (the ceiling is min(20 s, base * 2^(attempt - 1)), the base 50 ms for throttling and 100 ms otherwise)
-        var policy = new RetryPolicy(3, new FixedRandom(random));
+        var policy = new RetryPolicy(3, new FixedRandom(random), new RetryQuota());
 
         // Act
         var delay = policy.GetDelay(kind, attempt);
@@ -45,7 +45,7 @@ internal sealed class RetryPolicyTests
     public async Task GetDelay_WaitsOfTheDefaultAttempts_AddUpToTheWindow(FailureKind kind, double expectedMilliseconds)
     {
         // Arrange
-        var policy = new RetryPolicy(4, new FixedRandom(1.0));
+        var policy = new RetryPolicy(4, new FixedRandom(1.0), new RetryQuota());
 
         // Act
         var window = policy.GetDelay(kind, 1) + policy.GetDelay(kind, 2) + policy.GetDelay(kind, 3);
@@ -68,7 +68,7 @@ internal sealed class RetryPolicyTests
     public async Task GetConflictDelay_FixedRandom_IsTheShareOfTheCeiling(int run, double random, double expectedMilliseconds)
     {
         // Arrange (the ceiling is min(1 s, 10 ms * 2^(run - 1)))
-        var policy = new RetryPolicy(3, new FixedRandom(random));
+        var policy = new RetryPolicy(3, new FixedRandom(random), new RetryQuota());
 
         // Act
         var delay = policy.GetConflictDelay(run);
@@ -86,7 +86,7 @@ internal sealed class RetryPolicyTests
     public async Task GetShardRetryDelay_FixedRandom_IsTheShareOfTheCeiling(int retry, double random, double expectedMilliseconds)
     {
         // Arrange (the ceiling is min(30 s, 1 s * 2^(retry - 1)))
-        var policy = new RetryPolicy(3, new FixedRandom(random));
+        var policy = new RetryPolicy(3, new FixedRandom(random), new RetryQuota());
 
         // Act
         var delay = policy.GetShardRetryDelay(retry);
@@ -99,8 +99,9 @@ internal sealed class RetryPolicyTests
     public async Task GetConflictDelay_ManyRuns_TakesNothingFromTheQuota()
     {
         // Arrange
-        var policy = new RetryPolicy(3, FixedRandom.One);
-        var quota = policy.AvailableQuota;
+        var quota = new RetryQuota();
+        var policy = new RetryPolicy(3, FixedRandom.One, quota);
+        var before = quota.Available;
 
         // Act
         for (var run = 1; run <= 200; run++)
@@ -109,14 +110,14 @@ internal sealed class RetryPolicyTests
         }
 
         // Assert
-        await Assert.That(policy.AvailableQuota).IsEqualTo(quota);
+        await Assert.That(quota.Available).IsEqualTo(before);
     }
 
     [Test]
     public async Task GetDelay_RealRandomSource_StaysWithinTheCeiling()
     {
         // Arrange (the ceiling of the third retry after throttling is 200 ms)
-        var policy = new RetryPolicy(3, new Random(7));
+        var policy = new RetryPolicy(3, new Random(7), new RetryQuota());
 
         // Act
         var delays = Enumerable.Range(0, 1_000).Select(_ => policy.GetDelay(FailureKind.Throttling, 3)).ToArray();
@@ -129,7 +130,7 @@ internal sealed class RetryPolicyTests
     public async Task GetDelay_RealRandomSource_SpreadsOverTheWholeRange()
     {
         // Arrange (full jitter: the delays are not clustered at the ceiling)
-        var policy = new RetryPolicy(3, new Random(7));
+        var policy = new RetryPolicy(3, new Random(7), new RetryQuota());
 
         // Act
         var delays = Enumerable.Range(0, 1_000).Select(_ => policy.GetDelay(FailureKind.Throttling, 3)).ToArray();
@@ -145,20 +146,21 @@ internal sealed class RetryPolicyTests
     public async Task Decide_RetryableFailure_RetriesAndTakesTheCostFromTheQuota(FailureKind kind, int cost)
     {
         // Arrange
-        var policy = new RetryPolicy(3, FixedRandom.Zero);
+        var quota = new RetryQuota();
+        var policy = new RetryPolicy(3, FixedRandom.Zero, quota);
 
         // Act
         var decision = policy.Decide(kind, resendAtOnce: false, attempt: 1, lastRetryCost: 0);
 
         // Assert
-        await Assert.That((decision.Verdict, decision.LastRetryCost, policy.AvailableQuota)).IsEqualTo((RetryVerdict.Retry, cost, 500 - cost));
+        await Assert.That((decision.Verdict, decision.LastRetryCost, quota.Available)).IsEqualTo((RetryVerdict.Retry, cost, 500 - cost));
     }
 
     [Test]
     public async Task Decide_RetryableFailure_CarriesTheDelayOfTheAttempt()
     {
         // Arrange
-        var policy = new RetryPolicy(3, FixedRandom.One);
+        var policy = new RetryPolicy(3, FixedRandom.One, new RetryQuota());
 
         // Act
         var decision = policy.Decide(FailureKind.Throttling, resendAtOnce: false, attempt: 2, lastRetryCost: 5);
@@ -174,20 +176,21 @@ internal sealed class RetryPolicyTests
     public async Task Decide_LastAttempt_GivesUpWithAttemptsExhausted(FailureKind kind)
     {
         // Arrange
-        var policy = new RetryPolicy(3, FixedRandom.Zero);
+        var quota = new RetryQuota();
+        var policy = new RetryPolicy(3, FixedRandom.Zero, quota);
 
         // Act
         var decision = policy.Decide(kind, resendAtOnce: false, attempt: 3, lastRetryCost: 5);
 
         // Assert
-        await Assert.That((decision.Verdict, decision.ShouldRetry, policy.AvailableQuota)).IsEqualTo((RetryVerdict.AttemptsExhausted, false, 500));
+        await Assert.That((decision.Verdict, decision.ShouldRetry, quota.Available)).IsEqualTo((RetryVerdict.AttemptsExhausted, false, 500));
     }
 
     [Test]
     public async Task Decide_OneAttemptBeforeTheLast_StillRetries()
     {
         // Arrange
-        var policy = new RetryPolicy(3, FixedRandom.Zero);
+        var policy = new RetryPolicy(3, FixedRandom.Zero, new RetryQuota());
 
         // Act
         var decision = policy.Decide(FailureKind.Transient, resendAtOnce: false, attempt: 2, lastRetryCost: 5);
@@ -200,7 +203,7 @@ internal sealed class RetryPolicyTests
     public async Task Decide_OnlyOneAttemptAllowed_SurfacesWithoutClaimingExhaustion()
     {
         // Arrange (a client with retries switched off has not used up anything, so it must not warn about exhausted retries)
-        var policy = new RetryPolicy(1, FixedRandom.Zero);
+        var policy = new RetryPolicy(1, FixedRandom.Zero, new RetryQuota());
 
         // Act
         var decision = policy.Decide(FailureKind.Throttling, resendAtOnce: false, attempt: 1, lastRetryCost: 0);
@@ -213,7 +216,7 @@ internal sealed class RetryPolicyTests
     public async Task Decide_MaxAttemptsIsIntMaxValue_Retries()
     {
         // Arrange
-        var policy = new RetryPolicy(int.MaxValue, FixedRandom.Zero);
+        var policy = new RetryPolicy(int.MaxValue, FixedRandom.Zero, new RetryQuota());
 
         // Act
         var decision = policy.Decide(FailureKind.Transient, resendAtOnce: false, attempt: 1_000_000, lastRetryCost: 5);
@@ -230,20 +233,22 @@ internal sealed class RetryPolicyTests
     public async Task Decide_PermanentFailure_SurfacesAtAnyAttempt(int attempt)
     {
         // Arrange
-        var policy = new RetryPolicy(int.MaxValue, FixedRandom.Zero);
+        var quota = new RetryQuota();
+        var policy = new RetryPolicy(int.MaxValue, FixedRandom.Zero, quota);
 
         // Act
         var decision = policy.Decide(FailureKind.Permanent, resendAtOnce: false, attempt, lastRetryCost: 0);
 
         // Assert
-        await Assert.That((decision.Verdict, decision.ShouldRetry, policy.AvailableQuota)).IsEqualTo((RetryVerdict.Surface, false, 500));
+        await Assert.That((decision.Verdict, decision.ShouldRetry, quota.Available)).IsEqualTo((RetryVerdict.Surface, false, 500));
     }
 
     [Test]
     public async Task Decide_QuotaHoldsTooLittle_GivesUpWithQuotaExhausted()
     {
         // Arrange
-        var policy = new RetryPolicy(100, FixedRandom.Zero);
+        var quota = new RetryQuota();
+        var policy = new RetryPolicy(100, FixedRandom.Zero, quota);
         for (var i = 0; i < 100; i++)
         {
             policy.Decide(FailureKind.Transient, resendAtOnce: false, attempt: 1, lastRetryCost: 0);
@@ -253,14 +258,14 @@ internal sealed class RetryPolicyTests
         var decision = policy.Decide(FailureKind.Transient, resendAtOnce: false, attempt: 1, lastRetryCost: 5);
 
         // Assert
-        await Assert.That((decision.Verdict, policy.AvailableQuota)).IsEqualTo((RetryVerdict.QuotaExhausted, 0));
+        await Assert.That((decision.Verdict, quota.Available)).IsEqualTo((RetryVerdict.QuotaExhausted, 0));
     }
 
     [Test]
     public async Task Decide_FiveTokensLeft_GivesUpOnATimeoutButStillRetriesATransientFailure()
     {
         // Arrange (495 tokens taken by 99 retries: 5 are enough for a retry, but a timeout costs 10)
-        var policy = new RetryPolicy(10, FixedRandom.Zero);
+        var policy = new RetryPolicy(10, FixedRandom.Zero, new RetryQuota());
         for (var i = 0; i < 99; i++)
         {
             policy.Decide(FailureKind.Transient, resendAtOnce: false, attempt: 1, lastRetryCost: 0);
@@ -282,20 +287,21 @@ internal sealed class RetryPolicyTests
     public async Task Decide_ClockCorrected_ResendsWithoutWaitingOrQuota(FailureKind kind)
     {
         // Arrange
-        var policy = new RetryPolicy(3, FixedRandom.One);
+        var quota = new RetryQuota();
+        var policy = new RetryPolicy(3, FixedRandom.One, quota);
 
         // Act
         var decision = policy.Decide(kind, resendAtOnce: true, attempt: 1, lastRetryCost: 0);
 
         // Assert
-        await Assert.That((decision.Verdict, decision.ShouldRetry, decision.Delay, policy.AvailableQuota)).IsEqualTo((RetryVerdict.Resend, true, TimeSpan.Zero, 500));
+        await Assert.That((decision.Verdict, decision.ShouldRetry, decision.Delay, quota.Available)).IsEqualTo((RetryVerdict.Resend, true, TimeSpan.Zero, 500));
     }
 
     [Test]
     public async Task Decide_ClockCorrectedAfterARetry_KeepsTheCostOfThatRetry()
     {
         // Arrange
-        var policy = new RetryPolicy(3, FixedRandom.One);
+        var policy = new RetryPolicy(3, FixedRandom.One, new RetryQuota());
 
         // Act
         var decision = policy.Decide(FailureKind.Permanent, resendAtOnce: true, attempt: 2, lastRetryCost: 10);
@@ -308,7 +314,7 @@ internal sealed class RetryPolicyTests
     public async Task Decide_ClockCorrectedOnTheLastAttempt_GivesUp()
     {
         // Arrange (the resend counts as an attempt, so there is none left for it)
-        var policy = new RetryPolicy(2, FixedRandom.One);
+        var policy = new RetryPolicy(2, FixedRandom.One, new RetryQuota());
 
         // Act
         var decision = policy.Decide(FailureKind.Permanent, resendAtOnce: true, attempt: 2, lastRetryCost: 0);
@@ -321,7 +327,7 @@ internal sealed class RetryPolicyTests
     public async Task Decide_ClockCorrectedWithRetriesSwitchedOff_Surfaces()
     {
         // Arrange
-        var policy = new RetryPolicy(1, FixedRandom.One);
+        var policy = new RetryPolicy(1, FixedRandom.One, new RetryQuota());
 
         // Act
         var decision = policy.Decide(FailureKind.Permanent, resendAtOnce: true, attempt: 1, lastRetryCost: 0);
@@ -334,20 +340,22 @@ internal sealed class RetryPolicyTests
     public async Task OnSuccess_NoRetryAndAFullQuota_ChangesNothing()
     {
         // Arrange
-        var policy = new RetryPolicy(3, FixedRandom.Zero);
+        var quota = new RetryQuota();
+        var policy = new RetryPolicy(3, FixedRandom.Zero, quota);
 
         // Act
         policy.OnSuccess(0);
 
         // Assert
-        await Assert.That(policy.AvailableQuota).IsEqualTo(500);
+        await Assert.That(quota.Available).IsEqualTo(500);
     }
 
     [Test]
     public async Task OnSuccess_NoRetry_GivesOneTokenBack()
     {
         // Arrange
-        var policy = new RetryPolicy(3, FixedRandom.Zero);
+        var quota = new RetryQuota();
+        var policy = new RetryPolicy(3, FixedRandom.Zero, quota);
         policy.Decide(FailureKind.Transient, resendAtOnce: false, attempt: 1, lastRetryCost: 0);
         policy.Decide(FailureKind.Transient, resendAtOnce: false, attempt: 1, lastRetryCost: 0);
 
@@ -355,7 +363,7 @@ internal sealed class RetryPolicyTests
         policy.OnSuccess(0);
 
         // Assert
-        await Assert.That(policy.AvailableQuota).IsEqualTo(491);
+        await Assert.That(quota.Available).IsEqualTo(491);
     }
 
     [Test]
@@ -364,7 +372,8 @@ internal sealed class RetryPolicyTests
     public async Task OnSuccess_AfterTwoRetries_GivesBackOnlyWhatTheLastRetryTook(FailureKind lastFailure)
     {
         // Arrange (the first retry took 10 tokens, the second 5 or 10, so 15 or 20 are out)
-        var policy = new RetryPolicy(3, FixedRandom.Zero);
+        var quota = new RetryQuota();
+        var policy = new RetryPolicy(3, FixedRandom.Zero, quota);
         policy.Decide(FailureKind.Timeout, resendAtOnce: false, attempt: 1, lastRetryCost: 0);
         var last = policy.Decide(lastFailure, resendAtOnce: false, attempt: 2, lastRetryCost: 10);
 
@@ -372,6 +381,6 @@ internal sealed class RetryPolicyTests
         policy.OnSuccess(last.LastRetryCost);
 
         // Assert
-        await Assert.That(policy.AvailableQuota).IsEqualTo(490);
+        await Assert.That(quota.Available).IsEqualTo(490);
     }
 }
