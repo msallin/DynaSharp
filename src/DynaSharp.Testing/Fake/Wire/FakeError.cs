@@ -35,10 +35,11 @@ internal sealed class FakeError : Exception
 
     private const string ConditionFailedMessage = "The conditional request failed";
 
-    private FakeError(string type, string message, HttpStatusCode status = HttpStatusCode.BadRequest, Action<Utf8JsonWriter>? extraBody = null, bool isInputError = false)
+    private FakeError(string type, string message, HttpStatusCode status = HttpStatusCode.BadRequest, Action<Utf8JsonWriter>? extraBody = null, bool isInputError = false, string messageMember = "message")
         : base(message)
     {
         Type = type;
+        MessageMember = messageMember;
         Status = status;
         ExtraBody = extraBody;
         IsInputError = isInputError;
@@ -58,6 +59,9 @@ internal sealed class FakeError : Exception
     /// where it cancels with a <c>ValidationError</c> reason for the other validation errors of an action.
     /// </summary>
     public bool IsInputError { get; }
+
+    /// <summary>Gets the member the body holds the message in: <c>message</c>, or <c>Message</c> for <c>TransactionCanceledException</c>, as real DynamoDB sends it.</summary>
+    public string MessageMember { get; }
 
     /// <summary>Gets what the body holds beyond <c>__type</c> and <c>message</c>, or <see langword="null"/>.</summary>
     public Action<Utf8JsonWriter>? ExtraBody { get; }
@@ -107,7 +111,8 @@ internal sealed class FakeError : Exception
         return new(
             DynamoDbNamespace + "TransactionCanceledException",
             $"Transaction cancelled, please refer cancellation reasons for specific reasons [{codes}]",
-            extraBody: json => ResponseJson.WriteCancellationReasons(json, reasons));
+            extraBody: json => ResponseJson.WriteCancellationReasons(json, reasons),
+            messageMember: "Message");
     }
 
     /// <summary>A client request token that came again with another request.</summary>
@@ -148,7 +153,7 @@ internal sealed class FakeError : Exception
         {
             json.WriteStartObject();
             json.WriteString("__type", Type);
-            json.WriteString("message", Message);
+            json.WriteString(MessageMember, Message);
             ExtraBody?.Invoke(json);
             json.WriteEndObject();
         }

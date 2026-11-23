@@ -52,7 +52,7 @@ public sealed class TransactWriteItemsTests
         await Assert.That((status, FakeCalls.SameJson(
             """
             {"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException",
-             "message":"Transaction cancelled, please refer cancellation reasons for specific reasons [None, ConditionalCheckFailed]",
+             "Message":"Transaction cancelled, please refer cancellation reasons for specific reasons [None, ConditionalCheckFailed]",
              "CancellationReasons":[{"Code":"None"},{"Code":"ConditionalCheckFailed","Message":"The conditional request failed","Item":{"pk":{"S":"b"},"v":{"S":"old"}}}]}
             """,
             body), fake.Items("Users").Count)).IsEqualTo((HttpStatusCode.BadRequest, true, 1));

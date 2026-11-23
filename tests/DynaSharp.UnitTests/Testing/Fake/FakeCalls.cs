@@ -32,12 +32,13 @@ internal static class FakeCalls
         return status == HttpStatusCode.OK ? body : throw new InvalidOperationException($"{operation} failed: {body}");
     }
 
-    /// <summary>Sends a request that must fail and gives the code after the <c>#</c> and the message.</summary>
+    /// <summary>Sends a request that must fail and gives the code after the <c>#</c> and the message, which <c>TransactionCanceledException</c> holds in <c>Message</c>.</summary>
     public static (HttpStatusCode Status, string Code, string Message) Error(FakeDynamoDb fake, string operation, string json)
     {
         var (status, body) = Send(fake, operation, json);
         var type = body.GetProperty("__type").GetString()!;
-        return (status, type[(type.AsSpan().LastIndexOf('#') + 1)..], body.GetProperty("message").GetString()!);
+        var message = body.TryGetProperty("message", out var lower) ? lower : body.GetProperty("Message");
+        return (status, type[(type.AsSpan().LastIndexOf('#') + 1)..], message.GetString()!);
     }
 
     /// <summary>Makes a fake with tables created from the given bodies.</summary>
