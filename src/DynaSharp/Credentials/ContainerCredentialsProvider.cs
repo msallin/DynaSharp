@@ -1,8 +1,6 @@
 using System.Net;
 using DynaSharp.Configuration;
-using DynaSharp.Retries;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DynaSharp.Credentials;
 
@@ -69,22 +67,17 @@ public sealed class ContainerCredentialsProvider : IRefreshableCredentialsProvid
     /// current process and uses the system clock.
     /// </summary>
     public ContainerCredentialsProvider()
-        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, new ClockSkewCorrection(TimeProvider.System), NullLogger.Instance)
+        : this(CredentialsDependencies.CreateDefault())
     {
     }
 
-    internal ContainerCredentialsProvider(
-        Func<string, string?> getEnvironmentVariable,
-        ReadTextFile readFile,
-        HttpMessageHandler? handler,
-        TimeProvider timeProvider,
-        ILogger logger)
+    internal ContainerCredentialsProvider(CredentialsDependencies dependencies)
     {
-        _getEnvironmentVariable = getEnvironmentVariable;
-        _readFile = readFile;
-        _http = CredentialsHttp.GetClient(handler);
-        _timeProvider = timeProvider;
-        _cache = new RefreshingCredentialsCache(SourceName, timeProvider, logger, FetchOutcomeAsync);
+        _getEnvironmentVariable = dependencies.GetEnvironmentVariable;
+        _readFile = dependencies.ReadFile;
+        _http = CredentialsHttp.GetClient(dependencies.Handler);
+        _timeProvider = dependencies.TimeProvider;
+        _cache = new RefreshingCredentialsCache(SourceName, _timeProvider, dependencies.LoggerFactory.CreateLogger<ContainerCredentialsProvider>(), FetchOutcomeAsync);
     }
 
     /// <summary>

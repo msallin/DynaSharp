@@ -1,8 +1,5 @@
 using System.Globalization;
-using DynaSharp.Configuration;
-using DynaSharp.Retries;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DynaSharp.Credentials;
 
@@ -45,20 +42,16 @@ public sealed class EnvironmentCredentialsProvider : IRefreshableCredentialsProv
     /// environment of the current process.
     /// </summary>
     public EnvironmentCredentialsProvider()
-        : this(ProcessEnvironment.GetVariable)
+        : this(CredentialsDependencies.CreateDefault())
     {
     }
 
-    internal EnvironmentCredentialsProvider(Func<string, string?> getEnvironmentVariable)
-        : this(getEnvironmentVariable, new ClockSkewCorrection(TimeProvider.System), NullLogger.Instance)
+    internal EnvironmentCredentialsProvider(CredentialsDependencies dependencies)
     {
-    }
-
-    internal EnvironmentCredentialsProvider(Func<string, string?> getEnvironmentVariable, TimeProvider timeProvider, ILogger logger)
-    {
-        _getEnvironmentVariable = getEnvironmentVariable;
-        _timeProvider = timeProvider;
-        _cache = new RefreshingCredentialsCache(SourceName, timeProvider, logger, () => ValueTask.FromResult(CredentialsOutcome.Found(Load())));
+        _getEnvironmentVariable = dependencies.GetEnvironmentVariable;
+        _timeProvider = dependencies.TimeProvider;
+        _cache = new RefreshingCredentialsCache(
+            SourceName, _timeProvider, dependencies.LoggerFactory.CreateLogger<EnvironmentCredentialsProvider>(), () => ValueTask.FromResult(CredentialsOutcome.Found(Load())));
     }
 
     /// <summary>

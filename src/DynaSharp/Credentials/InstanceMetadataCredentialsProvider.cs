@@ -2,9 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text;
 using DynaSharp.Configuration;
-using DynaSharp.Retries;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DynaSharp.Credentials;
 
@@ -80,24 +78,18 @@ public sealed class InstanceMetadataCredentialsProvider : IRefreshableCredential
     /// current process and uses the system clock.
     /// </summary>
     public InstanceMetadataCredentialsProvider()
-        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, new ClockSkewCorrection(TimeProvider.System), NullLogger.Instance, null)
+        : this(CredentialsDependencies.CreateDefault(), null)
     {
     }
 
-    internal InstanceMetadataCredentialsProvider(
-        Func<string, string?> getEnvironmentVariable,
-        ReadTextFile readFile,
-        HttpMessageHandler? handler,
-        TimeProvider timeProvider,
-        ILogger logger,
-        Random? random)
+    internal InstanceMetadataCredentialsProvider(CredentialsDependencies dependencies, Random? random)
     {
-        _getEnvironmentVariable = getEnvironmentVariable;
-        _readFile = readFile;
-        _http = CredentialsHttp.GetClient(handler);
-        _timeProvider = timeProvider;
+        _getEnvironmentVariable = dependencies.GetEnvironmentVariable;
+        _readFile = dependencies.ReadFile;
+        _http = CredentialsHttp.GetClient(dependencies.Handler);
+        _timeProvider = dependencies.TimeProvider;
         _random = random ?? Random.Shared;
-        _cache = new RefreshingCredentialsCache(SourceName, timeProvider, logger, FetchAsync);
+        _cache = new RefreshingCredentialsCache(SourceName, _timeProvider, dependencies.LoggerFactory.CreateLogger<InstanceMetadataCredentialsProvider>(), FetchAsync);
     }
 
     /// <summary>

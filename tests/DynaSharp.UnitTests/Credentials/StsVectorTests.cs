@@ -2,7 +2,6 @@ using System.Net;
 using System.Text;
 using DynaSharp.Credentials;
 using DynaSharp.Testing;
-using Microsoft.Extensions.Logging.Abstractions;
 using static DynaSharp.UnitTests.Credentials.CredentialsTestSupport;
 
 namespace DynaSharp.UnitTests.Credentials;
@@ -73,11 +72,7 @@ public sealed class StsVectorTests
         using var handler = Answering(Success());
         var mode = vector.Entry.GetProperty("mode").GetString();
         var provider = new WebIdentityCredentialsProvider(
-            Env(("AWS_STS_REGIONAL_ENDPOINTS", mode ?? string.Empty), ("AWS_WEB_IDENTITY_TOKEN_FILE", TokenPath), ("AWS_ROLE_ARN", RoleArn)),
-            Files((TokenPath, "token")),
-            handler,
-            new ManualTimeProvider(Now),
-            NullLogger.Instance,
+            Dependencies(Env(("AWS_STS_REGIONAL_ENDPOINTS", mode ?? string.Empty), ("AWS_WEB_IDENTITY_TOKEN_FILE", TokenPath), ("AWS_ROLE_ARN", RoleArn)), Files((TokenPath, "token")), handler, new ManualTimeProvider(Now)),
             AwsRegion.FromName(vector.Text("region")));
 
         // Act
@@ -96,11 +91,7 @@ public sealed class StsVectorTests
         var variables = vector.Entry.GetProperty("environment").EnumerateObject().Select(static variable => (variable.Name, variable.Value.GetString()!));
         var region = vector.Entry.GetProperty("region").GetString();
         var provider = new WebIdentityCredentialsProvider(
-            Env([.. variables, ("AWS_WEB_IDENTITY_TOKEN_FILE", TokenPath), ("AWS_ROLE_ARN", RoleArn)]),
-            Files((TokenPath, "token")),
-            handler,
-            new ManualTimeProvider(Now),
-            NullLogger.Instance,
+            Dependencies(Env([.. variables, ("AWS_WEB_IDENTITY_TOKEN_FILE", TokenPath), ("AWS_ROLE_ARN", RoleArn)]), Files((TokenPath, "token")), handler, new ManualTimeProvider(Now)),
             region is null ? null : AwsRegion.FromName(region));
 
         // Act
@@ -219,10 +210,10 @@ public sealed class StsVectorTests
     private static StubHandler Answering(StubResponse response) => new(_ => response);
 
     private static WebIdentityCredentialsProvider Create(StubHandler handler, string roleArn, string sessionName, string token, ManualTimeProvider? time = null) => new(
-        Env(("AWS_WEB_IDENTITY_TOKEN_FILE", TokenPath), ("AWS_ROLE_ARN", roleArn), ("AWS_ROLE_SESSION_NAME", sessionName)),
-        Files((TokenPath, token)),
-        handler,
-        time ?? new ManualTimeProvider(Now),
-        NullLogger.Instance,
+        Dependencies(
+            Env(("AWS_WEB_IDENTITY_TOKEN_FILE", TokenPath), ("AWS_ROLE_ARN", roleArn), ("AWS_ROLE_SESSION_NAME", sessionName)),
+            Files((TokenPath, token)),
+            handler,
+            time ?? new ManualTimeProvider(Now)),
         AwsRegion.FromName("eu-west-1"));
 }

@@ -117,7 +117,7 @@ public sealed class SharedFileVectorTests
     {
         // Arrange
         var expected = ExpectedResult(lookup.Vector, lookup.Lookup);
-        var provider = new ProfileCredentialsProvider(SharedFileVectors.Environment(), SharedFileVectors.Files(lookup.Vector), lookup.Detail);
+        var provider = new ProfileCredentialsProvider(CredentialsTestSupport.Dependencies(SharedFileVectors.Environment(), SharedFileVectors.Files(lookup.Vector)), lookup.Detail);
 
         // Act
         string actual;

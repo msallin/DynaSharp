@@ -3,7 +3,6 @@ using System.Net;
 using DynaSharp.Credentials;
 using DynaSharp.Testing;
 using DynaSharp.UnitTests.Generators;
-using Microsoft.Extensions.Logging.Abstractions;
 using static DynaSharp.UnitTests.Credentials.CredentialsTestSupport;
 
 namespace DynaSharp.UnitTests.Credentials;
@@ -140,15 +139,14 @@ public sealed class WebIdentityEndToEndTests
 
     // No handler, so that it sends over the client of the credential endpoints.
     private static WebIdentityCredentialsProvider Provider(Uri sts, ManualTimeProvider time) => new(
-        Env(
-            ("AWS_ENDPOINT_URL_STS", sts.AbsoluteUri),
-            ("AWS_WEB_IDENTITY_TOKEN_FILE", TokenFile),
-            ("AWS_ROLE_ARN", Request.Text("role_arn")),
-            ("AWS_ROLE_SESSION_NAME", Request.Text("role_session_name"))),
-        Files((TokenFile, Request.Text("token"))),
-        null,
-        time,
-        NullLogger.Instance,
+        Dependencies(
+            Env(
+                ("AWS_ENDPOINT_URL_STS", sts.AbsoluteUri),
+                ("AWS_WEB_IDENTITY_TOKEN_FILE", TokenFile),
+                ("AWS_ROLE_ARN", Request.Text("role_arn")),
+                ("AWS_ROLE_SESSION_NAME", Request.Text("role_session_name"))),
+            Files((TokenFile, Request.Text("token"))),
+            time: time),
         Region);
 
     /// <summary>A proxy for every request, as <c>HTTP_PROXY</c> without <c>NO_PROXY</c> makes it. <see cref="WebProxy"/> would not say so for a local address.</summary>

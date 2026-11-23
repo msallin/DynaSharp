@@ -4,7 +4,6 @@ using DynaSharp.Credentials;
 using DynaSharp.Retries;
 using DynaSharp.Testing;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using static DynaSharp.UnitTests.Credentials.CredentialsTestSupport;
 
 namespace DynaSharp.UnitTests.Credentials;
@@ -825,7 +824,7 @@ public sealed class WebIdentityCredentialsProviderTests
     {
         // Arrange
         using var logs = new CapturingLoggerFactory();
-        var world = new World(logger: logs.CreateLogger("test"));
+        var world = new World(logs: logs);
         world.Answer = (_, _) => Task.FromResult(world.Handler.Requests.Count == 1 ? Error("ExpiredTokenException", HttpStatusCode.BadRequest) : world.Success());
 
         // Act
@@ -841,7 +840,7 @@ public sealed class WebIdentityCredentialsProviderTests
     {
         // Arrange
         using var logs = new CapturingLoggerFactory(LogLevel.Warning);
-        var world = new World(Env([.. Irsa, ("AWS_ENDPOINT_URL_STS", "http://sts-emulator:4566")]), logger: logs.CreateLogger("test"));
+        var world = new World(Env([.. Irsa, ("AWS_ENDPOINT_URL_STS", "http://sts-emulator:4566")]), logs: logs);
 
         // Act
         await world.Provider.GetCredentialsAsync(CancellationToken.None);
@@ -855,7 +854,7 @@ public sealed class WebIdentityCredentialsProviderTests
     {
         // Arrange: an STS emulator in docker-compose, reached by its service name
         using var logs = new CapturingLoggerFactory(LogLevel.Warning);
-        var world = new World(Env([.. Irsa, ("AWS_ENDPOINT_URL_STS", "http://sts-emulator:4566")]), logger: logs.CreateLogger("test"));
+        var world = new World(Env([.. Irsa, ("AWS_ENDPOINT_URL_STS", "http://sts-emulator:4566")]), logs: logs);
         var first = await world.Provider.GetCredentialsAsync(CancellationToken.None);
         world.Provider.TryInvalidate(first);
 
@@ -876,7 +875,7 @@ public sealed class WebIdentityCredentialsProviderTests
     {
         // Arrange
         using var logs = new CapturingLoggerFactory(LogLevel.Warning);
-        var world = new World(Env([.. Irsa, ("AWS_ENDPOINT_URL_STS", endpoint)]), logger: logs.CreateLogger("test"));
+        var world = new World(Env([.. Irsa, ("AWS_ENDPOINT_URL_STS", endpoint)]), logs: logs);
 
         // Act
         await world.Provider.GetCredentialsAsync(CancellationToken.None);
@@ -890,7 +889,7 @@ public sealed class WebIdentityCredentialsProviderTests
     {
         // Arrange
         using var logs = new CapturingLoggerFactory(LogLevel.Warning);
-        var world = new World(Env([.. Irsa, ("AWS_ENDPOINT_URL_STS", "https://sts-emulator:4566")]), logger: logs.CreateLogger("test"));
+        var world = new World(Env([.. Irsa, ("AWS_ENDPOINT_URL_STS", "https://sts-emulator:4566")]), logs: logs);
 
         // Act
         await world.Provider.GetCredentialsAsync(CancellationToken.None);
@@ -1206,7 +1205,7 @@ public sealed class WebIdentityCredentialsProviderTests
     {
         // Arrange
         using var logs = new CapturingLoggerFactory();
-        var world = new World(logger: logs.CreateLogger("test"));
+        var world = new World(logs: logs);
         var first = await world.Provider.GetCredentialsAsync(CancellationToken.None);
         world.Files.TryRemove(TokenPath, out _);
         world.Time.Advance(TimeSpan.FromMinutes(46));
@@ -1278,7 +1277,7 @@ public sealed class WebIdentityCredentialsProviderTests
     {
         // Arrange
         using var logs = new CapturingLoggerFactory();
-        var world = new World(logger: logs.CreateLogger("test"));
+        var world = new World(logs: logs);
         await world.Provider.GetCredentialsAsync(CancellationToken.None);
         world.Answer = (_, _) => Task.FromResult(Error("ValidationError", status, $"Value '{Token}' is invalid"));
         world.Time.Advance(TimeSpan.FromMinutes(51));
@@ -1331,8 +1330,8 @@ public sealed class WebIdentityCredentialsProviderTests
             ReadTextFile? files = null,
             AwsRegion? region = null,
             WebIdentityCredentialsProvider.Settings? settings = null,
-            ILogger? logger = null)
-            : this(environment, files, region, settings, logger, regionIsUnknown: false)
+            ILoggerFactory? logs = null)
+            : this(environment, files, region, settings, logs, regionIsUnknown: false)
         {
         }
 
@@ -1346,7 +1345,7 @@ public sealed class WebIdentityCredentialsProviderTests
             ReadTextFile? files,
             AwsRegion? region,
             WebIdentityCredentialsProvider.Settings? settings,
-            ILogger? logger,
+            ILoggerFactory? logs,
             bool regionIsUnknown)
         {
             Files[TokenPath] = Token;
@@ -1354,11 +1353,7 @@ public sealed class WebIdentityCredentialsProviderTests
             Handler = new StubHandler((request, cancellationToken) => Answer(request, cancellationToken));
             Clock = new ClockSkewCorrection(Time);
             Provider = new WebIdentityCredentialsProvider(
-                environment ?? Env(Irsa),
-                files ?? ReadFile,
-                Handler,
-                Clock,
-                logger ?? NullLogger.Instance,
+                Dependencies(environment ?? Env(Irsa), files ?? ReadFile, Handler, Clock, logs),
                 regionIsUnknown ? null : region ?? WebIdentityCredentialsProviderTests.Region,
                 settings);
         }

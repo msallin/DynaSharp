@@ -3,7 +3,6 @@ using DynaSharp.Configuration;
 using DynaSharp.Credentials;
 using DynaSharp.Testing;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using static DynaSharp.UnitTests.Credentials.CredentialsTestSupport;
 
 namespace DynaSharp.UnitTests.Credentials;
@@ -86,7 +85,7 @@ public sealed class DefaultCredentialsProviderTests
         });
 
         // Act
-        _ = new DefaultCredentialsProvider(environment, files, handler, new ManualTimeProvider(), NullLoggerFactory.Instance, null);
+        _ = new DefaultCredentialsProvider(Dependencies(environment, files, handler, new ManualTimeProvider()), null);
 
         // Assert
         await Assert.That(touched).IsEqualTo(0);
@@ -911,16 +910,13 @@ public sealed class DefaultCredentialsProviderTests
             _stsAnswer = stsAnswer ?? StsSuccess;
             Time = new ManualTimeProvider();
             Handler = new StubHandler(RespondAsync);
+            ReadTextFile readFile = path =>
+            {
+                Interlocked.Increment(ref _fileReads);
+                return _files.GetValueOrDefault(path);
+            };
             Provider = new DefaultCredentialsProvider(
-                GetVariable,
-                path =>
-                {
-                    Interlocked.Increment(ref _fileReads);
-                    return _files.GetValueOrDefault(path);
-                },
-                Handler,
-                Time,
-                loggerFactory ?? NullLoggerFactory.Instance,
+                Dependencies(GetVariable, readFile, Handler, Time, loggerFactory),
                 new Random(1),
                 AwsRegion.FromName("eu-west-1"));
         }

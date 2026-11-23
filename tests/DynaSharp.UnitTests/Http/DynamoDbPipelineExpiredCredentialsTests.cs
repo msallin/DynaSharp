@@ -4,7 +4,6 @@ using DynaSharp.Requests;
 using DynaSharp.Streams;
 using DynaSharp.Testing;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using static DynaSharp.UnitTests.Credentials.CredentialsTestSupport;
 using static DynaSharp.UnitTests.Http.RetryTestSupport;
 
@@ -516,7 +515,7 @@ public sealed class DynamoDbPipelineExpiredCredentialsTests
         StubResponse.DynamoDbError("ExpiredTokenException", "The security token included in the request is expired", requestId: requestId);
 
     private static ContainerCredentialsProvider ContainerProvider(ExpiringCredentialsAccount account, TimeProvider time) =>
-        new(ContainerEnvironment, NoFiles, account.Endpoint, time, NullLogger.Instance);
+        new(Dependencies(ContainerEnvironment, handler: account.Endpoint, time: time));
 
     private static DynamoDbClient ClientOverTheDefaultChain(ExpiringCredentialsAccount account, ManualTimeProvider time, ILoggerFactory? loggerFactory = null) =>
         new(

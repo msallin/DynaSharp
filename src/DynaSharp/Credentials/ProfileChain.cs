@@ -1,6 +1,5 @@
 using System.Globalization;
 using DynaSharp.Configuration;
-using Microsoft.Extensions.Logging;
 
 namespace DynaSharp.Credentials;
 
@@ -216,14 +215,7 @@ internal sealed class ProfileChain
             ?? throw new CredentialsUnavailableException(
                 $"The profile '{profile.Name}' sets {WebIdentityTokenFileOption} but no {RoleArnOption}: web identity federation needs the role to assume.");
         var settings = new WebIdentityCredentialsProvider.Settings(tokenFile, roleArn, StsRegion(profile), ReadSessionName(profile));
-        var provider = new WebIdentityCredentialsProvider(
-            _dependencies.GetEnvironmentVariable,
-            _dependencies.ReadFile,
-            _dependencies.Handler,
-            _dependencies.TimeProvider,
-            _dependencies.LoggerFactory.CreateLogger<WebIdentityCredentialsProvider>(),
-            settings.Region,
-            settings);
+        var provider = new WebIdentityCredentialsProvider(_dependencies, null, settings);
         return new ProfileSource(profile.Name, $"web identity federation into the role {roleArn}", provider);
     }
 
@@ -295,15 +287,11 @@ internal sealed class ProfileChain
     // botocore's CanonicalNameCredentialSourcer with its three providers, whose names it compares exactly.
     private NamedSource FromCredentialSource(string profileName, string name)
     {
-        var getEnvironmentVariable = _dependencies.GetEnvironmentVariable;
         Func<CancellationToken, ValueTask<CredentialsOutcome>> tryGetCredentials = name switch
         {
-            "Environment" => new EnvironmentCredentialsProvider(
-                getEnvironmentVariable, _dependencies.TimeProvider, _dependencies.LoggerFactory.CreateLogger<EnvironmentCredentialsProvider>()).TryGetCredentialsAsync,
-            "Ec2InstanceMetadata" => new InstanceMetadataCredentialsProvider(
-                getEnvironmentVariable, _dependencies.ReadFile, _dependencies.Handler, _dependencies.TimeProvider, _dependencies.LoggerFactory.CreateLogger<InstanceMetadataCredentialsProvider>(), null).TryGetCredentialsAsync,
-            "EcsContainer" => new ContainerCredentialsProvider(
-                getEnvironmentVariable, _dependencies.ReadFile, _dependencies.Handler, _dependencies.TimeProvider, _dependencies.LoggerFactory.CreateLogger<ContainerCredentialsProvider>()).TryGetCredentialsAsync,
+            "Environment" => new EnvironmentCredentialsProvider(_dependencies).TryGetCredentialsAsync,
+            "Ec2InstanceMetadata" => new InstanceMetadataCredentialsProvider(_dependencies, null).TryGetCredentialsAsync,
+            "EcsContainer" => new ContainerCredentialsProvider(_dependencies).TryGetCredentialsAsync,
             _ => throw new CredentialsUnavailableException(
                 $"The {CredentialSourceOption} '{name}' of the profile '{profileName}' is none of Environment, Ec2InstanceMetadata and EcsContainer."),
         };

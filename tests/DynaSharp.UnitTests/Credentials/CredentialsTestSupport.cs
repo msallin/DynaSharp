@@ -1,5 +1,8 @@
 using System.Globalization;
 using DynaSharp.Configuration;
+using DynaSharp.Credentials;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DynaSharp.UnitTests.Credentials;
 
@@ -30,6 +33,15 @@ internal static class CredentialsTestSupport
         var map = files.ToDictionary(f => f.Path, f => f.Content);
         return path => map.GetValueOrDefault(path);
     }
+
+    /// <summary>The seams of a provider: this environment and these files, no writes, real programs, the system clock and no logging unless given.</summary>
+    public static CredentialsDependencies Dependencies(
+        Func<string, string?> environment,
+        ReadTextFile? files = null,
+        HttpMessageHandler? handler = null,
+        TimeProvider? time = null,
+        ILoggerFactory? logs = null) =>
+        new(environment, files ?? NoFiles, NoWrites, CredentialProcess.Runner, handler, time ?? TimeProvider.System, logs ?? NullLoggerFactory.Instance);
 
     /// <summary>Formats a time like the credential endpoints do: <c>2021-01-16T00:51:53Z</c>.</summary>
     public static string Timestamp(DateTimeOffset time) => time.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
