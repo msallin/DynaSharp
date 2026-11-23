@@ -25,7 +25,7 @@ internal static class RejectedRequest
     /// <param name="body">The request body, which this library wrote.</param>
     public static void Describe(ValidationException rejection, ArraySegment<byte> body)
     {
-        using var document = JsonDocument.Parse(body, new JsonDocumentOptions { MaxDepth = WireJson.ReaderOptions.MaxDepth });
+        using var document = JsonDocument.Parse(body, WireJson.DocumentOptions);
         var root = document.RootElement;
         var found = new Found();
         found.Read(root, string.Empty);

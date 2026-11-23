@@ -511,7 +511,7 @@ public sealed partial class FakeDynamoDb
     private static TableDescription Describe(FakeTable table)
     {
         var buffer = new System.Buffers.ArrayBufferWriter<byte>();
-        using (var json = new System.Text.Json.Utf8JsonWriter(buffer, WireJson.WriterOptions))
+        using (var json = WireJson.CreateWriter(buffer))
         {
             json.WriteStartObject();
             ResponseJson.WriteTableDescription(json, "Table", table, TableStatus.Active);

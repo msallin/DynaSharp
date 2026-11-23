@@ -21,6 +21,9 @@ internal static class WireJson
     /// </summary>
     internal static readonly JsonReaderOptions ReaderOptions = new() { MaxDepth = 128 };
 
+    /// <summary>Document settings with the depth of <see cref="ReaderOptions"/>, for a document of the wire or a <see cref="JsonElement"/> made from a value.</summary>
+    internal static readonly JsonDocumentOptions DocumentOptions = new() { MaxDepth = ReaderOptions.MaxDepth };
+
     // What goes into a JSON string as it is, and encodes to the same bytes with WriterOptions: printable ASCII except the quote and the
     // backslash. Everything else takes the encoder. Non-ASCII text would be legal as it is, but it needs the check for lone surrogates.
     private static readonly SearchValues<char> PlainCharacters = SearchValues.Create(" !#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~");

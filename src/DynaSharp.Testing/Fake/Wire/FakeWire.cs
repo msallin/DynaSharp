@@ -75,7 +75,7 @@ internal static class FakeWire
             var handler = Find(target);
             using var document = Parse(body);
             var buffer = new ArrayBufferWriter<byte>();
-            using (var json = new Utf8JsonWriter(buffer, WireJson.WriterOptions))
+            using (var json = WireJson.CreateWriter(buffer))
             {
                 json.WriteStartObject();
                 lock (db.Gate)
@@ -135,7 +135,7 @@ internal static class FakeWire
         JsonDocument document;
         try
         {
-            document = JsonDocument.Parse(body.ToArray(), new JsonDocumentOptions { MaxDepth = WireJson.ReaderOptions.MaxDepth });
+            document = JsonDocument.Parse(body.ToArray(), WireJson.DocumentOptions);
         }
         catch (JsonException exception)
         {

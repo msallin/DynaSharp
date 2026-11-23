@@ -77,7 +77,7 @@ public sealed class RecordedRequest
     /// <summary>Gets the request body as JSON, parsed anew on each read. The element stands on its own, so a test can keep it as long as it likes.</summary>
     /// <value>The root of the body.</value>
     /// <exception cref="JsonException">The body is not JSON, or there is none.</exception>
-    public JsonElement BodyJson => JsonElement.Parse(Body.Span, new JsonDocumentOptions { MaxDepth = WireJson.ReaderOptions.MaxDepth });
+    public JsonElement BodyJson => JsonElement.Parse(Body.Span, WireJson.DocumentOptions);
 
     /// <summary>
     /// Gets the <c>TableName</c> of the body, which a request on one table carries, such as a <c>GetItem</c>, a <c>Query</c> or a <c>DescribeTable</c>; <see langword="null"/> if it has none. A batch and a
