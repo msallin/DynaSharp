@@ -73,7 +73,7 @@ The trade-off: a lock whose item was deleted starts its fencing token at 1 again
 
 ## Acquire and release
 
-`AcquireAsync` waits until it has the lock, `TryAcquireAsync` tries once and returns `null` if another holder has it. Disposing the lease releases the lock.
+`AcquireAsync` waits until it has the lock, `TryAcquireAsync` tries once and returns `null` if another holder has it. Disposing the lease releases the lock. Both take an optional `wait` before the token: `null`, the default, is no wait for `TryAcquireAsync` and no limit for `AcquireAsync`; zero is one try and `Timeout.InfiniteTimeSpan` no limit for both. A call with the token alone, `TryAcquireAsync(name, lease, ct)`, takes no wait.
 
 A process that runs once and stops, such as a scheduled job, a function or a command line tool, gives `TryAcquireAsync` a wait a little longer than one lease. That gives up on a live holder with `null`, and still takes over the lock of a holder that crashed, which needs a whole lease of waiting. The wait runs on the `TimeProvider` of the client, and it never cuts off a request: the last try is the one at the end of the wait. A retry of the same `LockTable`, such as the next delivery of a message, keeps what the try before saw of the holder. `AcquireAsync` with a wait does the same and throws a `TimeoutException` that names the lock instead of returning `null`:
 
