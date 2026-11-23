@@ -85,8 +85,9 @@ internal static class Leadership
                     await work(lease, stop.Token).ConfigureAwait(false);
 
                     // Work that returned before its token was cancelled finished, also if the lease ends right after: running it again would repeat it.
-                    // Work that returned after may have stopped early because of the token, so a loss makes it run again.
-                    done = !stop.Token.IsCancellationRequested;
+                    // Work that returned after may have stopped early because of the token, so a loss makes it run again. The sources are read, not the
+                    // linked token: a loss cancels Ended with CancelAsync, which cancels the linked token later, on the thread pool.
+                    done = !cancellationToken.IsCancellationRequested && !lease.Ended.IsCancellationRequested;
                 }
                 catch (Exception exception) when (cancellationToken.IsCancellationRequested || lease.Ended.IsCancellationRequested)
                 {
