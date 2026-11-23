@@ -27,13 +27,7 @@ public readonly struct ReadOnlyDictionaryConverter<T, TConverter> : IDynamoDbCon
         writer.WriteStartMap();
         foreach (var (name, element) in value)
         {
-            if (name.Length == 0)
-            {
-                throw new EmptyMapNameException(nameof(value));
-            }
-
-            writer.WriteAttributeName(name);
-            TConverter.Write(writer, element);
+            DictionaryConverter<T, TConverter>.WriteEntry(writer, name, element, nameof(value));
         }
 
         writer.WriteEndMap();
