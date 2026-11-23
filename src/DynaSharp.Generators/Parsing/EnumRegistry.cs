@@ -114,7 +114,7 @@ internal sealed class EnumRegistry
         var values = new HashSet<object>();
         var members = Fields(type)
             .Select(field => (Field: field, Name: StoredName(field)))
-            .Select(member => new EnumMember(member.Name, Names.Identifier(member.Field.Name), Encoding.UTF8.GetByteCount(member.Name), values.Add(member.Field.ConstantValue!)));
+            .Select(member => new EnumMember(member.Name, Names.Identifier(member.Field.Name), values.Add(member.Field.ConstantValue!)));
         return new EquatableArray<EnumMember>([.. members]);
     }
 

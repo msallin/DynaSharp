@@ -16,7 +16,6 @@ Properties:
     Identifier: UserId
     ValueType: global::System.Guid
     AttributeName: UserId
-    AttributeNameUtf8Length: 6
     Converter: ConverterModel
       WriteConverter: global::DynaSharp.Serialization.GuidConverter
       ReadConverter: global::DynaSharp.Serialization.GuidConverter
@@ -41,7 +40,6 @@ Properties:
     Identifier: CreatedAt
     ValueType: global::System.DateTimeOffset
     AttributeName: CreatedAt
-    AttributeNameUtf8Length: 9
     Converter: ConverterModel
       WriteConverter: global::DynaSharp.Serialization.DateTimeOffsetConverter
       ReadConverter: global::DynaSharp.Serialization.DateTimeOffsetConverter
@@ -66,7 +64,6 @@ Properties:
     Identifier: OrderId
     ValueType: global::System.Guid
     AttributeName: OrderId
-    AttributeNameUtf8Length: 7
     Converter: ConverterModel
       WriteConverter: global::DynaSharp.Serialization.GuidConverter
       ReadConverter: global::DynaSharp.Serialization.GuidConverter
@@ -91,7 +88,6 @@ Properties:
     Identifier: Status
     ValueType: global::Shop.OrderStatus
     AttributeName: Status
-    AttributeNameUtf8Length: 6
     Converter: ConverterModel
       WriteConverter: Shop_OrderStatusConverter
       ReadConverter: Shop_OrderStatusConverter
@@ -116,7 +112,6 @@ Properties:
     Identifier: Total
     ValueType: decimal
     AttributeName: Total
-    AttributeNameUtf8Length: 5
     Converter: ConverterModel
       WriteConverter: global::DynaSharp.Serialization.NumberConverter<decimal>
       ReadConverter: global::DynaSharp.Serialization.NumberConverter<decimal>
@@ -141,7 +136,6 @@ Properties:
     Identifier: TrackingId
     ValueType: global::System.Guid?
     AttributeName: TrackingId
-    AttributeNameUtf8Length: 10
     Converter: ConverterModel
       WriteConverter: global::DynaSharp.Serialization.GuidConverter
       ReadConverter: global::DynaSharp.Serialization.NullableConverter<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>
@@ -166,7 +160,6 @@ Properties:
     Identifier: ShippedAt
     ValueType: global::System.DateTimeOffset?
     AttributeName: ShippedAt
-    AttributeNameUtf8Length: 9
     Converter: ConverterModel
       WriteConverter: global::DynaSharp.Serialization.DateTimeOffsetConverter
       ReadConverter: global::DynaSharp.Serialization.NullableConverter<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>
@@ -191,7 +184,6 @@ Properties:
     Identifier: ShipTo
     ValueType: global::Shop.Address?
     AttributeName: ShipTo
-    AttributeNameUtf8Length: 6
     Converter: ConverterModel
       WriteConverter: global::DynaSharp.Serialization.DocumentConverter<global::Shop.Address>
       ReadConverter: global::DynaSharp.Serialization.NullableReferenceConverter<global::Shop.Address, global::DynaSharp.Serialization.DocumentConverter<global::Shop.Address>>
@@ -216,7 +208,6 @@ Properties:
     Identifier: Lines
     ValueType: global::System.Collections.Generic.IReadOnlyList<global::Shop.LineItem>
     AttributeName: Lines
-    AttributeNameUtf8Length: 5
     Converter: ConverterModel
       WriteConverter: global::DynaSharp.Serialization.ReadOnlyListConverter<global::Shop.LineItem, global::DynaSharp.Serialization.DocumentConverter<global::Shop.LineItem>>
       ReadConverter: global::DynaSharp.Serialization.ReadOnlyListConverter<global::Shop.LineItem, global::DynaSharp.Serialization.DocumentConverter<global::Shop.LineItem>>
@@ -241,7 +232,6 @@ Properties:
     Identifier: Tags
     ValueType: global::System.Collections.Generic.HashSet<string>
     AttributeName: Tags
-    AttributeNameUtf8Length: 4
     Converter: ConverterModel
       WriteConverter: global::DynaSharp.Serialization.HashSetConverter<string, global::DynaSharp.Serialization.StringSetElement>
       ReadConverter: global::DynaSharp.Serialization.HashSetConverter<string, global::DynaSharp.Serialization.StringSetElement>
@@ -266,7 +256,6 @@ Properties:
     Identifier: ExpiresAt
     ValueType: global::System.DateTimeOffset?
     AttributeName: ttl
-    AttributeNameUtf8Length: 3
     Converter: ConverterModel
       WriteConverter: global::DynaSharp.Serialization.EpochSecondsConverter
       ReadConverter: global::DynaSharp.Serialization.NullableConverter<global::System.DateTimeOffset, global::DynaSharp.Serialization.EpochSecondsConverter>
@@ -291,7 +280,6 @@ Properties:
     Identifier: Revision
     ValueType: long
     AttributeName: Revision
-    AttributeNameUtf8Length: 8
     Converter: ConverterModel
       WriteConverter: global::DynaSharp.Serialization.NumberConverter<long>
       ReadConverter: global::DynaSharp.Serialization.NumberConverter<long>
@@ -518,17 +506,14 @@ Enums:
       - EnumMember
         Name: Pending
         Identifier: Pending
-        Utf8Length: 7
         IsCanonical: True
       - EnumMember
         Name: Paid
         Identifier: Paid
-        Utf8Length: 4
         IsCanonical: True
       - EnumMember
         Name: Shipped
         Identifier: Shipped
-        Utf8Length: 7
         IsCanonical: True
     CountsUnknownAsMissing: False
 HidesInheritedKeys: False

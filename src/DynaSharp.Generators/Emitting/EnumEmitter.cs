@@ -83,23 +83,7 @@ internal static class EnumEmitter
         code.Open();
         if (model.Members.Count > 0)
         {
-            code.Line("switch (name.Length)");
-            code.Open();
-            foreach (var length in model.Members.OrderBy(static member => member.Name, StringComparer.Ordinal).GroupBy(static member => member.Utf8Length).OrderBy(static group => group.Key))
-            {
-                code.Line($"case {CodeText.Number(length.Key)}:");
-                code.Indent();
-                foreach (var member in length)
-                {
-                    code.Line($"if (global::System.MemoryExtensions.SequenceEqual(name, {CodeText.Utf8(member.Name)})) {{ value = {model.FullName}.{member.Identifier}; return true; }}");
-                }
-
-                code.Line("break;");
-                code.Outdent();
-            }
-
-            code.Close();
-            code.Blank();
+            code.SwitchOnUtf8("name", model.Members, static member => member.Name, (member, matches) => code.Line($"if ({matches}) {{ value = {model.FullName}.{member.Identifier}; return true; }}"));
         }
 
         code.Line("value = default;");

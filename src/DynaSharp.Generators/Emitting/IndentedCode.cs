@@ -49,4 +49,33 @@ internal sealed class IndentedCode(StringBuilder text, int depth = 1)
         Outdent();
         Line(closer);
     }
+
+    /// <summary>
+    /// Finds UTF-8 text among names: <c>switch (name.Length)</c>, a <c>case</c> per byte length, and in it a test per name of that length, in ordinal order. A test compares the bytes, which it gives as
+    /// the condition of an <c>if</c>, and leaves the case with a jump of its own when it matches; the case breaks when none does.
+    /// </summary>
+    /// <param name="span">The <c>ReadOnlySpan&lt;byte&gt;</c> to look up, as code.</param>
+    /// <param name="items">What to look for.</param>
+    /// <param name="name">The name of an item.</param>
+    /// <param name="test">Writes the test of an item, given the condition that its name matches.</param>
+    public void SwitchOnUtf8<T>(string span, IEnumerable<T> items, Func<T, string> name, Action<T, string> test)
+    {
+        Line($"switch ({span}.Length)");
+        Open();
+        foreach (var length in items.OrderBy(name, StringComparer.Ordinal).GroupBy(item => Encoding.UTF8.GetByteCount(name(item))).OrderBy(static group => group.Key))
+        {
+            Line($"case {CodeText.Number(length.Key)}:");
+            Indent();
+            foreach (var item in length)
+            {
+                test(item, $"global::System.MemoryExtensions.SequenceEqual({span}, {CodeText.Utf8(name(item))})");
+            }
+
+            Line("break;");
+            Outdent();
+        }
+
+        Close();
+        Blank();
+    }
 }
