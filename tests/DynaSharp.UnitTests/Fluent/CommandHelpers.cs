@@ -43,4 +43,9 @@ internal static class CommandHelpers
         state.Release(version);
         return length;
     }
+
+    /// <summary>Finishes a command that was just built, given by its state (<see cref="CommandStates"/>), without sending it, and gives the state back.</summary>
+    /// <param name="state">The state of the command.</param>
+    /// <returns>The length of the body.</returns>
+    public static int FinishAndRelease(DynaSharp.Fluent.CommandState state) => FinishAndRelease(new CommandHandle(state, state.Version, "command", state.Table));
 }

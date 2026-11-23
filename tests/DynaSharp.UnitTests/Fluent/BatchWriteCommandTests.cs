@@ -765,7 +765,7 @@ public sealed class BatchWriteCommandTests
         var rendered = RenderedState(shop);
 
         // Act
-        var next = shop.BatchWrite().Put(Numbered(1)).Handle.State;
+        var next = CommandStates.Of(shop.BatchWrite().Put(Numbered(1)));
 
         // Assert
         await Assert.That(next == rendered).IsTrue();
@@ -1710,7 +1710,7 @@ public sealed class BatchWriteCommandTests
     private static CommandState RenderedState(Table<Item> table)
     {
         var command = table.BatchWrite().Put(Numbered(0));
-        var state = command.Handle.State!;
+        var state = CommandStates.Of(command);
         _ = command.ToRequestJson();
         return state;
     }

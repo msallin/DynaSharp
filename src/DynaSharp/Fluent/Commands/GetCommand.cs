@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
 using DynaSharp.Operations;
@@ -50,8 +49,6 @@ public readonly ref struct GetCommand<T> : IRetryable<GetCommand<T>>
     }
 
     internal string DebuggerText => CommandDebugger.Describe(GetItemOperation.Name, _state, _version, _table);
-
-    internal CommandHandle Handle => new(_state, _version, GetItemOperation.Name, _table);
 
     /// <summary>
     /// Asks for a strongly consistent read, which sees every write that succeeded before it and costs twice the capacity. A read is eventually

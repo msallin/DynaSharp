@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Columns;
@@ -490,7 +491,7 @@ public partial class TableBenchmarks
 
     [Benchmark]
     [BenchmarkCategory("Body")]
-    public int Body_Get() => Finish(_getTable.Get(PartitionKey, SortKey).Handle);
+    public int Body_Get() => Finish(HandleOf(_getTable.Get(PartitionKey, SortKey)));
 
     [Benchmark]
     [BenchmarkCategory("Body")]
@@ -562,6 +563,16 @@ public partial class TableBenchmarks
         state.Release(version);
         return length;
     }
+
+    // A get does not convert to a handle, so its state comes from its field.
+    private static CommandHandle HandleOf(GetCommand<Item> command)
+    {
+        var state = StateOf(ref command)!;
+        return new CommandHandle(state, state.Version, "GetItem", state.Table);
+    }
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_state")]
+    private static extern ref CommandState? StateOf(ref GetCommand<Item> command);
 
     private static DynamoDbClient Create(HttpMessageHandler handler) => new(new DynamoDbClientOptions
     {

@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
 using DynaSharp.Operations;
@@ -65,8 +64,6 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
     }
 
     internal string DebuggerText => CommandDebugger.Describe(BatchWriteItemOperation.Name, _state, _version, _table);
-
-    internal CommandHandle Handle => new(_state, _version, BatchWriteItemOperation.Name, _table);
 
     /// <summary>Adds a put of a whole item, which replaces everything under its key. The item is written to the request here and now, so changing it afterwards changes nothing.</summary>
     /// <param name="item">The item, which must hold the key attributes.</param>

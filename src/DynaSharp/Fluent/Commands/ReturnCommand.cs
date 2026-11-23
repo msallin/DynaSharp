@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
 using DynaSharp.Operations;
@@ -32,8 +31,6 @@ public readonly ref struct ReturnCommand<TValue, TConverter>
     }
 
     internal string DebuggerText => CommandDebugger.Describe(UpdateItemOperation.Name, _state, _version, _table);
-
-    internal CommandHandle Handle => new(_state, _version, UpdateItemOperation.Name, _table);
 
     /// <summary>Sends the command.</summary>
     /// <param name="cancellationToken">Cancels the call.</param>

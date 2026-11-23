@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Operations;
 using DynaSharp.Serialization;
@@ -32,8 +31,6 @@ public readonly ref struct QuerySelectCommand<TValue, TConverter> : IReadCommand
     }
 
     internal string DebuggerText => CommandDebugger.Describe(QueryOperation.Name, _state, _version, _table);
-
-    internal CommandHandle Handle => new(_state, _version, QueryOperation.Name, _table);
 
     /// <summary>Reads one more attribute in the same request, so that the read gives a tuple. See <see cref="GetSelectCommand{TValue, TConverter}.And{TNext, TNextConverter}(Attr{TNext, TNextConverter})"/>.</summary>
     /// <remarks><inheritdoc cref="GetSelectCommand{TValue, TConverter}.And{TNext, TNextConverter}(Attr{TNext, TNextConverter})" path="/remarks"/></remarks>

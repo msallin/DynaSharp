@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
 using DynaSharp.Operations;
@@ -35,8 +34,6 @@ public readonly ref struct TransactGetCommand : IRetryable<TransactGetCommand>
     }
 
     internal string DebuggerText => CommandDebugger.Describe(TransactGetItemsOperation.Name, _state, _version, _table);
-
-    internal CommandHandle Handle => new(_state, _version, TransactGetItemsOperation.Name, _table);
 
     /// <summary>Adds a get on a table without a schema, by the values of the key. A table of an entity takes a generated key instead.</summary>
     /// <param name="table">The table.</param>
