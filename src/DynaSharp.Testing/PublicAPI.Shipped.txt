@@ -25,7 +25,6 @@ DynaSharp.Testing.FakeDynamoDb.ExpireItems() -> int
 DynaSharp.Testing.FakeDynamoDb.FailNext(string! operation, DynaSharp.Testing.StubResponse! failure, int times = 1, System.Func<DynaSharp.Testing.RecordedRequest!, bool>? when = null) -> void
 DynaSharp.Testing.FakeDynamoDb.FakeDynamoDb(System.TimeProvider? timeProvider = null) -> void
 DynaSharp.Testing.FakeDynamoDb.Get(string! tableName, DynaSharp.Item! key) -> DynaSharp.Item?
-DynaSharp.Testing.FakeDynamoDb.Get<T>(DynaSharp.Item! key) -> T?
 DynaSharp.Testing.FakeDynamoDb.Get<T>(DynaSharp.Mapping.IKey<T>! key) -> T?
 DynaSharp.Testing.FakeDynamoDb.Get<T>(string! tableName, DynaSharp.Item! key) -> T?
 DynaSharp.Testing.FakeDynamoDb.GetItem<T>(DynaSharp.Mapping.IKey<T>! key) -> DynaSharp.Item?

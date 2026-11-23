@@ -72,8 +72,6 @@ DynaSharp.AttributeValue.Type.get -> DynaSharp.AttributeType
 DynaSharp.AttributeValue.WriteJson(System.Text.Json.Utf8JsonWriter! writer) -> void
 DynaSharp.AwsRegion
 DynaSharp.AwsRegion.<Clone>$() -> DynaSharp.AwsRegion!
-DynaSharp.AwsRegion.DynamoDbEndpoint.get -> System.Uri!
-DynaSharp.AwsRegion.DynamoDbStreamsEndpoint.get -> System.Uri!
 DynaSharp.AwsRegion.Equals(DynaSharp.AwsRegion? other) -> bool
 DynaSharp.AwsRegion.Name.get -> string!
 DynaSharp.BatchGetCommand<T>
@@ -225,10 +223,6 @@ DynaSharp.Credentials.AssumeRoleOptions.Duration.get -> System.TimeSpan?
 DynaSharp.Credentials.AssumeRoleOptions.Duration.init -> void
 DynaSharp.Credentials.AssumeRoleOptions.ExternalId.get -> string?
 DynaSharp.Credentials.AssumeRoleOptions.ExternalId.init -> void
-DynaSharp.Credentials.AssumeRoleOptions.Region.get -> DynaSharp.AwsRegion?
-DynaSharp.Credentials.AssumeRoleOptions.Region.init -> void
-DynaSharp.Credentials.AssumeRoleOptions.StsEndpoint.get -> System.Uri?
-DynaSharp.Credentials.AssumeRoleOptions.StsEndpoint.init -> void
 DynaSharp.Credentials.AwsCredentials
 DynaSharp.Credentials.AwsCredentials.AccessKeyId.get -> string!
 DynaSharp.Credentials.AwsCredentials.AwsCredentials(string! accessKeyId, string! secretAccessKey, string? sessionToken = null, System.DateTimeOffset? expiration = null) -> void
@@ -268,12 +262,17 @@ DynaSharp.Credentials.StaticCredentialsProvider
 DynaSharp.Credentials.StaticCredentialsProvider.GetCredentialsAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Credentials.AwsCredentials!>
 DynaSharp.Credentials.StaticCredentialsProvider.StaticCredentialsProvider(DynaSharp.Credentials.AwsCredentials! credentials) -> void
 DynaSharp.Credentials.StaticCredentialsProvider.StaticCredentialsProvider(string! accessKeyId, string! secretAccessKey, string? sessionToken = null) -> void
+DynaSharp.Credentials.StsOptions
+DynaSharp.Credentials.StsOptions.Region.get -> DynaSharp.AwsRegion?
+DynaSharp.Credentials.StsOptions.Region.init -> void
+DynaSharp.Credentials.StsOptions.StsEndpoint.get -> System.Uri?
+DynaSharp.Credentials.StsOptions.StsEndpoint.init -> void
+DynaSharp.Credentials.StsOptions.StsOptions() -> void
 DynaSharp.Credentials.WebIdentityCredentialsProvider
 DynaSharp.Credentials.WebIdentityCredentialsProvider.GetCredentialsAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<DynaSharp.Credentials.AwsCredentials!>
 DynaSharp.Credentials.WebIdentityCredentialsProvider.TryInvalidate(DynaSharp.Credentials.AwsCredentials! rejected) -> bool
 DynaSharp.Credentials.WebIdentityCredentialsProvider.WebIdentityCredentialsProvider() -> void
-DynaSharp.Credentials.WebIdentityCredentialsProvider.WebIdentityCredentialsProvider(string! tokenFile, string! roleArn, DynaSharp.AwsRegion! region, string? roleSessionName = null) -> void
-DynaSharp.Credentials.WebIdentityCredentialsProvider.WebIdentityCredentialsProvider(string! tokenFile, string! roleArn, System.Uri! stsEndpoint, string? roleSessionName = null) -> void
+DynaSharp.Credentials.WebIdentityCredentialsProvider.WebIdentityCredentialsProvider(string! tokenFile, string! roleArn, string? roleSessionName = null, DynaSharp.Credentials.StsOptions? options = null) -> void
 DynaSharp.CredentialsUnavailableException
 DynaSharp.CredentialsUnavailableException.CredentialsUnavailableException(string! message, System.Exception? innerException = null) -> void
 DynaSharp.DeleteCommand<T>
@@ -539,7 +538,6 @@ DynaSharp.ItemTableExtensions
 DynaSharp.KeyFormatException
 DynaSharp.KeyFormatException.InTemplate(string! template, string! delimiters) -> DynaSharp.KeyFormatException!
 DynaSharp.KeyFormatException.KeyFormatException(string! message) -> void
-DynaSharp.KeyFormatException.KeyFormatException(string! placeholder, string! reason) -> void
 DynaSharp.Keys.KeyReader
 DynaSharp.Keys.KeyReader.IsAtEnd.get -> bool
 DynaSharp.Keys.KeyReader.KeyReader() -> void
@@ -590,7 +588,6 @@ DynaSharp.Keys.KeyWriter.WriteString(string! value, scoped System.ReadOnlySpan<b
 DynaSharp.Keys.KeyWriter.WriteTimestamp(System.DateTime value, DynaSharp.Keys.KeyTimeFormat format, string! placeholder) -> void
 DynaSharp.Keys.KeyWriter.WriteTimestamp(System.DateTimeOffset value, DynaSharp.Keys.KeyTimeFormat format) -> void
 DynaSharp.Keys.KeyWriter.WriteUpperBound() -> void
-DynaSharp.Keys.KeyWriter.WriteUtf8Value(scoped System.ReadOnlySpan<byte> utf8Value, scoped System.ReadOnlySpan<byte> delimiters, string! placeholder) -> void
 DynaSharp.Keys.KeyWriter.WrittenSpan.get -> System.ReadOnlySpan<byte>
 DynaSharp.LimitExceededException
 DynaSharp.LimitExceededException.LimitExceededException(string! message, string? requestId = null, System.Net.HttpStatusCode statusCode = System.Net.HttpStatusCode.BadRequest) -> void
@@ -640,7 +637,7 @@ DynaSharp.Mapping.DynamoDbEntityAttribute.Table.set -> void
 DynaSharp.Mapping.DynamoDbEntityInfo
 DynaSharp.Mapping.DynamoDbEntityInfo.Discriminator.get -> string?
 DynaSharp.Mapping.DynamoDbEntityInfo.DiscriminatorAttributeName.get -> string!
-DynaSharp.Mapping.DynamoDbEntityInfo.DynamoDbEntityInfo(string? discriminator, string! partitionKeyName, string? sortKeyName, System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbIndexInfo!>! indexes, string? versionAttributeName = null, string! discriminatorAttributeName = "_type", System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbKeyTemplate!>? keyTemplates = null, DynaSharp.Requests.ScalarAttributeType partitionKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown, DynaSharp.Requests.ScalarAttributeType sortKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown, DynaSharp.Mapping.VersionMissing versionMissing = DynaSharp.Mapping.VersionMissing.Reject, string? timeToLiveAttributeName = null) -> void
+DynaSharp.Mapping.DynamoDbEntityInfo.DynamoDbEntityInfo(string? discriminator, string! discriminatorAttributeName, string! partitionKeyName, DynaSharp.Requests.ScalarAttributeType partitionKeyType, string? sortKeyName, DynaSharp.Requests.ScalarAttributeType sortKeyType, System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbIndexInfo!>! indexes, string? versionAttributeName, DynaSharp.Mapping.VersionMissing versionMissing = DynaSharp.Mapping.VersionMissing.Reject, System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbKeyTemplate!>? keyTemplates = null, string? timeToLiveAttributeName = null, string? tableName = null) -> void
 DynaSharp.Mapping.DynamoDbEntityInfo.Indexes.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbIndexInfo!>!
 DynaSharp.Mapping.DynamoDbEntityInfo.KeyTemplates.get -> System.Collections.Generic.IReadOnlyList<DynaSharp.Mapping.DynamoDbKeyTemplate!>!
 DynaSharp.Mapping.DynamoDbEntityInfo.PartitionKeyName.get -> string!
@@ -648,7 +645,6 @@ DynaSharp.Mapping.DynamoDbEntityInfo.PartitionKeyType.get -> DynaSharp.Requests.
 DynaSharp.Mapping.DynamoDbEntityInfo.SortKeyName.get -> string?
 DynaSharp.Mapping.DynamoDbEntityInfo.SortKeyType.get -> DynaSharp.Requests.ScalarAttributeType
 DynaSharp.Mapping.DynamoDbEntityInfo.TableName.get -> string?
-DynaSharp.Mapping.DynamoDbEntityInfo.TableName.init -> void
 DynaSharp.Mapping.DynamoDbEntityInfo.TimeToLiveAttributeName.get -> string?
 DynaSharp.Mapping.DynamoDbEntityInfo.VersionAttributeName.get -> string?
 DynaSharp.Mapping.DynamoDbEntityInfo.VersionMissing.get -> DynaSharp.Mapping.VersionMissing
@@ -662,43 +658,23 @@ DynaSharp.Mapping.DynamoDbEnumNameAttribute.Name.get -> string!
 DynaSharp.Mapping.DynamoDbIgnoreAttribute
 DynaSharp.Mapping.DynamoDbIgnoreAttribute.DynamoDbIgnoreAttribute() -> void
 DynaSharp.Mapping.DynamoDbIndexInfo
-DynaSharp.Mapping.DynamoDbIndexInfo.<Clone>$() -> DynaSharp.Mapping.DynamoDbIndexInfo!
-DynaSharp.Mapping.DynamoDbIndexInfo.Deconstruct(out string! IndexName, out string! PartitionKeyName, out string? SortKeyName, out bool Sparse, out bool IsLocal, out DynaSharp.Requests.ScalarAttributeType PartitionKeyType, out DynaSharp.Requests.ScalarAttributeType SortKeyType) -> void
-DynaSharp.Mapping.DynamoDbIndexInfo.DynamoDbIndexInfo(string! IndexName, string! PartitionKeyName, string? SortKeyName, bool Sparse, bool IsLocal = false, DynaSharp.Requests.ScalarAttributeType PartitionKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown, DynaSharp.Requests.ScalarAttributeType SortKeyType = DynaSharp.Requests.ScalarAttributeType.Unknown) -> void
-DynaSharp.Mapping.DynamoDbIndexInfo.Equals(DynaSharp.Mapping.DynamoDbIndexInfo? other) -> bool
+DynaSharp.Mapping.DynamoDbIndexInfo.DynamoDbIndexInfo(string! indexName, string! partitionKeyName, string? sortKeyName, bool sparse, bool isLocal, DynaSharp.Requests.ScalarAttributeType partitionKeyType, DynaSharp.Requests.ScalarAttributeType sortKeyType, string? partitionKeyBuilder, System.Collections.Generic.IReadOnlyList<string!>? include = null) -> void
 DynaSharp.Mapping.DynamoDbIndexInfo.Include.get -> System.Collections.Generic.IReadOnlyList<string!>?
-DynaSharp.Mapping.DynamoDbIndexInfo.Include.init -> void
 DynaSharp.Mapping.DynamoDbIndexInfo.IndexName.get -> string!
-DynaSharp.Mapping.DynamoDbIndexInfo.IndexName.init -> void
 DynaSharp.Mapping.DynamoDbIndexInfo.IsLocal.get -> bool
-DynaSharp.Mapping.DynamoDbIndexInfo.IsLocal.init -> void
 DynaSharp.Mapping.DynamoDbIndexInfo.PartitionKeyBuilder.get -> string?
-DynaSharp.Mapping.DynamoDbIndexInfo.PartitionKeyBuilder.init -> void
 DynaSharp.Mapping.DynamoDbIndexInfo.PartitionKeyName.get -> string!
-DynaSharp.Mapping.DynamoDbIndexInfo.PartitionKeyName.init -> void
 DynaSharp.Mapping.DynamoDbIndexInfo.PartitionKeyType.get -> DynaSharp.Requests.ScalarAttributeType
-DynaSharp.Mapping.DynamoDbIndexInfo.PartitionKeyType.init -> void
 DynaSharp.Mapping.DynamoDbIndexInfo.SortKeyName.get -> string?
-DynaSharp.Mapping.DynamoDbIndexInfo.SortKeyName.init -> void
 DynaSharp.Mapping.DynamoDbIndexInfo.SortKeyType.get -> DynaSharp.Requests.ScalarAttributeType
-DynaSharp.Mapping.DynamoDbIndexInfo.SortKeyType.init -> void
 DynaSharp.Mapping.DynamoDbIndexInfo.Sparse.get -> bool
-DynaSharp.Mapping.DynamoDbIndexInfo.Sparse.init -> void
 DynaSharp.Mapping.DynamoDbKeyInput
-DynaSharp.Mapping.DynamoDbKeyInput.<Clone>$() -> DynaSharp.Mapping.DynamoDbKeyInput!
 DynaSharp.Mapping.DynamoDbKeyInput.AttributeName.get -> string?
-DynaSharp.Mapping.DynamoDbKeyInput.AttributeName.init -> void
 DynaSharp.Mapping.DynamoDbKeyInput.ComputedFromAttributes.get -> System.Collections.Generic.IReadOnlyList<string!>?
-DynaSharp.Mapping.DynamoDbKeyInput.ComputedFromAttributes.init -> void
-DynaSharp.Mapping.DynamoDbKeyInput.Deconstruct(out string! PropertyName, out string? AttributeName, out System.Collections.Generic.IReadOnlyList<string!>? ComputedFromAttributes, out System.Func<object!, DynaSharp.AttributeValue>? ToAttributeValue, out bool IsCutOff) -> void
-DynaSharp.Mapping.DynamoDbKeyInput.DynamoDbKeyInput(string! PropertyName, string? AttributeName, System.Collections.Generic.IReadOnlyList<string!>? ComputedFromAttributes = null, System.Func<object!, DynaSharp.AttributeValue>? ToAttributeValue = null, bool IsCutOff = false) -> void
-DynaSharp.Mapping.DynamoDbKeyInput.Equals(DynaSharp.Mapping.DynamoDbKeyInput? other) -> bool
+DynaSharp.Mapping.DynamoDbKeyInput.DynamoDbKeyInput(string! propertyName, string? attributeName, System.Collections.Generic.IReadOnlyList<string!>? computedFromAttributes = null, System.Func<object!, DynaSharp.AttributeValue>? toAttributeValue = null, bool isCutOff = false) -> void
 DynaSharp.Mapping.DynamoDbKeyInput.IsCutOff.get -> bool
-DynaSharp.Mapping.DynamoDbKeyInput.IsCutOff.init -> void
 DynaSharp.Mapping.DynamoDbKeyInput.PropertyName.get -> string!
-DynaSharp.Mapping.DynamoDbKeyInput.PropertyName.init -> void
 DynaSharp.Mapping.DynamoDbKeyInput.ToAttributeValue.get -> System.Func<object!, DynaSharp.AttributeValue>?
-DynaSharp.Mapping.DynamoDbKeyInput.ToAttributeValue.init -> void
 DynaSharp.Mapping.DynamoDbKeyTemplate
 DynaSharp.Mapping.DynamoDbKeyTemplate.AttributeName.get -> string!
 DynaSharp.Mapping.DynamoDbKeyTemplate.CopyOf.get -> string?
@@ -2067,13 +2043,11 @@ DynaSharp.Streams.Change<T>.Change() -> void
 DynaSharp.Streams.Change<T>.Equals(DynaSharp.Streams.Change<T>? other) -> bool
 DynaSharp.Streams.Change<T>.Id.get -> string?
 DynaSharp.Streams.Change<T>.Keys.get -> System.Collections.Generic.IReadOnlyDictionary<string!, DynaSharp.AttributeValue>?
-DynaSharp.Streams.Change<T>.Keys.init -> void
 DynaSharp.Streams.Change<T>.Kind.get -> DynaSharp.Streams.OperationType
 DynaSharp.Streams.Change<T>.Kind.init -> void
 DynaSharp.Streams.Change<T>.Record.get -> DynaSharp.Streams.ChangeRecord!
 DynaSharp.Streams.Change<T>.Record.init -> void
 DynaSharp.Streams.Change<T>.SequenceNumber.get -> string?
-DynaSharp.Streams.Change<T>.SequenceNumber.init -> void
 DynaSharp.Streams.ChangeRecord
 DynaSharp.Streams.ChangeRecord.<Clone>$() -> DynaSharp.Streams.ChangeRecord!
 DynaSharp.Streams.ChangeRecord.As<T>() -> DynaSharp.Streams.Change<T>?
@@ -2566,7 +2540,6 @@ DynaSharp.WriteResult<T>.WriteResult() -> void
 abstract DynaSharp.Condition.Render(ref DynaSharp.Expressions.ExpressionSink sink) -> void
 const DynaSharp.BatchIncompleteException.Code = "BatchIncomplete" -> string!
 const DynaSharp.ContinuationTokenSigner.MinKeyLength = 32 -> int
-const DynaSharp.Mapping.DynamoDbEntityInfo.DefaultDiscriminatorAttributeName = "_type" -> string!
 override DynaSharp.Attr.ToString() -> string!
 override DynaSharp.Attr<T, TConverter>.ToString() -> string!
 override DynaSharp.AttributeValue.Equals(object? obj) -> bool
@@ -2600,12 +2573,6 @@ override DynaSharp.ItemCollectionMetrics.Equals(object? obj) -> bool
 override DynaSharp.ItemCollectionMetrics.GetHashCode() -> int
 override DynaSharp.ItemCollectionMetrics.ToString() -> string!
 override DynaSharp.Keys.KeyWriter.ToString() -> string!
-override DynaSharp.Mapping.DynamoDbIndexInfo.Equals(object? obj) -> bool
-override DynaSharp.Mapping.DynamoDbIndexInfo.GetHashCode() -> int
-override DynaSharp.Mapping.DynamoDbIndexInfo.ToString() -> string!
-override DynaSharp.Mapping.DynamoDbKeyInput.Equals(object? obj) -> bool
-override DynaSharp.Mapping.DynamoDbKeyInput.GetHashCode() -> int
-override DynaSharp.Mapping.DynamoDbKeyInput.ToString() -> string!
 override DynaSharp.Mixed<T1, T2, T3, T4>.Equals(object? obj) -> bool
 override DynaSharp.Mixed<T1, T2, T3, T4>.GetHashCode() -> int
 override DynaSharp.Mixed<T1, T2, T3, T4>.ToString() -> string!
@@ -3000,7 +2967,6 @@ static DynaSharp.DynamoDbMappingException.IsConversionFailure(System.Exception! 
 static DynaSharp.DynamoDbMappingException.KeyDoesNotFit(string! entityType, string! attributeName) -> DynaSharp.DynamoDbMappingException!
 static DynaSharp.DynamoDbMappingException.Missing(string! entityType, string! attributeName) -> DynaSharp.DynamoDbMappingException!
 static DynaSharp.DynamoDbMappingException.Missing(string! entityType, string! attributeName, string! keyAttribute) -> DynaSharp.DynamoDbMappingException!
-static DynaSharp.DynamoDbMappingException.OtherType(string! entityType, string! attributeName, string! foundType) -> DynaSharp.DynamoDbMappingException!
 static DynaSharp.DynamoDbMappingException.UndefinedEnumValue(string! enumType) -> DynaSharp.DynamoDbMappingException!
 static DynaSharp.EntityTableExtensions.Delete<T>(this DynaSharp.BatchWriteCommand<T> command, T entity) -> DynaSharp.BatchWriteCommand<T>
 static DynaSharp.EntityTableExtensions.Delete<T>(this DynaSharp.Table<T>! table, T entity) -> DynaSharp.DeleteCommand<T>
@@ -3058,10 +3024,6 @@ static DynaSharp.ItemTableExtensions.Update(this DynaSharp.Table<DynaSharp.Item!
 static DynaSharp.ItemTableExtensions.With(this DynaSharp.PutCommand<DynaSharp.Item!> command, string! name, DynaSharp.AttributeValue value) -> DynaSharp.PutCommand<DynaSharp.Item!>
 static DynaSharp.ItemTableExtensions.With<TNumber>(this DynaSharp.PutCommand<DynaSharp.Item!> command, string! name, TNumber value) -> DynaSharp.PutCommand<DynaSharp.Item!>
 static DynaSharp.ItemTableExtensions.With<TValue, TConverter>(this DynaSharp.PutCommand<DynaSharp.Item!> command, DynaSharp.Attr<TValue, TConverter> attribute, TValue value) -> DynaSharp.PutCommand<DynaSharp.Item!>
-static DynaSharp.Mapping.DynamoDbIndexInfo.operator !=(DynaSharp.Mapping.DynamoDbIndexInfo? left, DynaSharp.Mapping.DynamoDbIndexInfo? right) -> bool
-static DynaSharp.Mapping.DynamoDbIndexInfo.operator ==(DynaSharp.Mapping.DynamoDbIndexInfo? left, DynaSharp.Mapping.DynamoDbIndexInfo? right) -> bool
-static DynaSharp.Mapping.DynamoDbKeyInput.operator !=(DynaSharp.Mapping.DynamoDbKeyInput? left, DynaSharp.Mapping.DynamoDbKeyInput? right) -> bool
-static DynaSharp.Mapping.DynamoDbKeyInput.operator ==(DynaSharp.Mapping.DynamoDbKeyInput? left, DynaSharp.Mapping.DynamoDbKeyInput? right) -> bool
 static DynaSharp.Mixed<T1, T2, T3, T4>.operator !=(DynaSharp.Mixed<T1, T2, T3, T4> left, DynaSharp.Mixed<T1, T2, T3, T4> right) -> bool
 static DynaSharp.Mixed<T1, T2, T3, T4>.operator ==(DynaSharp.Mixed<T1, T2, T3, T4> left, DynaSharp.Mixed<T1, T2, T3, T4> right) -> bool
 static DynaSharp.Mixed<T1, T2, T3>.operator !=(DynaSharp.Mixed<T1, T2, T3> left, DynaSharp.Mixed<T1, T2, T3> right) -> bool
