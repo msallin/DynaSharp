@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Operations;
 using DynaSharp.Serialization;
@@ -30,8 +29,6 @@ public readonly ref struct GetSelectCommand<TValue, TConverter>
     }
 
     internal string DebuggerText => CommandDebugger.Describe(GetItemOperation.Name, _state, _version, _table);
-
-    internal CommandHandle Handle => new(_state, _version, GetItemOperation.Name, _table);
 
     /// <summary>
     /// Reads one more attribute in the same request, so that the read gives a tuple: <c>var (total, status) = (await orders.Get(key).Select(Order.Attrs.Total).And(Order.Attrs.Status).SendAsync(ct)).Value;</c>.

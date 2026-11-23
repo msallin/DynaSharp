@@ -60,7 +60,7 @@ public sealed class CommandAllocationTests
 
         // Act (the key goes from its values into the request without a string)
         var allocated = Measure(orders, static table => CommandHelpers.FinishAndRelease(
-            table.Get(KeyedOrder.Keys.Of(Guid.Empty, DateTimeOffset.UnixEpoch, Guid.Empty)).Consistent().Handle));
+            CommandStates.Of(table.Get(KeyedOrder.Keys.Of(Guid.Empty, DateTimeOffset.UnixEpoch, Guid.Empty)).Consistent())));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -531,7 +531,7 @@ public sealed class CommandAllocationTests
         var shop = client.Table("Shop", "pk", "sk");
 
         // Act
-        var allocated = Measure(shop, static table => CommandHelpers.FinishAndRelease(table.Get(PartitionKey, SortKey).Consistent().Project("fullName", "address.city").Handle));
+        var allocated = Measure(shop, static table => CommandHelpers.FinishAndRelease(CommandStates.Of(table.Get(PartitionKey, SortKey).Consistent().Project("fullName", "address.city"))));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -546,7 +546,7 @@ public sealed class CommandAllocationTests
         var handles = client.Table<Handles>("Shop");
 
         // Act
-        var allocated = Measure(handles, static table => CommandHelpers.FinishAndRelease(table.Get(Handles.Keys.Of("a", 1)).Consistent().Select(Handles.Attrs.Total).Handle));
+        var allocated = Measure(handles, static table => CommandHelpers.FinishAndRelease(CommandStates.Of(table.Get(Handles.Keys.Of("a", 1)).Consistent().Select(Handles.Attrs.Total))));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -562,7 +562,7 @@ public sealed class CommandAllocationTests
         var partition = Handles.Keys.Pk.Of("a");
 
         // Act (the key is made before: its text is what Of costs)
-        var allocated = Measure(handles, table => CommandHelpers.FinishAndRelease(table.Query(partition).Limit(5).Select(Handles.Attrs.Nickname).Handle));
+        var allocated = Measure(handles, table => CommandHelpers.FinishAndRelease(CommandStates.Of(table.Query(partition).Limit(5).Select(Handles.Attrs.Nickname))));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -577,7 +577,7 @@ public sealed class CommandAllocationTests
         var handles = client.Table<Handles>("Shop");
 
         // Act
-        var allocated = Measure(handles, static table => CommandHelpers.FinishAndRelease(table.Scan().Select(Handles.Attrs.Count).Handle));
+        var allocated = Measure(handles, static table => CommandHelpers.FinishAndRelease(CommandStates.Of(table.Scan().Select(Handles.Attrs.Count))));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -590,7 +590,7 @@ public sealed class CommandAllocationTests
         // Arrange
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
-        var state = client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Count).Handle.State!;
+        var state = CommandStates.Of(client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(Handles.Attrs.Count));
         var json = Encoding.UTF8.GetBytes("""{"Item":{"_type":{"S":"HANDLES"},"Home":{"M":{"Count":{"N":"1"}}},"Count":{"N":"7"}}}""");
 
         // Act
@@ -610,7 +610,7 @@ public sealed class CommandAllocationTests
         // Arrange
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
-        var state = client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(new Attr<int, DynaSharp.Serialization.NumberConverter<int>>("Home.Count")).Handle.State!;
+        var state = CommandStates.Of(client.Table<Handles>("Shop").Get(Handles.Keys.Of("a", 1)).Select(new Attr<int, DynaSharp.Serialization.NumberConverter<int>>("Home.Count")));
         var json = Encoding.UTF8.GetBytes("""{"Item":{"_type":{"S":"HANDLES"},"Home":{"M":{"Count":{"N":"1"}}}}}""");
 
         // Act
@@ -631,7 +631,7 @@ public sealed class CommandAllocationTests
         // Arrange
         using var handler = new StubHandler();
         using var client = TestClient.Create(handler);
-        var state = client.Table<Handles>("Shop").Query(Handles.Keys.Pk.Of("a")).Select(Handles.Attrs.Count).Handle.State!;
+        var state = CommandStates.Of(client.Table<Handles>("Shop").Query(Handles.Keys.Pk.Of("a")).Select(Handles.Attrs.Count));
         var json = Encoding.UTF8.GetBytes("""{"Items":[{"Count":{"N":"1"}},{"Count":{"N":"2"}}],"Count":2,"ScannedCount":2}""");
         var array = Measure(2, static length => new int[length].Length);
 
@@ -670,7 +670,7 @@ public sealed class CommandAllocationTests
         var shop = client.Table("Shop", "pk", "sk");
 
         // Act
-        var allocated = Measure(shop, static table => CommandHelpers.FinishAndRelease(table.Update(PartitionKey, SortKey).Add("count", 1).Return(Attr<int>("count")).Handle));
+        var allocated = Measure(shop, static table => CommandHelpers.FinishAndRelease(CommandStates.Of(table.Update(PartitionKey, SortKey).Add("count", 1).Return(Attr<int>("count")))));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -926,7 +926,7 @@ public sealed class CommandAllocationTests
         var session = new Session("s");
 
         // Act
-        var allocated = Measure((sessions, session), static input => CommandHelpers.FinishAndRelease(input.sessions.BatchWrite().Put(input.session).Put(input.session).Delete(input.sessions, default(SessionKey)).ReturnCapacity().Handle));
+        var allocated = Measure((sessions, session), static input => CommandHelpers.FinishAndRelease(CommandStates.Of(input.sessions.BatchWrite().Put(input.session).Put(input.session).Delete(input.sessions, default(SessionKey)).ReturnCapacity())));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -941,7 +941,7 @@ public sealed class CommandAllocationTests
         var shop = client.Table("Shop", "pk", "sk");
 
         // Act
-        var allocated = Measure(shop, static table => CommandHelpers.FinishAndRelease(table.BatchGet().Get(PartitionKey, SortKey).Get(PartitionKey, "other").Consistent().Project("a", "b").Handle));
+        var allocated = Measure(shop, static table => CommandHelpers.FinishAndRelease(CommandStates.Of(table.BatchGet().Get(PartitionKey, SortKey).Get(PartitionKey, "other").Consistent().Project("a", "b"))));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);
@@ -1001,7 +1001,7 @@ public sealed class CommandAllocationTests
         var shop = client.Table("Shop", "pk", "sk");
 
         // Act
-        var allocated = Measure((client, shop), static input => CommandHelpers.FinishAndRelease(input.client.TransactGet().Get(input.shop, PartitionKey, SortKey, out _).Get(input.shop, PartitionKey, "other", out _).Handle));
+        var allocated = Measure((client, shop), static input => CommandHelpers.FinishAndRelease(CommandStates.Of(input.client.TransactGet().Get(input.shop, PartitionKey, SortKey, out _).Get(input.shop, PartitionKey, "other", out _))));
 
         // Assert
         await Assert.That(allocated).IsEqualTo(0L);

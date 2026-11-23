@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
 using DynaSharp.Operations;
@@ -66,8 +65,6 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     }
 
     internal string DebuggerText => CommandDebugger.Describe(BatchGetItemOperation.Name, _state, _version, _table);
-
-    internal CommandHandle Handle => new(_state, _version, BatchGetItemOperation.Name, _table);
 
     /// <summary>Adds a key built by the generator, such as <c>Order.Keys.Of(customerId, number)</c>.</summary>
     /// <typeparam name="TKey">The key. A key of another entity is a compile error.</typeparam>
