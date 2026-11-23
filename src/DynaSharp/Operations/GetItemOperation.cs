@@ -27,12 +27,21 @@ internal readonly struct GetItemOperation : IOperation<GetItemRequest, GetItemRe
 
     public static GetItemResponse ReadResponse(ref DynamoDbReader reader)
     {
-        var envelope = GetEnvelope<Item>.Read(ref reader);
-        return new GetItemResponse { Item = envelope.Item, ConsumedCapacity = envelope.ConsumedCapacity };
+        var item = default(ItemMember);
+        var envelope = GetEnvelope.Read(ref reader, ref item);
+        return new GetItemResponse { Item = item.Value, ConsumedCapacity = envelope.ConsumedCapacity };
     }
 
     public static void SetActivityTags(Activity activity, GetItemRequest request) =>
         ReadTags.SetProjection(activity, request.ConsistentRead, request.ProjectionExpression);
 
     public static IReadOnlyList<ConsumedCapacity>? GetConsumedCapacity(GetItemResponse response) => ConsumedCapacityTelemetry.ToList(response.ConsumedCapacity);
+
+    // "Item":{...}, parsed.
+    private struct ItemMember : IResponseMember
+    {
+        public Item? Value { get; private set; }
+
+        public void Read(ref DynamoDbReader reader) => Value = AttributeValueConverter.ReadItem(ref reader);
+    }
 }

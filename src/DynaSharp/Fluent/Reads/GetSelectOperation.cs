@@ -14,46 +14,12 @@ internal readonly struct GetSelectOperation<TValue, TReader> : ICommandOperation
 
     public static SelectResult<TValue> ReadResponse(ref DynamoDbReader reader, CommandState state)
     {
-        var value = default(TValue);
-        var found = false;
-        ConsumedCapacity? capacity = null;
-        reader.ReadStartItem();
-        while (reader.TryReadAttributeName())
-        {
-            if (reader.AttributeNameEquals("Item"u8))
-            {
-                reader.ReadStartItem();
-                value = ReadItem(ref reader, state);
-                found = true;
-            }
-            else if (reader.AttributeNameEquals("ConsumedCapacity"u8))
-            {
-                capacity = OperationJson.ReadConsumedCapacity(ref reader);
-            }
-            else
-            {
-                OperationJson.SkipValue(ref reader);
-            }
-        }
-
-        state.ResponseCapacity = capacity;
-        return new SelectResult<TValue>(value!, found, capacity);
+        var item = new GetItemMember<TValue, TReader>(state);
+        var envelope = GetEnvelope.Read(ref reader, ref item);
+        state.ResponseCapacity = envelope.ConsumedCapacity;
+        return new SelectResult<TValue>(item.Value!, envelope.Found, envelope.ConsumedCapacity);
     }
 
     public static void SetActivityTags(Activity activity, CommandState state) =>
         ReadTags.SetProjection(activity, state.Read.ConsistentRead, state.Expressions.Projection.Resolve());
-
-    // The key of the item is the one of the request, which stays until the call ends.
-    private static TValue ReadItem(ref DynamoDbReader reader, CommandState state)
-    {
-        try
-        {
-            return TReader.Read(ref reader, state);
-        }
-        catch (DynamoDbMappingException failure)
-        {
-            failure.Key = state.ReadKey();
-            throw;
-        }
-    }
 }

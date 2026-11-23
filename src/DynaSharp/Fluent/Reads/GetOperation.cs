@@ -14,20 +14,10 @@ internal readonly struct GetOperation<T> : ICommandOperation<GetResult<T>>
 
     public static GetResult<T> ReadResponse(ref DynamoDbReader reader, CommandState state)
     {
-        GetEnvelope<T> envelope;
-        try
-        {
-            envelope = GetEnvelope<T>.Read(ref reader);
-        }
-        catch (DynamoDbMappingException failure)
-        {
-            // The key of the item is the one of the request, which stays until the call ends.
-            failure.Key = state.ReadKey();
-            throw;
-        }
-
+        var item = new GetItemMember<T, DocumentItem<T>>(state);
+        var envelope = GetEnvelope.Read(ref reader, ref item);
         state.ResponseCapacity = envelope.ConsumedCapacity;
-        return new GetResult<T>(envelope.Item, envelope.Found, envelope.ConsumedCapacity);
+        return new GetResult<T>(item.Value, envelope.Found, envelope.ConsumedCapacity);
     }
 
     public static void SetActivityTags(Activity activity, CommandState state) =>
