@@ -1,6 +1,27 @@
 # How it is built
 
-Why the client looks the way it does. The [design principles](design-principles.md) say what DynaSharp holds itself to; this page says what follows from them in the code, and what you get for it. Nothing here changes how a call behaves: the API reference says what each member does, and [Performance](performance.md) has the numbers.
+Why the client looks the way it does: what DynaSharp holds itself to, what follows from it in the code, and what you get for it. Nothing here changes how a call behaves: the API reference says what each member does, and [Performance](performance.md) has the numbers.
+
+## Design principles
+
+What DynaSharp holds itself to, and what follows from it for code that uses it.
+
+- **Stay true to DynamoDB.** Every verb is an operation or a clause. There is no `Save`, no identity map, no lazy load and no implicit read before a write. `Limit` is per page, `Update` is an upsert, and batches are not atomic, as in DynamoDB.
+- **Nothing hidden.** What the client adds, such as a version condition or a discriminator filter, shows up in `ToRequestJson()`.
+- **Mistakes belong to the compiler.** Types rule out what they can, analyzers check expression grammar and constant paths, and most of the rest fails before a request is sent. A broken expression is `DYNA212`, a warning, so it stops only a build that treats warnings as errors. The [diagnostics](diagnostics.md) list every rule.
+- **Pay only for what you use.** A cost that shows up in a benchmark is a bug until it is explained, and the sections below say where the costs go.
+- **No reflection.** The source generator produces the mapping, so Native AOT works and nothing is discovered at run time.
+- **Keys are data on disk.** Encodings are specified and tested against an independent oracle, because changing one is a migration.
+- **Retries are honest.** A retry can apply a write twice when a response is lost. The docs say where that matters, and `MaxAttempts(1)` is one call away.
+- **Tests answer to someone else.** Wire formats are checked against botocore and real AWS responses, behaviour against DynamoDB Local and Dynoxide.
+
+## API levels
+
+There is one client and one pipeline, with four ways in, listed in the [overview](index.md#api-levels): `Table<T>` with generated entities, `Table<Item>`, the request API of `DynaSharp.Requests` and `SendRawAsync`. Use the highest level that fits and drop down for one call: all levels share a client, its retries and its telemetry. Table administration beyond `CreateTable()` lives in the request API.
+
+You can tell which level a line uses by what it names: `Keys` and `Attrs` mean a typed table, strings mean `Table<Item>`, and `new ...Request` means the request API. `item.To<T>()` and `Item.From(entity)` cross between levels.
+
+The first two levels share one command engine, whose chains are built and sent in one expression, for the reason the next section gives. The [API reference](api/index.md) lists every type of every level.
 
 ## Commands are `ref struct`s over borrowed buffers
 

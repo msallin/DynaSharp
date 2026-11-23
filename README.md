@@ -154,7 +154,7 @@ using var client = StubClient.Create(handler);
 
 ## API levels
 
-One client and one pipeline, with four ways in. Use the highest level that fits, and drop down for one call: all levels share a client, its retries and its telemetry, see [API levels](https://msallin.github.io/DynaSharp/api-levels.html).
+One client and one pipeline, with four ways in. Use the highest level that fits, and drop down for one call: all levels share a client, its retries and its telemetry, see [API levels](https://msallin.github.io/DynaSharp/design.html#api-levels).
 
 | Level | You write | Use it for |
 |---|---|---|
@@ -174,7 +174,7 @@ One client and one pipeline, with four ways in. Use the highest level that fits,
 - **Retries are honest.** The docs say where a retry can apply a write twice.
 - **Tests answer to someone else.** Wire formats are checked against botocore and real AWS responses.
 
-[Design principles](https://msallin.github.io/DynaSharp/design-principles.html) says what each one means for your code, and [How it is built](https://msallin.github.io/DynaSharp/design.html) why the client looks the way it does.
+[How it is built](https://msallin.github.io/DynaSharp/design.html#design-principles) says what each one means for your code, and why the client looks the way it does.
 
 ## Compatibility
 

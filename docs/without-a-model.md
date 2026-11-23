@@ -1,6 +1,6 @@
 # Without a model
 
-Every command of a typed table also runs without an entity. `Table<Item>` takes keys as strings, attributes as raw paths and items as `Item`, and the request API below it takes the request records of DynamoDB. Both share the client, its retries and its telemetry with the typed tables, so a program uses all three side by side. [API levels](api-levels.md) compares them.
+Every command of a typed table also runs without an entity. `Table<Item>` takes keys as strings, attributes as raw paths and items as `Item`, and the request API below it takes the request records of DynamoDB. Both share the client, its retries and its telemetry with the typed tables, so a program uses all three side by side. [API levels](design.md#api-levels) says when to use which.
 
 ## When to drop a level
 
