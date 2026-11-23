@@ -1,8 +1,8 @@
-using System.Text.Json;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
 using DynaSharp.Operations;
 using DynaSharp.Requests;
+using DynaSharp.Testing.Fake;
 
 namespace DynaSharp.Testing;
 
@@ -11,8 +11,6 @@ public sealed partial class StubResponse
 {
     private const string DefaultKey = "pk";
 
-    // The sample account of the AWS documentation, in the region of StubClient, so that an ARN reads the same in every test.
-    private const string ArnPrefix = "arn:aws:dynamodb:" + StubClient.RegionName + ":123456789012:table/";
     private const string TableId = "00000000-0000-4000-8000-000000000000";
 
     // 2026-01-01T00:00:00Z, the same in every answer: a canned response that read the clock would not be deterministic.
@@ -165,7 +163,11 @@ public sealed partial class StubResponse
             json.WriteStartObject("TableDescription");
             json.WriteString("TableName", name);
             WireNames.TableStatuses.Write(json, "TableStatus"u8, TableStatus.Deleting);
-            WriteSizeAndIdentity(json, name);
+            ResponseJson.WriteThroughput(json, null);
+            json.WriteNumber("TableSizeBytes", 0);
+            json.WriteNumber("ItemCount", 0);
+            json.WriteString("TableArn", FakeTable.ArnPrefix + name);
+            json.WriteString("TableId", TableId);
             json.WriteEndObject();
         }));
     }
@@ -273,94 +275,17 @@ public sealed partial class StubResponse
         };
     }
 
-    // The members in the order of the service model. What the description does not carry is the same for every table here, and the lists that are empty stay out, as they do on the wire.
+    // What the description does not carry is the same for every table here: the sample account, the fixed creation time, on demand, empty.
     private static StubResponse TableAnswer(string[] operations, string member, TableDescription table) => Answer(operations, Render(json =>
-    {
-        var name = table.TableName!;
-        json.WriteStartObject(member);
-        TableJson.WriteAttributeDefinitions(json, table.AttributeDefinitions);
-        json.WriteString("TableName", name);
-        TableJson.WriteKeySchema(json, table.KeySchema);
-        WireNames.TableStatuses.Write(json, "TableStatus"u8, table.TableStatus);
-        json.WriteNumber("CreationDateTime", CreationEpochSeconds);
-        WriteSizeAndIdentity(json, name);
-        json.WriteStartObject("BillingModeSummary");
-        WireNames.BillingModes.Write(json, "BillingMode"u8, BillingMode.PayPerRequest);
-        json.WriteEndObject();
-        WriteLocalIndexes(json, table.LocalSecondaryIndexes);
-        WriteGlobalIndexes(json, name, table.GlobalSecondaryIndexes);
-        json.WriteBoolean("DeletionProtectionEnabled", false);
-        json.WriteEndObject();
-    }));
-
-    private static void WriteSizeAndIdentity(Utf8JsonWriter json, string tableName)
-    {
-        WriteNoCapacity(json);
-        json.WriteNumber("TableSizeBytes", 0);
-        json.WriteNumber("ItemCount", 0);
-        json.WriteString("TableArn", ArnPrefix + tableName);
-        json.WriteString("TableId", TableId);
-    }
-
-    // A table on demand reports zero, and a counter that is only there for provisioned capacity.
-    private static void WriteNoCapacity(Utf8JsonWriter json)
-    {
-        json.WriteStartObject("ProvisionedThroughput");
-        json.WriteNumber("NumberOfDecreasesToday", 0);
-        json.WriteNumber("ReadCapacityUnits", 0);
-        json.WriteNumber("WriteCapacityUnits", 0);
-        json.WriteEndObject();
-    }
-
-    private static void WriteLocalIndexes(Utf8JsonWriter json, IReadOnlyList<LocalSecondaryIndexDescription> indexes)
-    {
-        if (indexes.Count == 0)
-        {
-            return;
-        }
-
-        json.WriteStartArray("LocalSecondaryIndexes");
-        foreach (var index in indexes)
-        {
-            json.WriteStartObject();
-            json.WriteString("IndexName", index.IndexName);
-            TableJson.WriteKeySchema(json, index.KeySchema);
-            TableJson.WriteProjection(json, index.Projection!);
-            json.WriteNumber("IndexSizeBytes", 0);
-            json.WriteNumber("ItemCount", 0);
-            json.WriteEndObject();
-        }
-
-        json.WriteEndArray();
-    }
-
-    private static void WriteGlobalIndexes(Utf8JsonWriter json, string tableName, IReadOnlyList<GlobalSecondaryIndexDescription> indexes)
-    {
-        if (indexes.Count == 0)
-        {
-            return;
-        }
-
-        json.WriteStartArray("GlobalSecondaryIndexes");
-        foreach (var index in indexes)
-        {
-            json.WriteStartObject();
-            json.WriteString("IndexName", index.IndexName);
-            TableJson.WriteKeySchema(json, index.KeySchema);
-            if (index.Projection is { } projection)
+        ResponseJson.WriteTableDescription(
+            json,
+            member,
+            table with
             {
-                TableJson.WriteProjection(json, projection);
-            }
-
-            WireNames.IndexStatuses.Write(json, "IndexStatus"u8, index.IndexStatus);
-            OperationJson.WriteIfTrue(json, "Backfilling"u8, index.Backfilling);
-            WriteNoCapacity(json);
-            json.WriteNumber("IndexSizeBytes", 0);
-            json.WriteNumber("ItemCount", 0);
-            json.WriteString("IndexArn", ArnPrefix + tableName + "/index/" + index.IndexName);
-            json.WriteEndObject();
-        }
-
-        json.WriteEndArray();
-    }
+                TableArn = FakeTable.ArnPrefix + table.TableName,
+                CreationDateTime = DateTimeOffset.FromUnixTimeSeconds(CreationEpochSeconds),
+                BillingModeSummary = new BillingModeSummary { BillingMode = BillingMode.PayPerRequest },
+            },
+            TableId,
+            null)));
 }

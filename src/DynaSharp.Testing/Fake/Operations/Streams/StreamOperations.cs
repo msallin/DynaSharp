@@ -103,34 +103,34 @@ internal static class StreamOperations
             .OrderBy(static shard => shard.Id, StringComparer.Ordinal)
             .ToList();
         var page = listed.Take(limit).ToList();
-        response.WriteStartObject("StreamDescription"u8);
-        response.WriteString("StreamArn"u8, stream.Arn);
-        response.WriteString("StreamLabel"u8, stream.Label);
-        WireNames.StreamStatuses.Write(response, "StreamStatus"u8, stream.IsEnabled ? StreamStatus.Enabled : StreamStatus.Disabled);
-        WireNames.StreamViewTypes.Write(response, "StreamViewType"u8, stream.ViewType);
-        response.WriteNumber("CreationRequestDateTime"u8, stream.CreationDateTime.ToUnixTimeMilliseconds() / 1000m);
-        response.WriteString("TableName"u8, stream.TableName);
-        TableJson.WriteKeySchema(response, ResponseJson.KeyElements(stream.KeySchema));
-        response.WriteStartArray("Shards"u8);
-        foreach (var shard in page)
+        var shards = new Shard[page.Count];
+        for (var i = 0; i < shards.Length; i++)
         {
-            response.WriteStartObject();
-            response.WriteString("ShardId"u8, shard.Id);
-            OperationJson.WriteStringIfSet(response, "ParentShardId"u8, shard.ParentId);
-            response.WriteStartObject("SequenceNumberRange"u8);
-            response.WriteString("StartingSequenceNumber"u8, Text(shard.StartingSequenceNumber));
-            if (shard.EndingSequenceNumber is { } ending)
+            var shard = page[i];
+            shards[i] = new Shard
             {
-                response.WriteString("EndingSequenceNumber"u8, Text(ending));
-            }
-
-            response.WriteEndObject();
-            response.WriteEndObject();
+                ShardId = shard.Id,
+                ParentShardId = shard.ParentId,
+                SequenceNumberRange = new SequenceNumberRange
+                {
+                    StartingSequenceNumber = Text(shard.StartingSequenceNumber),
+                    EndingSequenceNumber = shard.EndingSequenceNumber is { } ending ? Text(ending) : null,
+                },
+            };
         }
 
-        response.WriteEndArray();
-        OperationJson.WriteStringIfSet(response, "LastEvaluatedShardId"u8, listed.Count > page.Count ? page[^1].Id : null);
-        response.WriteEndObject();
+        ResponseJson.WriteStreamDescription(response, new StreamDescription
+        {
+            StreamArn = stream.Arn,
+            StreamLabel = stream.Label,
+            StreamStatus = stream.IsEnabled ? StreamStatus.Enabled : StreamStatus.Disabled,
+            StreamViewType = stream.ViewType,
+            CreationRequestDateTime = stream.CreationDateTime,
+            TableName = stream.TableName,
+            KeySchema = ResponseJson.KeyElements(stream.KeySchema),
+            Shards = shards,
+            LastEvaluatedShardId = listed.Count > page.Count ? page[^1].Id : null,
+        });
     }
 
     /// <summary>
@@ -220,42 +220,28 @@ internal static class StreamOperations
         }
     }
 
-    private static void WriteRecord(Utf8JsonWriter response, FakeStream stream, FakeStreamRecord record)
+    private static void WriteRecord(Utf8JsonWriter response, FakeStream stream, FakeStreamRecord record) => ResponseJson.WriteChangeRecord(response, new ChangeRecord
     {
-        response.WriteStartObject();
-        response.WriteString("eventID"u8, record.EventId);
-        WireNames.OperationTypes.Write(response, "eventName"u8, record.EventName);
-        response.WriteString("eventVersion"u8, "1.1");
-        response.WriteString("eventSource"u8, "aws:dynamodb");
-        response.WriteString("awsRegion"u8, StubClient.RegionName);
-        response.WriteStartObject("dynamodb"u8);
-        response.WriteNumber("ApproximateCreationDateTime"u8, record.ApproximateCreationDateTime.ToUnixTimeSeconds());
-        ResponseJson.WriteItem(response, "Keys", record.Keys);
-        if (record.NewImage is { } newImage)
+        EventId = record.EventId,
+        EventName = record.EventName,
+        EventVersion = ResponseJson.RecordEventVersion,
+        EventSource = ResponseJson.RecordEventSource,
+        Region = StubClient.RegionName,
+        DynamoDb = new StreamRecord
         {
-            ResponseJson.WriteItem(response, "NewImage", newImage);
-        }
+            // DynamoDB rounds the time of a record down to the second.
+            ApproximateCreationDateTime = DateTimeOffset.FromUnixTimeSeconds(record.ApproximateCreationDateTime.ToUnixTimeSeconds()),
+            Keys = record.Keys,
+            NewImage = record.NewImage,
+            OldImage = record.OldImage,
+            SequenceNumber = Text(record.SequenceNumber),
+            SizeBytes = record.SizeBytes,
+            StreamViewType = stream.ViewType,
+        },
 
-        if (record.OldImage is { } oldImage)
-        {
-            ResponseJson.WriteItem(response, "OldImage", oldImage);
-        }
-
-        response.WriteString("SequenceNumber"u8, Text(record.SequenceNumber));
-        response.WriteNumber("SizeBytes"u8, record.SizeBytes);
-        WireNames.StreamViewTypes.Write(response, "StreamViewType"u8, stream.ViewType);
-        response.WriteEndObject();
-        if (record.ByTimeToLive)
-        {
-            // What DynamoDB writes for a delete of its sweep of time to live, so a consumer can tell it from a delete of a client.
-            response.WriteStartObject("userIdentity"u8);
-            response.WriteString("PrincipalId"u8, "dynamodb.amazonaws.com");
-            response.WriteString("Type"u8, "Service");
-            response.WriteEndObject();
-        }
-
-        response.WriteEndObject();
-    }
+        // What DynamoDB writes for a delete of its sweep of time to live, so a consumer can tell it from a delete of a client.
+        UserIdentity = record.ByTimeToLive ? new RecordIdentity { PrincipalId = "dynamodb.amazonaws.com", Type = "Service" } : null,
+    });
 
     private static int Locate(FakeShard shard, BigInteger sequenceNumber, bool after, int horizon)
     {
