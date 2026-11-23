@@ -48,7 +48,8 @@ internal sealed class ShardRun(ClientCore core, string shardId, Action? position
             return;
         }
 
-        ClientLog.ShardRecovered(core.Logger, shardId, core.TimeProvider.GetElapsedTime(_outageStarted), _outageRetries);
+        var elapsed = core.TimeProvider.GetElapsedTime(_outageStarted);
+        ClientLog.ShardRecovered(core.Logger, shardId, elapsed, _outageRetries);
         _outageRetries = 0;
     }
 
