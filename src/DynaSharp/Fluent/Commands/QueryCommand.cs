@@ -319,7 +319,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// <returns>The items, which can be enumerated once; a second enumeration throws <see cref="InvalidOperationException"/>, so build the command again to read again.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public IAsyncEnumerable<T> ItemsAsync(CancellationToken cancellationToken = default) =>
-        PagedRead<QueryPageOperation<T>, T>.Items(Prepare(), cancellationToken);
+        PagedRead<QueryPageOperation<T, DocumentItem<T>>, T>.Items(Prepare(), cancellationToken);
 
     /// <summary>
     /// Reads the first item that matches, in the order of the query, and stops there. Without a filter it asks for one item; with one it goes on through pages that the filter left empty.
@@ -345,7 +345,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// <exception cref="DynamoDbMappingException">An item of the page cannot be read as <typeparamref name="T"/>, which counts for all items of that page, not only for the first.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
     public ValueTask<T?> ItemAsync(CancellationToken cancellationToken = default) =>
-        PagedRead<QueryPageOperation<T>, T>.FirstAsync(Prepare(), cancellationToken);
+        PagedRead<QueryPageOperation<T, DocumentItem<T>>, T>.FirstAsync(Prepare(), cancellationToken);
 
     /// <summary>
     /// Reads all pages as they come, for code that wants <see cref="Page{T}.ConsumedCapacity"/> or works page by page. It gives every response, also one that a
@@ -355,7 +355,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// <returns>The pages, which can be enumerated once.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public IAsyncEnumerable<Page<T>> PagesAsync(CancellationToken cancellationToken = default) =>
-        PagedRead<QueryPageOperation<T>, T>.Pages(Prepare(), cancellationToken);
+        PagedRead<QueryPageOperation<T, DocumentItem<T>>, T>.Pages(Prepare(), cancellationToken);
 
     /// <summary>
     /// Reads one page, for paging that a client drives across requests: build the same query each time and pass the position of the page before. The page can be
@@ -375,7 +375,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// <exception cref="DynamoDbMappingException">An item cannot be read as <typeparamref name="T"/>.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
     public ValueTask<Page<T>> PageAsync(ContinuationToken? after = null, CancellationToken cancellationToken = default) =>
-        PagedRead<QueryPageOperation<T>, T>.PageAsync(Prepare(), after.GetValueOrDefault(), cancellationToken);
+        PagedRead<QueryPageOperation<T, DocumentItem<T>>, T>.PageAsync(Prepare(), after.GetValueOrDefault(), cancellationToken);
 
     /// <summary>Reads the first page, as <see cref="PageAsync(ContinuationToken?, CancellationToken)"/> does without a position, for a caller that has a cancellation token and no position yet.</summary>
     /// <param name="cancellationToken">Cancels the call. It has no default, because <c>PageAsync()</c> belongs to the overload with the position.</param>
@@ -401,7 +401,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
     /// <exception cref="OverflowException">There are more items than an <see cref="int"/> holds.</exception>
     public ValueTask<int> CountAsync(CancellationToken cancellationToken = default) =>
-        PagedRead<QueryPageOperation<T>, T>.CountAsync(Enter(), cancellationToken);
+        PagedRead<QueryPageOperation<T, DocumentItem<T>>, T>.CountAsync(Enter(), cancellationToken);
 
     /// <summary>
     /// Renders the body of the first page, as DynamoDB JSON, without sending it. It ends the command, and is meant for tests and debugging.

@@ -271,7 +271,7 @@ Without a signer the plain path reads one field more and allocates nothing more.
 and `ValueAsync`, because they give values, not items. `And` (`Selection.Another`) checks the handle and the paths selected so far before it enters the command, then adds the path
 (`CommandState.SelectAnother`); the state holds up to four (`SelectedPath`), which the command types of two, three and four attributes keep to. A page reads each item through an `IItemReader<T>`, a static member of a struct: `DocumentItem<T>` is `T.ReadAttributes`,
 `SelectedItem<TValue, TConverter>` the attribute, found by `AttributePath` (shared with `UpdateValueOperation`), and `SelectedItem<T1, TConverter1, ...>` of two to four a tuple, each element
-read by `SelectedItem.Read` from a copy of the reader but the last. `GetSelectOperation`, `QuerySelectPageOperation` and `ScanSelectPageOperation` take the reader as a type parameter.
+read by `SelectedItem.Read` from a copy of the reader but the last. `GetSelectOperation`, `QueryPageOperation` and `ScanPageOperation` take the reader as a type parameter; a page of a fan-out is a `QueryPageOperation` too, whose `PageResponse.Read` puts the keys of the items into `CommandState.ItemKeys`, which only a fan-out sets.
 `ReadOptions.ChecksDiscriminator` is `CheckEachItem` where no filter kept other types away (a `Get`, a query keyed by the discriminator): a copy of the reader walks the item once
 more. What a missing attribute means is `TryReadMissing` of the converter that the overload of `Select` picks: the null wrappers make it `T?`. `AttributePath` reads through
 `DynamoDbReader.TryReadValue`, so a value `CountsAsMissing` counts is a missing attribute for `Select` and `Return` alike. `TableModel.ReadTypeName` is the name generated code gives

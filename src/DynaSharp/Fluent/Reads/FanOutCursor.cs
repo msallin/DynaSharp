@@ -125,7 +125,7 @@ internal sealed class FanOutCursor<T>
     {
         var state = _state!;
         _keys.Start(state.PageKey.WrittenSpan);
-        var page = await PagedRead<FanOutPageOperation<T>, T>.SendAsync(state, cancellationToken).ConfigureAwait(false);
+        var page = await PagedRead<QueryPageOperation<T, DocumentItem<T>>, T>.SendAsync(state, cancellationToken).ConfigureAwait(false);
         _items = page.Items;
         _next = 0;
         HasMore = page.HasMore;

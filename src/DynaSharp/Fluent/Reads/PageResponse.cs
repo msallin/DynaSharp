@@ -1,7 +1,6 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.Text.Json;
-using DynaSharp.Mapping;
 using DynaSharp.Operations;
 using DynaSharp.Serialization;
 using DynaSharp.Telemetry;
@@ -11,26 +10,19 @@ namespace DynaSharp.Fluent;
 /// <summary>What the pages of <c>Query</c> and <c>Scan</c> have in common, which is all of the response.</summary>
 internal static class PageResponse
 {
-    /// <summary>Reads the response of a read of whole items, see <see cref="Read{T, TItem}"/>.</summary>
-    /// <typeparam name="T">How the items are read.</typeparam>
-    /// <param name="reader">The reader, positioned before the response object.</param>
-    /// <param name="state">The state of the read.</param>
-    /// <param name="keys">Where the keys of the items go, for a fan-out, which merges by them.</param>
-    /// <returns>The page.</returns>
-    public static PageData<T> Read<T>(ref DynamoDbReader reader, CommandState state, FanOutKeys? keys = null)
-        where T : IDynamoDbDocument<T> => Read<T, DocumentItem<T>>(ref reader, state, keys);
-
-    /// <summary>Reads the response. <c>LastEvaluatedKey</c> is only located: parsing it would build a dictionary, only to write it back to the next request.</summary>
+    /// <summary>
+    /// Reads the response. <c>LastEvaluatedKey</c> is only located: parsing it would build a dictionary, only to write it back to the next request. The keys of the
+    /// items go to <see cref="CommandState.ItemKeys"/>, which only a fan-out sets, as it merges by them.
+    /// </summary>
     /// <typeparam name="T">What an item gives.</typeparam>
     /// <typeparam name="TItem">How it gives it.</typeparam>
     /// <param name="reader">The reader, positioned before the response object.</param>
     /// <param name="state">The state of the read.</param>
-    /// <param name="keys">Where the keys of the items go, for a fan-out, which merges by them.</param>
     /// <returns>The page.</returns>
-    public static PageData<T> Read<T, TItem>(ref DynamoDbReader reader, CommandState state, FanOutKeys? keys = null)
+    public static PageData<T> Read<T, TItem>(ref DynamoDbReader reader, CommandState state)
         where TItem : IItemReader<T>
     {
-        var items = new PageItems<T, TItem>(state, keys);
+        var items = new PageItems<T, TItem>(state, state.ItemKeys);
         var lastEvaluatedKey = default(LocatedKey);
         var envelope = PageEnvelope.Read(ref reader, ref items, ref lastEvaluatedKey);
         state.ResponseCapacity = envelope.ConsumedCapacity;

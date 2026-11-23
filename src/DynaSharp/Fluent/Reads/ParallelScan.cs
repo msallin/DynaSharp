@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using DynaSharp.Mapping;
+using DynaSharp.Operations;
 
 namespace DynaSharp.Fluent;
 
@@ -42,7 +43,7 @@ internal sealed class ParallelScan<T>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The items.</returns>
     public static IAsyncEnumerable<T> Items(CommandState scan, CancellationToken cancellationToken) =>
-        new OnceEnumerable<T>(scan, ScanPageOperation<T>.Name, ReadAsync(scan, cancellationToken));
+        new OnceEnumerable<T>(scan, ScanOperation.Name, ReadAsync(scan, cancellationToken));
 
     private static async IAsyncEnumerable<T> ReadAsync(CommandState scan, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -85,7 +86,7 @@ internal sealed class ParallelScan<T>
             PageData<T> page;
             do
             {
-                page = await PagedRead<ScanPageOperation<T>, T>.SendAsync(segment, stopped).ConfigureAwait(false);
+                page = await PagedRead<ScanPageOperation<T, DocumentItem<T>>, T>.SendAsync(segment, stopped).ConfigureAwait(false);
                 if (page.Items.Length > 0)
                 {
                     await _pages.Writer.WriteAsync(page.Items, stopped).ConfigureAwait(false);

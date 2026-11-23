@@ -72,7 +72,7 @@ public readonly ref struct QuerySelectCommand<T1, TConverter1, T2, TConverter2> 
     /// <returns>The tuples, which can be enumerated once; a second enumeration throws <see cref="InvalidOperationException"/>, so build the command again to read again.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
     public IAsyncEnumerable<(T1, T2)> ValuesAsync(CancellationToken cancellationToken = default) =>
-        PagedRead<QuerySelectPageOperation<(T1, T2), SelectedItem<T1, TConverter1, T2, TConverter2>>, (T1, T2)>.Items(Enter(), cancellationToken);
+        PagedRead<QueryPageOperation<(T1, T2), SelectedItem<T1, TConverter1, T2, TConverter2>>, (T1, T2)>.Items(Enter(), cancellationToken);
 
     /// <summary>
     /// Reads the attributes of the first item that matches, in the order of the query, and stops there, as <see cref="QueryCommand{T}.ItemAsync"/> does, with what it says about <c>Limit</c>.
@@ -87,14 +87,14 @@ public readonly ref struct QuerySelectCommand<T1, TConverter1, T2, TConverter2> 
     /// <exception cref="DynamoDbMappingException">An item has no attribute that its handle cannot do without, or a value that cannot be read as the type of its handle.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
     public ValueTask<SelectResult<(T1, T2)>> ValueAsync(CancellationToken cancellationToken = default) =>
-        PagedRead<QuerySelectPageOperation<(T1, T2), SelectedItem<T1, TConverter1, T2, TConverter2>>, (T1, T2)>.FindAsync(Enter(), cancellationToken);
+        PagedRead<QueryPageOperation<(T1, T2), SelectedItem<T1, TConverter1, T2, TConverter2>>, (T1, T2)>.FindAsync(Enter(), cancellationToken);
 
     /// <summary>Reads all pages as they come, as <see cref="QuerySelectCommand{TValue, TConverter}.PagesAsync"/> does, with the tuples in <see cref="Page{T}.Items"/>.</summary>
     /// <param name="cancellationToken">Cancels the read, as does <c>WithCancellation</c> on the result.</param>
     /// <returns>The pages, which can be enumerated once.</returns>
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
     public IAsyncEnumerable<Page<(T1, T2)>> PagesAsync(CancellationToken cancellationToken = default) =>
-        PagedRead<QuerySelectPageOperation<(T1, T2), SelectedItem<T1, TConverter1, T2, TConverter2>>, (T1, T2)>.Pages(Enter(), cancellationToken);
+        PagedRead<QueryPageOperation<(T1, T2), SelectedItem<T1, TConverter1, T2, TConverter2>>, (T1, T2)>.Pages(Enter(), cancellationToken);
 
     /// <summary>Reads one page, as <see cref="QuerySelectCommand{TValue, TConverter}.PageAsync(ContinuationToken?, CancellationToken)"/> does, with the tuples in <see cref="Page{T}.Items"/>.</summary>
     /// <param name="after">The position to continue from, the <see cref="Page{T}.Next"/> of the page before, or <c>null</c> for the first page, as is a <c>default</c> token. It must come from the same query.</param>
@@ -108,7 +108,7 @@ public readonly ref struct QuerySelectCommand<T1, TConverter1, T2, TConverter2> 
     /// <exception cref="DynamoDbMappingException">An item has no attribute that its handle cannot do without, or a value that cannot be read as the type of its handle.</exception>
     /// <exception cref="DynamoDbException">DynamoDB returns any other error; a throttling or server error only after the last attempt.</exception>
     public ValueTask<Page<(T1, T2)>> PageAsync(ContinuationToken? after = null, CancellationToken cancellationToken = default) =>
-        PagedRead<QuerySelectPageOperation<(T1, T2), SelectedItem<T1, TConverter1, T2, TConverter2>>, (T1, T2)>.PageAsync(Enter(), after.GetValueOrDefault(), cancellationToken);
+        PagedRead<QueryPageOperation<(T1, T2), SelectedItem<T1, TConverter1, T2, TConverter2>>, (T1, T2)>.PageAsync(Enter(), after.GetValueOrDefault(), cancellationToken);
 
     /// <summary>Reads the first page, as <see cref="PageAsync(ContinuationToken?, CancellationToken)"/> does without a position, for a caller that has a cancellation token and no position yet.</summary>
     /// <param name="cancellationToken">Cancels the call. It has no default, because <c>PageAsync()</c> belongs to the overload with the position.</param>

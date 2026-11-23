@@ -62,7 +62,7 @@ internal static class FanOutRead<T>
     /// <exception cref="InvalidOperationException">The read has a projection, which DynamoDB rejects together with this <c>Select</c>.</exception>
     public static ValueTask<int> CountAsync(CommandState template, FanOutPlan plan, CancellationToken cancellationToken)
     {
-        PagedRead<QueryPageOperation<T>, T>.ThrowIfProjected(template);
+        PagedRead<QueryPageOperation<T, DocumentItem<T>>, T>.ThrowIfProjected(template);
         return SumAsync(template, plan, cancellationToken);
     }
 
@@ -78,7 +78,7 @@ internal static class FanOutRead<T>
                 plan.MaxConcurrency,
                 async (position, token) =>
                 {
-                    var count = await PagedRead<QueryPageOperation<T>, T>.CountAsync(template.StartPartition(plan.PartitionKeys[position], null), token).ConfigureAwait(false);
+                    var count = await PagedRead<QueryPageOperation<T, DocumentItem<T>>, T>.CountAsync(template.StartPartition(plan.PartitionKeys[position], null), token).ConfigureAwait(false);
                     Interlocked.Add(ref total, count);
                 },
                 cancellationToken).ConfigureAwait(false);
