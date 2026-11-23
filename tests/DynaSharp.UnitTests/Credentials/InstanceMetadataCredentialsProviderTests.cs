@@ -4,7 +4,6 @@ using DynaSharp.Configuration;
 using DynaSharp.Credentials;
 using DynaSharp.Testing;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using static DynaSharp.UnitTests.Credentials.CredentialsTestSupport;
 
 namespace DynaSharp.UnitTests.Credentials;
@@ -863,7 +862,7 @@ public sealed class InstanceMetadataCredentialsProviderTests
         // Arrange
         var time = new ManualTimeProvider();
         var imds = new FakeImds { Credentials = _ => StubResponse.Json(InstanceMetadataJson(time.GetUtcNow().AddMinutes(5))) };
-        var provider = new InstanceMetadataCredentialsProvider(Env(), NoFiles, imds.Handler, time, NullLogger.Instance, null);
+        var provider = new InstanceMetadataCredentialsProvider(Dependencies(Env(), handler: imds.Handler, time: time), null);
 
         // Act
         var credentials = await provider.GetCredentialsAsync(CancellationToken.None);
@@ -918,7 +917,7 @@ public sealed class InstanceMetadataCredentialsProviderTests
         var time = new ManualTimeProvider();
         using var logs = new CapturingLoggerFactory();
         var imds = new FakeImds { Credentials = _ => StubResponse.Json(InstanceMetadataJson(time.GetUtcNow().AddHours(6))) };
-        var provider = Create(imds, time, logger: logs.CreateLogger("test"));
+        var provider = Create(imds, time, logs: logs);
         var first = await provider.GetCredentialsAsync(CancellationToken.None);
         imds.Role = _ => StubResponse.Json("error", HttpStatusCode.InternalServerError);
         time.Advance(TimeSpan.FromHours(6) - TimeSpan.FromMinutes(12));
@@ -937,7 +936,7 @@ public sealed class InstanceMetadataCredentialsProviderTests
         var time = new ManualTimeProvider();
         using var logs = new CapturingLoggerFactory();
         var imds = new FakeImds { Credentials = _ => StubResponse.Json(InstanceMetadataJson(time.GetUtcNow().AddHours(6))) };
-        var provider = Create(imds, time, logger: logs.CreateLogger("test"));
+        var provider = Create(imds, time, logs: logs);
         await provider.GetCredentialsAsync(CancellationToken.None);
         imds.Credentials = _ => StubResponse.Json($$"""{"Code":"Success","AccessKeyId":"{{AccessKeyId}}","SecretAccessKey":"{{SecretAccessKey}}","Token":"{{SessionToken}}"}""");
         time.Advance(TimeSpan.FromHours(6) - TimeSpan.FromMinutes(12));
@@ -1078,10 +1077,10 @@ public sealed class InstanceMetadataCredentialsProviderTests
         FakeImds imds,
         ManualTimeProvider? time = null,
         Func<string, string?>? environment = null,
-        ILogger? logger = null,
+        ILoggerFactory? logs = null,
         Random? random = null,
         ReadTextFile? files = null) =>
-        new(environment ?? Env(), files ?? NoFiles, imds.Handler, time ?? imds.Time, logger ?? NullLogger.Instance, random ?? new Random(Seed));
+        new(Dependencies(environment ?? Env(), files, imds.Handler, time ?? imds.Time, logs), random ?? new Random(Seed));
 
     /// <summary>A fake instance metadata service. Each answer can be replaced by the test.</summary>
     private sealed class FakeImds

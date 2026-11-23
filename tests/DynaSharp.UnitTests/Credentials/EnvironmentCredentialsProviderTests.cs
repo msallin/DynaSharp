@@ -1,5 +1,4 @@
 using DynaSharp.Credentials;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DynaSharp.UnitTests.Credentials;
 
@@ -114,7 +113,7 @@ public sealed class EnvironmentCredentialsProviderTests
             ["AWS_SECRET_ACCESS_KEY"] = SecretAccessKey,
             ["AWS_SESSION_TOKEN"] = SessionToken,
         };
-        var provider = new EnvironmentCredentialsProvider(name =>
+        var provider = Create(name =>
         {
             reads.Add(name);
             return variables.GetValueOrDefault(name);
@@ -166,7 +165,7 @@ public sealed class EnvironmentCredentialsProviderTests
         // Arrange
         var time = new ManualTimeProvider(Now);
         var reads = 0;
-        var provider = new EnvironmentCredentialsProvider(
+        var provider = Create(
             name =>
             {
                 Interlocked.Increment(ref reads);
@@ -178,8 +177,7 @@ public sealed class EnvironmentCredentialsProviderTests
                     _ => null,
                 };
             },
-            time,
-            NullLogger.Instance);
+            time);
         var first = await provider.GetCredentialsAsync(CancellationToken.None);
         time.Advance(TimeSpan.FromDays(400));
 
@@ -234,7 +232,7 @@ public sealed class EnvironmentCredentialsProviderTests
             ["AWS_SECRET_ACCESS_KEY"] = SecretAccessKey,
             ["AWS_CREDENTIAL_EXPIRATION"] = CredentialsTestSupport.Timestamp(Now.AddHours(1)),
         };
-        var provider = new EnvironmentCredentialsProvider(
+        var provider = Create(
             name =>
             {
                 lock (variables)
@@ -242,8 +240,7 @@ public sealed class EnvironmentCredentialsProviderTests
                     return variables.GetValueOrDefault(name);
                 }
             },
-            time,
-            NullLogger.Instance);
+            time);
         await provider.GetCredentialsAsync(CancellationToken.None);
         lock (variables)
         {
@@ -282,7 +279,7 @@ public sealed class EnvironmentCredentialsProviderTests
         // Arrange (the retry of a client after ExpiredTokenException)
         var time = new ManualTimeProvider(Now);
         var reads = 0;
-        var provider = new EnvironmentCredentialsProvider(
+        var provider = Create(
             name =>
             {
                 if (name == "AWS_ACCESS_KEY_ID")
@@ -298,8 +295,7 @@ public sealed class EnvironmentCredentialsProviderTests
                     _ => null,
                 };
             },
-            time,
-            NullLogger.Instance);
+            time);
         var rejected = await provider.GetCredentialsAsync(CancellationToken.None);
 
         // Act
@@ -347,7 +343,7 @@ public sealed class EnvironmentCredentialsProviderTests
             ["AWS_ACCESS_KEY_ID"] = AccessKeyId,
             ["AWS_SECRET_ACCESS_KEY"] = SecretAccessKey,
         };
-        var provider = new EnvironmentCredentialsProvider(variables.GetValueOrDefault);
+        var provider = Create(variables.GetValueOrDefault);
         await provider.GetCredentialsAsync(CancellationToken.None);
         variables["AWS_ACCESS_KEY_ID"] = "AKIAOTHEREXAMPLE";
 
@@ -365,7 +361,7 @@ public sealed class EnvironmentCredentialsProviderTests
         var reads = 0;
 
         // Act
-        _ = new EnvironmentCredentialsProvider(_ =>
+        _ = Create(_ =>
         {
             reads++;
             return null;
@@ -414,7 +410,7 @@ public sealed class EnvironmentCredentialsProviderTests
             ["AWS_SECRET_ACCESS_KEY"] = secretAccessKey,
             ["AWS_SESSION_TOKEN"] = SessionToken,
         };
-        var provider = new EnvironmentCredentialsProvider(variables.GetValueOrDefault);
+        var provider = Create(variables.GetValueOrDefault);
 
         // Act
         var act = async () => await provider.GetCredentialsAsync(CancellationToken.None);
@@ -444,7 +440,7 @@ public sealed class EnvironmentCredentialsProviderTests
     {
         // Arrange
         var variables = new Dictionary<string, string>();
-        var provider = new EnvironmentCredentialsProvider(variables.GetValueOrDefault);
+        var provider = Create(variables.GetValueOrDefault);
         await Assert.That(async () => await provider.GetCredentialsAsync(CancellationToken.None)).ThrowsExactly<CredentialsUnavailableException>();
         variables["AWS_ACCESS_KEY_ID"] = AccessKeyId;
         variables["AWS_SECRET_ACCESS_KEY"] = SecretAccessKey;
@@ -461,7 +457,7 @@ public sealed class EnvironmentCredentialsProviderTests
     {
         // Arrange
         var failures = 0;
-        var provider = new EnvironmentCredentialsProvider(_ =>
+        var provider = Create(_ =>
         {
             failures++;
             return null;
@@ -490,11 +486,14 @@ public sealed class EnvironmentCredentialsProviderTests
     }
 
     private static EnvironmentCredentialsProvider Create(TimeProvider time, params (string Name, string Value)[] variables) =>
-        new(CredentialsTestSupport.Env(variables), time, NullLogger.Instance);
+        new(CredentialsTestSupport.Dependencies(CredentialsTestSupport.Env(variables), time: time));
+
+    private static EnvironmentCredentialsProvider Create(Func<string, string?> environment, TimeProvider? time = null) =>
+        new(CredentialsTestSupport.Dependencies(environment, time: time));
 
     private static EnvironmentCredentialsProvider CreateProvider(params (string Name, string Value)[] variables)
     {
         var map = variables.ToDictionary(v => v.Name, v => v.Value);
-        return new EnvironmentCredentialsProvider(map.GetValueOrDefault);
+        return Create(map.GetValueOrDefault);
     }
 }

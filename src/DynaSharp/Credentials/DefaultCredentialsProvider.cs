@@ -1,7 +1,4 @@
-using DynaSharp.Configuration;
-using DynaSharp.Retries;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DynaSharp.Credentials;
 
@@ -62,30 +59,19 @@ public sealed class DefaultCredentialsProvider : IRefreshableCredentialsProvider
     /// the current process, uses the system clock and does not log.
     /// </summary>
     public DefaultCredentialsProvider()
-        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, new ClockSkewCorrection(TimeProvider.System), NullLoggerFactory.Instance, null)
+        : this(CredentialsDependencies.CreateDefault(), null)
     {
     }
 
-    internal DefaultCredentialsProvider(
-        Func<string, string?> getEnvironmentVariable,
-        ReadTextFile readFile,
-        HttpMessageHandler? handler,
-        TimeProvider timeProvider,
-        ILoggerFactory loggerFactory,
-        Random? random,
-        AwsRegion? region = null)
+    internal DefaultCredentialsProvider(CredentialsDependencies dependencies, Random? random, AwsRegion? region = null)
     {
-        _logger = loggerFactory.CreateLogger<DefaultCredentialsProvider>();
+        _logger = dependencies.LoggerFactory.CreateLogger<DefaultCredentialsProvider>();
 
-        var environment = new EnvironmentCredentialsProvider(getEnvironmentVariable, timeProvider, loggerFactory.CreateLogger<EnvironmentCredentialsProvider>());
-        var webIdentity = new WebIdentityCredentialsProvider(
-            getEnvironmentVariable, readFile, handler, timeProvider, loggerFactory.CreateLogger<WebIdentityCredentialsProvider>(), region);
-        var profile = new ProfileCredentialsProvider(
-            new CredentialsDependencies(getEnvironmentVariable, readFile, TextFiles.DiskWriter, CredentialProcess.Runner, handler, timeProvider, loggerFactory), null, region);
-        var container = new ContainerCredentialsProvider(
-            getEnvironmentVariable, readFile, handler, timeProvider, loggerFactory.CreateLogger<ContainerCredentialsProvider>());
-        var instanceMetadata = new InstanceMetadataCredentialsProvider(
-            getEnvironmentVariable, readFile, handler, timeProvider, loggerFactory.CreateLogger<InstanceMetadataCredentialsProvider>(), random);
+        var environment = new EnvironmentCredentialsProvider(dependencies);
+        var webIdentity = new WebIdentityCredentialsProvider(dependencies, region);
+        var profile = new ProfileCredentialsProvider(dependencies, null, region);
+        var container = new ContainerCredentialsProvider(dependencies);
+        var instanceMetadata = new InstanceMetadataCredentialsProvider(dependencies, random);
 
         // The order is botocore's. To add a source: implement TryGetCredentialsAsync like the
         // providers here, and put it where botocore has it.

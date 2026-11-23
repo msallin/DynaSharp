@@ -233,7 +233,7 @@ public sealed class ProfileCredentialsProviderTests
             Interlocked.Increment(ref reads);
             return path == CredentialsPath ? $"[default]\n{Keys}" : null;
         };
-        var provider = new ProfileCredentialsProvider(Defaults, counting, null);
+        var provider = new ProfileCredentialsProvider(Dependencies(Defaults, counting), null);
         var first = await provider.GetCredentialsAsync(CancellationToken.None);
 
         // Act
@@ -248,7 +248,7 @@ public sealed class ProfileCredentialsProviderTests
     {
         // Arrange
         var files = new Dictionary<string, string>();
-        var provider = new ProfileCredentialsProvider(Defaults, path => files.GetValueOrDefault(path), null);
+        var provider = new ProfileCredentialsProvider(Dependencies(Defaults, path => files.GetValueOrDefault(path)), null);
         await Assert.That(async () => await provider.GetCredentialsAsync(CancellationToken.None)).ThrowsExactly<CredentialsUnavailableException>();
         files[CredentialsPath] = $"[default]\n{Keys}";
 
@@ -328,7 +328,7 @@ public sealed class ProfileCredentialsProviderTests
     public async Task GetCredentialsAsync_FileCannotBeRead_ThrowsCredentialsUnavailableExceptionSayingWhy()
     {
         // Arrange
-        var provider = new ProfileCredentialsProvider(Defaults, _ => throw new UnauthorizedAccessException("Access to the path '/aws/credentials' is denied."), null);
+        var provider = new ProfileCredentialsProvider(Dependencies(Defaults, _ => throw new UnauthorizedAccessException("Access to the path '/aws/credentials' is denied.")), null);
 
         // Act
         var act = async () => await provider.GetCredentialsAsync(CancellationToken.None);
@@ -460,7 +460,7 @@ public sealed class ProfileCredentialsProviderTests
     {
         // Arrange (the way of a profile, end to end, through a program that the operating system starts)
         using var program = FakeProgram.Create(ProcessCredentialsProviderTests.Json(DateTimeOffset.UtcNow.AddHours(1)), exitCode: 0);
-        var provider = new ProfileCredentialsProvider(Defaults, Files((ConfigPath, $"[default]\ncredential_process = {program.CommandLine}\n")), null);
+        var provider = new ProfileCredentialsProvider(Dependencies(Defaults, Files((ConfigPath, $"[default]\ncredential_process = {program.CommandLine}\n"))), null);
 
         // Act
         var credentials = await provider.GetCredentialsAsync(CancellationToken.None);
@@ -657,11 +657,11 @@ public sealed class ProfileCredentialsProviderTests
         new(ProcessCredentialsProviderTests.Dependencies(runner, new ManualTimeProvider(Now)) with { GetEnvironmentVariable = Defaults, ReadFile = Files(file) }, profileName);
 
     private static ProfileCredentialsProvider Create(Func<string, string?> environment, string? profileName = null) =>
-        new(environment, NoFiles, profileName);
+        new(Dependencies(environment), profileName);
 
     private static ProfileCredentialsProvider Create(Func<string, string?> environment, (string Path, string Content) file, string? profileName = null) =>
-        new(environment, Files(file), profileName);
+        new(Dependencies(environment, Files(file)), profileName);
 
     private static ProfileCredentialsProvider Create(Func<string, string?> environment, (string Path, string Content) first, (string Path, string Content) second) =>
-        new(environment, Files(first, second), null);
+        new(Dependencies(environment, Files(first, second)), null);
 }

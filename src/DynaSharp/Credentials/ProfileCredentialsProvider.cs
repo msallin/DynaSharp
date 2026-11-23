@@ -84,11 +84,6 @@ public sealed class ProfileCredentialsProvider : IRefreshableCredentialsProvider
     {
     }
 
-    internal ProfileCredentialsProvider(Func<string, string?> getEnvironmentVariable, ReadTextFile readFile, string? profileName)
-        : this(CredentialsDependencies.CreateDefault() with { GetEnvironmentVariable = getEnvironmentVariable, ReadFile = readFile }, profileName)
-    {
-    }
-
     internal ProfileCredentialsProvider(CredentialsDependencies dependencies, string? profileName, AwsRegion? region = null)
     {
         _dependencies = dependencies;

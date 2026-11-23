@@ -132,7 +132,8 @@ internal sealed record ClientConfiguration
             Endpoint = endpoint,
             EndpointSource = endpointSource,
             Credentials = options.Credentials
-                ?? new DefaultCredentialsProvider(getEnvironmentVariable, readFile, credentialsHandler, clock, loggerFactory, null, region),
+                ?? new DefaultCredentialsProvider(
+                    new CredentialsDependencies(getEnvironmentVariable, readFile, TextFiles.DiskWriter, CredentialProcess.Runner, credentialsHandler, clock, loggerFactory), null, region),
             AttemptTimeout = attemptTimeout,
             MaxAttempts = options.MaxAttempts,
             TimeProvider = options.TimeProvider,

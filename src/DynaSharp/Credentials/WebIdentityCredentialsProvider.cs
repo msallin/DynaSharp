@@ -2,9 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text;
 using DynaSharp.Configuration;
-using DynaSharp.Retries;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DynaSharp.Credentials;
 
@@ -99,7 +97,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     /// current process, reads the token from disk and uses the system clock.
     /// </summary>
     public WebIdentityCredentialsProvider()
-        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, new ClockSkewCorrection(TimeProvider.System), NullLogger.Instance, null)
+        : this(CredentialsDependencies.CreateDefault(), null)
     {
     }
 
@@ -119,7 +117,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     /// <paramref name="tokenFile"/> or <paramref name="roleArn"/> is null or empty, or <paramref name="roleSessionName"/> breaks the rule above.
     /// </exception>
     public WebIdentityCredentialsProvider(string tokenFile, string roleArn, AwsRegion region, string? roleSessionName = null)
-        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, new ClockSkewCorrection(TimeProvider.System), NullLogger.Instance, null, Validate(tokenFile, roleArn, region, roleSessionName))
+        : this(CredentialsDependencies.CreateDefault(), null, Validate(tokenFile, roleArn, region, roleSessionName))
     {
     }
 
@@ -142,38 +140,24 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     /// <paramref name="tokenFile"/> or <paramref name="roleArn"/> is null or empty, or <paramref name="stsEndpoint"/> or <paramref name="roleSessionName"/> breaks the rule above.
     /// </exception>
     public WebIdentityCredentialsProvider(string tokenFile, string roleArn, Uri stsEndpoint, string? roleSessionName = null)
-        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, new ClockSkewCorrection(TimeProvider.System), NullLogger.Instance, null, Validate(tokenFile, roleArn, stsEndpoint, roleSessionName))
+        : this(CredentialsDependencies.CreateDefault(), null, Validate(tokenFile, roleArn, stsEndpoint, roleSessionName))
     {
     }
 
-    internal WebIdentityCredentialsProvider(
-        Func<string, string?> getEnvironmentVariable,
-        ReadTextFile readFile,
-        HttpMessageHandler? handler,
-        TimeProvider timeProvider,
-        ILogger logger,
-        AwsRegion? region)
-        : this(getEnvironmentVariable, readFile, handler, timeProvider, logger, region, null)
+    /// <summary>Initializes a new instance of the <see cref="WebIdentityCredentialsProvider"/> class.</summary>
+    /// <param name="dependencies">What the provider reads, calls and logs with.</param>
+    /// <param name="clientRegion">The region of the client that made the provider, for settings from the environment; <see langword="null"/> to look for it.</param>
+    /// <param name="settings">The settings that replace the environment, or <see langword="null"/> to read them from it at every fetch.</param>
+    internal WebIdentityCredentialsProvider(CredentialsDependencies dependencies, AwsRegion? clientRegion, Settings? settings = null)
     {
-    }
-
-    internal WebIdentityCredentialsProvider(
-        Func<string, string?> getEnvironmentVariable,
-        ReadTextFile readFile,
-        HttpMessageHandler? handler,
-        TimeProvider timeProvider,
-        ILogger logger,
-        AwsRegion? region,
-        Settings? settings)
-    {
-        _getEnvironmentVariable = getEnvironmentVariable;
-        _readFile = readFile;
-        _handler = handler;
-        _timeProvider = timeProvider;
-        _logger = logger;
-        _region = region;
+        _getEnvironmentVariable = dependencies.GetEnvironmentVariable;
+        _readFile = dependencies.ReadFile;
+        _handler = dependencies.Handler;
+        _timeProvider = dependencies.TimeProvider;
+        _logger = dependencies.LoggerFactory.CreateLogger<WebIdentityCredentialsProvider>();
+        _region = clientRegion;
         _settings = settings;
-        _cache = new RefreshingCredentialsCache(SourceName, timeProvider, logger, FetchOutcomeAsync);
+        _cache = new RefreshingCredentialsCache(SourceName, _timeProvider, _logger, FetchOutcomeAsync);
     }
 
     /// <summary>

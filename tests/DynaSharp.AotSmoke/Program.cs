@@ -431,16 +431,19 @@ const string stsResponse = """
     """;
 using var stsHandler = new StubHandler(_ => new StubResponse { Body = stsResponse });
 var webIdentity = new WebIdentityCredentialsProvider(
-    name => name switch
-    {
-        "AWS_WEB_IDENTITY_TOKEN_FILE" => "/token",
-        "AWS_ROLE_ARN" => "arn:aws:iam::123456789012:role/orders",
-        _ => null,
-    },
-    _ => "the-token",
-    stsHandler,
-    TimeProvider.System,
-    NullLogger.Instance,
+    new CredentialsDependencies(
+        name => name switch
+        {
+            "AWS_WEB_IDENTITY_TOKEN_FILE" => "/token",
+            "AWS_ROLE_ARN" => "arn:aws:iam::123456789012:role/orders",
+            _ => null,
+        },
+        _ => "the-token",
+        (_, _) => { },
+        CredentialProcess.Runner,
+        stsHandler,
+        TimeProvider.System,
+        NullLoggerFactory.Instance),
     AwsRegion.FromName("eu-central-2"));
 var assumed = await webIdentity.GetCredentialsAsync(CancellationToken.None);
 Check(assumed.AccessKeyId == "ASIAIOSFODNN7EXAMPLE" && assumed.SessionToken == "IQoJb3JpZ2luX2VjEEM/Example==" && assumed.Expiration?.Year == 2099, "web identity reads the XML of STS");

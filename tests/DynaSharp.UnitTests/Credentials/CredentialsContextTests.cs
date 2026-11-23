@@ -1,6 +1,5 @@
 using System.Net;
 using DynaSharp.Credentials;
-using Microsoft.Extensions.Logging.Abstractions;
 using static DynaSharp.UnitTests.Credentials.CredentialsTestSupport;
 
 namespace DynaSharp.UnitTests.Credentials;
@@ -40,7 +39,7 @@ public sealed class CredentialsContextTests
                 _ => Respond(InstanceMetadataJson(Expiration)),
             };
         });
-        var provider = new InstanceMetadataCredentialsProvider(Env(), NoFiles, handler, new ManualTimeProvider(), NullLogger.Instance, new Random(1));
+        var provider = new InstanceMetadataCredentialsProvider(Dependencies(Env(), handler: handler, time: new ManualTimeProvider()), new Random(1));
         var context = new CountingSynchronizationContext();
         var call = context.Start(() => provider.GetCredentialsAsync(CancellationToken.None).AsTask());
 
@@ -62,7 +61,7 @@ public sealed class CredentialsContextTests
             ? new HttpResponseMessage(HttpStatusCode.InternalServerError)
             : Respond(ContainerJson(Expiration))));
         var provider = new ContainerCredentialsProvider(
-            Env(("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials/" + CredentialId)), NoFiles, handler, time, NullLogger.Instance);
+            Dependencies(Env(("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials/" + CredentialId)), handler: handler, time: time));
         var context = new CountingSynchronizationContext();
         var call = context.Start(() => provider.GetCredentialsAsync(CancellationToken.None).AsTask());
 
@@ -85,7 +84,7 @@ public sealed class CredentialsContextTests
             return Respond(ContainerJson(Expiration));
         });
         var environment = Env(("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "/v2/credentials/" + CredentialId));
-        var provider = new DefaultCredentialsProvider(environment, NoFiles, handler, new ManualTimeProvider(), NullLoggerFactory.Instance, null);
+        var provider = new DefaultCredentialsProvider(Dependencies(environment, handler: handler, time: new ManualTimeProvider()), null);
         var context = new CountingSynchronizationContext();
         var call = context.Start(() => provider.GetCredentialsAsync(CancellationToken.None).AsTask());
 

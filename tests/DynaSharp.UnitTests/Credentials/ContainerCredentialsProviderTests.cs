@@ -3,7 +3,6 @@ using DynaSharp.Configuration;
 using DynaSharp.Credentials;
 using DynaSharp.Testing;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using static DynaSharp.UnitTests.Credentials.CredentialsTestSupport;
 
 namespace DynaSharp.UnitTests.Credentials;
@@ -524,7 +523,7 @@ public sealed class ContainerCredentialsProviderTests
         using var handler = new StubHandler();
         handler.Enqueue(StubResponse.Json(ContainerJson(time.GetUtcNow().AddHours(1))));
         handler.DefaultResponse = StubResponse.Json("service unavailable", HttpStatusCode.ServiceUnavailable);
-        var provider = Create(handler, EcsEnvironment, time, logger: logs.CreateLogger("test"));
+        var provider = Create(handler, EcsEnvironment, time, logs: logs);
         var first = await provider.GetCredentialsAsync(CancellationToken.None);
 
         // 12 minutes are left, so the refresh still ends in the advisory period after the seconds that the retries of the fetch take
@@ -549,7 +548,7 @@ public sealed class ContainerCredentialsProviderTests
         handler.Enqueue(StubResponse.Json(ContainerJson(time.GetUtcNow().AddHours(1))));
         handler.DefaultResponse = StubResponse.Json("service unavailable", HttpStatusCode.ServiceUnavailable);
         var environment = Env(("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", RelativeUri), ("AWS_CONTAINER_AUTHORIZATION_TOKEN", "token-value-1"));
-        var provider = Create(handler, environment, time, logger: logs.CreateLogger("test"));
+        var provider = Create(handler, environment, time, logs: logs);
         await provider.GetCredentialsAsync(CancellationToken.None);
         time.Advance(TimeSpan.FromMinutes(48));
         var refresh = provider.GetCredentialsAsync(CancellationToken.None).AsTask();
@@ -934,8 +933,8 @@ public sealed class ContainerCredentialsProviderTests
         Func<string, string?> environment,
         ManualTimeProvider? time = null,
         ReadTextFile? files = null,
-        ILogger? logger = null) =>
-        new(environment, files ?? NoFiles, handler, time ?? new ManualTimeProvider(), logger ?? NullLogger.Instance);
+        ILoggerFactory? logs = null) =>
+        new(Dependencies(environment, files, handler, time ?? new ManualTimeProvider(), logs));
 
     // Every failed attempt is followed by a one-second delay on the clock of the provider, which the test has to let pass. The
     // timers are created in this order: attempt 1, delay 1, attempt 2, delay 2, ... so the n-th delay is timer firstTimer + 2n - 1.
