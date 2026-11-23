@@ -7,6 +7,12 @@ namespace DynaSharp.Generators;
 /// <summary>How symbols become code, and how names are derived.</summary>
 internal static class Names
 {
+    /// <summary>The class of the handles a mapped type gets: <c>Order.Attrs.Total</c>.</summary>
+    public const string HandlesClass = "Attrs";
+
+    /// <summary>The class of the key builders an entity gets: <c>Order.Keys.Of(...)</c>.</summary>
+    public const string KeysClass = "Keys";
+
     private static readonly SymbolDisplayFormat CodeFormat =
         SymbolDisplayFormat.FullyQualifiedFormat.AddMiscellaneousOptions(SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
 

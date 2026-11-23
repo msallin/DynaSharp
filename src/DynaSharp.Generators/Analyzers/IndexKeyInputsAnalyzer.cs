@@ -23,8 +23,6 @@ internal sealed class IndexKeyInputsAnalyzer : DiagnosticAnalyzer
 {
     private const string UpdateVerb = "Update";
 
-    private const string HandlesClass = "Attrs";
-
     private const string NestedPath = "At";
 
     // The commands of an update. A step of a transaction has its own type, and the verb of the next step returns it too.
@@ -58,7 +56,7 @@ internal sealed class IndexKeyInputsAnalyzer : DiagnosticAnalyzer
     private static void Analyze(OperationAnalysisContext context, ModelCatalog models)
     {
         var invocation = (IInvocationOperation)context.Operation;
-        if (invocation.Type is not INamedTypeSymbol type || !Updates.Contains(type.Name) || !DynaSharpTypes.IsDeclaredByDynaSharp(type) || UpdatePathAnalyzer.GoesOn(invocation) || !IsSent(invocation)
+        if (invocation.Type is not INamedTypeSymbol type || !Updates.Contains(type.Name) || !DynaSharpTypes.IsDeclaredByDynaSharp(type) || DynaSharpCalls.GoesOn(invocation) || !IsSent(invocation)
             || Read(invocation, type, models) is not { } update)
         {
             return;
@@ -86,8 +84,8 @@ internal sealed class IndexKeyInputsAnalyzer : DiagnosticAnalyzer
     private static bool IsSent(IInvocationOperation invocation) => invocation.Parent switch
     {
         IAwaitOperation => true,
-        IInvocationOperation next when next.Instance == invocation => DynaSharpTypes.IsDeclaredByDynaSharp(next.TargetMethod.ContainingType),
-        IArgumentOperation { Parent: IInvocationOperation next } argument when next.TargetMethod.IsExtensionMethod && next.Arguments[0] == argument => DynaSharpTypes.IsDeclaredByDynaSharp(next.TargetMethod.ContainingType),
+        IInvocationOperation next when next.Instance == invocation => DynaSharpCalls.IsOfTheLibrary(next),
+        IArgumentOperation { Parent: IInvocationOperation next } argument when next.TargetMethod.IsExtensionMethod && next.Arguments[0] == argument => DynaSharpCalls.IsOfTheLibrary(next),
         _ => false,
     };
 
@@ -96,17 +94,17 @@ internal sealed class IndexKeyInputsAnalyzer : DiagnosticAnalyzer
     {
         var calls = new List<IInvocationOperation>();
         IOperation? current = invocation;
-        while (current is IInvocationOperation call && SymbolEqualityComparer.Default.Equals(call.Type, type) && DynaSharpTypes.IsDeclaredByDynaSharp(call.TargetMethod.ContainingType))
+        while (current is IInvocationOperation call && SymbolEqualityComparer.Default.Equals(call.Type, type) && DynaSharpCalls.IsOfTheLibrary(call))
         {
             // The verb of a table and of a transaction step: no other method of the library is called Update and returns an update.
             if (call.TargetMethod.Name == UpdateVerb)
             {
-                var entity = (UpdatePathAnalyzer.IsStepVerb(call) ? DynaSharpTypes.TableTypeOf(call.TargetMethod) : type.TypeArguments[0]) as INamedTypeSymbol;
+                var entity = (DynaSharpCalls.IsStepVerb(call) ? DynaSharpTypes.TableTypeOf(call.TargetMethod) : type.TypeArguments[0]) as INamedTypeSymbol;
                 return entity is not null && models.ModelOf(entity) is { Entity: { } model } typeModel ? Actions(calls, entity, typeModel, model, models) : null;
             }
 
             calls.Add(call);
-            current = UpdatePathAnalyzer.ReceiverOf(call);
+            current = DynaSharpCalls.ReceiverOf(call);
         }
 
         return null;
@@ -117,15 +115,14 @@ internal sealed class IndexKeyInputsAnalyzer : DiagnosticAnalyzer
         var actions = new List<(string Property, Change Change, IOperation Handle)>();
         foreach (var call in calls)
         {
-            if (!EntityCommandAnalyzer.WriteMethods.Contains(call.TargetMethod.Name) || call.TargetMethod.Parameters[0].Name != EntityCommandAnalyzer.HandleParameter)
+            if (!DynaSharpCalls.WriteMethods.Contains(call.TargetMethod.Name) || call.TargetMethod.Parameters[0].Name != DynaSharpCalls.HandleParameter)
             {
                 continue;
             }
 
-            var target = UpdatePathAnalyzer.ArgumentOf(call, 0);
-            var handle = EntityCommandAnalyzer.HandleUnder(target);
-            if (handle is not { ContainingType: { Name: HandlesClass, ContainingType: { } owner } } || !EntityCommandAnalyzer.Inherits(entity, owner)
-                || EntityCommandAnalyzer.FeedsTableKey(model, handle.Name) || EntityCommandAnalyzer.IndexKeysDerivedFrom(model, handle.Name).Any())
+            var target = DynaSharpCalls.ArgumentOf(call, 0);
+            if (DynaSharpCalls.HandleUnder(target) is not { } handle || DynaSharpCalls.OwnerOfHandle(handle) is not { } owner || !DynaSharpCalls.Inherits(entity, owner)
+                || model.FeedsTableKey(handle.Name) || model.IndexKeysDerivedFrom(handle.Name).Any())
             {
                 return null;
             }
@@ -144,9 +141,9 @@ internal sealed class IndexKeyInputsAnalyzer : DiagnosticAnalyzer
     // an input of a sparse index is how an item leaves it, so such an index is left alone.
     private static Change? ChangeOf(IInvocationOperation call, IOperation target, ModelCatalog models) => call.TargetMethod.Name switch
     {
-        "Set" when MayBeNull(UpdatePathAnalyzer.ArgumentOf(call, 1)) => Change.Unknown,
-        "Set" => UpdatePathAnalyzer.AddsNothing(UpdatePathAnalyzer.ArgumentOf(call, 1), target, models) ? Change.Removed : Change.Set,
-        "SetIfNotNull" => UpdatePathAnalyzer.AddsNothing(UpdatePathAnalyzer.ArgumentOf(call, 1), target, models) ? (Change?)null : Change.Set,
+        "Set" when MayBeNull(DynaSharpCalls.ArgumentOf(call, 1)) => Change.Unknown,
+        "Set" => DynaSharpCalls.AddsNothing(DynaSharpCalls.ArgumentOf(call, 1), target, models) ? Change.Removed : Change.Set,
+        "SetIfNotNull" => DynaSharpCalls.AddsNothing(DynaSharpCalls.ArgumentOf(call, 1), target, models) ? (Change?)null : Change.Set,
         "Remove" => Change.Removed,
         _ => Change.Unknown,
     };

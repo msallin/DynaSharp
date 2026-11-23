@@ -42,7 +42,7 @@ internal sealed class SelectResultAnalyzer : DiagnosticAnalyzer
     private static void Analyze(OperationAnalysisContext context, INamedTypeSymbol selectResult)
     {
         var reference = (IPropertyReferenceOperation)context.Operation;
-        if (IsMember(reference, ValueProperty, selectResult) && !IsInNameOf(reference) && !AsksFound(MemberOf(reference), selectResult))
+        if (IsMember(reference, ValueProperty, selectResult) && !DynaSharpCalls.IsInNameOf(reference) && !AsksFound(MemberOf(reference), selectResult))
         {
             var location = reference.Syntax is MemberAccessExpressionSyntax access ? access.Name.GetLocation() : reference.Syntax.GetLocation();
             context.ReportDiagnostic(SuggestedEdit.Create(Descriptors.ValueWithoutFound, location, EditsOf(reference.Syntax)));
@@ -70,19 +70,6 @@ internal sealed class SelectResultAnalyzer : DiagnosticAnalyzer
 
     private static bool IsMember(IPropertyReferenceOperation reference, string name, INamedTypeSymbol selectResult) =>
         reference.Property.Name == name && SymbolEqualityComparer.Default.Equals(reference.Property.ContainingType.OriginalDefinition, selectResult);
-
-    private static bool IsInNameOf(IOperation reference)
-    {
-        for (var around = reference.Parent; around is not null; around = around.Parent)
-        {
-            if (around is INameOfOperation)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     private static IOperation MemberOf(IOperation reference)
     {

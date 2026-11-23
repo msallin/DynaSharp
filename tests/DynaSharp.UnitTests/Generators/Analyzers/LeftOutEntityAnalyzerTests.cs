@@ -184,8 +184,8 @@ public sealed class LeftOutEntityAnalyzerTests
         var diagnostic = (await DiagnosticsAsync(source)).Single();
 
         // Assert
-        await Assert.That((diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture), diagnostic.Properties[LeftOutEntityAnalyzer.FixProperty]))
-            .IsEqualTo((Text("Visit", "bookings", "'DynaSharp.DefaultsFixture.Booking'"), "DynaSharp.DefaultsFixture.Booking"));
+        await Assert.That((diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture), SuggestedEdit.Of(diagnostic).Single().Text))
+            .IsEqualTo((Text("Visit", "bookings", "'DynaSharp.DefaultsFixture.Booking'"), ".Including<DynaSharp.DefaultsFixture.Booking>()"));
     }
 
     [Test]

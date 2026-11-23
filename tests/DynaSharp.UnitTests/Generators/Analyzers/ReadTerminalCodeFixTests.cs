@@ -3,11 +3,9 @@ using Microsoft.CodeAnalysis.CodeFixes;
 
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
-/// <summary>The fixes of DYNA202 and DYNA234, applied in a real workspace to what <see cref="ReadTerminalAnalyzer"/> reports there, and analyzed again.</summary>
+/// <summary>The fixes of DYNA202, applied in a real workspace to what <see cref="ReadTerminalAnalyzer"/> reports there, and analyzed again.</summary>
 public sealed class ReadTerminalCodeFixTests
 {
-    private const string Items = ReadTerminalCodeFix.ItemsKey;
-
     private static readonly CodeFixRun Fixture = new(new ReadTerminalCodeFix(), analyzer: new ReadTerminalAnalyzer()) { Model = string.Empty };
 
     [Test]
@@ -64,56 +62,9 @@ public sealed class ReadTerminalCodeFixTests
         // Assert
         await Assert.That(fixedSource).IsEqualTo(Run("""
             await shop.Query("a")
-                .Limit(5).ItemAsync();
+                .Limit(5)
+                .ItemAsync();
             """));
-    }
-
-    [Test]
-    [Arguments("""_ = await shop.Query("a").ToListAsync();""", """_ = await shop.Query("a").ItemsAsync().ToListAsync();""")]
-    [Arguments("""_ = await shop.Query("a").Select(Attr<int>("n")).Take(1).ToListAsync();""", """_ = await shop.Query("a").Select(Attr<int>("n")).ValuesAsync().Take(1).ToListAsync();""")]
-    public async Task Fix_LinqMethodOnARead_CallsTheTerminalBeforeIt(string statement, string expected)
-    {
-        // Arrange
-        var source = Run(statement);
-
-        // Act
-        var fixedSource = await Fixture.FixAsync(Items, source);
-
-        // Assert
-        await Assert.That((fixedSource, await Fixture.ReportAsync(fixedSource), (await Fixture.CompilerErrorsAsync(fixedSource)).Count)).IsEqualTo((Run(expected), string.Empty, 0));
-    }
-
-    [Test]
-    public async Task Fix_LinqMethodOnAReadOnLinesOfTheirOwn_PutsTheTerminalOnALineOfItsOwn()
-    {
-        // Arrange
-        var source = Run("""
-            _ = await shop.Query("a")
-                .ToListAsync();
-            """);
-
-        // Act
-        var fixedSource = await Fixture.FixAsync(Items, source);
-
-        // Assert
-        await Assert.That(fixedSource).IsEqualTo(Run("""
-            _ = await shop.Query("a")
-                .ItemsAsync()
-                .ToListAsync();
-            """));
-    }
-
-    [Test]
-    public async Task Titles_LinqMethodOnARead_NameTheTerminalAndTheMethod()
-    {
-        // Arrange
-        var source = Run("""_ = await shop.Query("a").Select(Attr<int>("n")).FirstAsync();""");
-
-        // Act
-        var titles = await Fixture.TitlesAsync(source);
-
-        // Assert
-        await Assert.That(titles).IsEquivalentTo(["Call ValuesAsync() before FirstAsync"]);
     }
 
     [Test]
@@ -141,7 +92,7 @@ public sealed class ReadTerminalCodeFixTests
         var ids = fix.FixableDiagnosticIds;
 
         // Assert
-        await Assert.That(ids).IsEquivalentTo(["DYNA202", "DYNA234"]);
+        await Assert.That(ids).IsEquivalentTo(["DYNA202"]);
     }
 
     [Test]

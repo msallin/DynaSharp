@@ -10,26 +10,26 @@ public sealed class AnalyzerListTests
     private const string NoTextMessage = "begins_with is for strings";
 
     [Test]
-    public async Task WriteMethods_OfEntityCommandAnalyzer_AreTheMembersOfIUpdatableThatTakeAHandle()
+    public async Task WriteMethods_OfDynaSharpCalls_AreTheMembersOfIUpdatableThatTakeAHandle()
     {
         // Arrange
         var byHandle = HandleWrites().Select(static method => method.Name).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);
 
         // Act
-        var list = EntityCommandAnalyzer.WriteMethods.Order(StringComparer.Ordinal);
+        var list = DynaSharpCalls.WriteMethods.Order(StringComparer.Ordinal);
 
         // Assert
         await Assert.That(string.Join(' ', list)).IsEqualTo(string.Join(' ', byHandle));
     }
 
     [Test]
-    public async Task HandleParameter_OfEntityCommandAnalyzer_NamesTheFirstParameterOfEveryWriteByHandle()
+    public async Task HandleParameter_OfDynaSharpCalls_NamesTheFirstParameterOfEveryWriteByHandle()
     {
         // Arrange
         var writes = HandleWrites();
 
         // Act
-        var others = writes.Select(static method => method.GetParameters()[0].Name).Where(static name => name != EntityCommandAnalyzer.HandleParameter);
+        var others = writes.Select(static method => method.GetParameters()[0].Name).Where(static name => name != DynaSharpCalls.HandleParameter);
 
         // Assert
         await Assert.That(others).IsEmpty();
@@ -77,7 +77,7 @@ public sealed class AnalyzerListTests
     }
 
     [Test]
-    public async Task WritesByKey_OfEntityCommandAnalyzer_AreTheUpdatesAndDeletesThatTakeAGeneratedKey()
+    public async Task WritesByKey_OfDynaSharpCalls_AreTheUpdatesAndDeletesThatTakeAGeneratedKey()
     {
         // Arrange (a key carries no version, so each of these leaves it to IfVersion or IgnoreVersion)
         Type[] writes = [typeof(UpdateCommand<>), typeof(DeleteCommand<>), typeof(UpdateStep), typeof(ConditionStep)];
@@ -91,7 +91,7 @@ public sealed class AnalyzerListTests
             .Order(StringComparer.Ordinal);
 
         // Act
-        var list = EntityCommandAnalyzer.WritesByKey.Order(StringComparer.Ordinal);
+        var list = DynaSharpCalls.WritesByKey.Order(StringComparer.Ordinal);
 
         // Assert
         await Assert.That(string.Join(' ', list)).IsEqualTo(string.Join(' ', byKey));

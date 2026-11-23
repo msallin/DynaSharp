@@ -30,10 +30,6 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
 
     private const string TableType = "Table";
 
-    private const string KeysClass = "Keys";
-
-    private const string HandlesClass = "Attrs";
-
     private const string PartitionKeyType = "PartitionKey";
 
     private const string SortKeyType = "SortKeyCondition";
@@ -66,7 +62,7 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
     private static void Analyze(OperationAnalysisContext context, ModelCatalog models)
     {
         var invocation = (IInvocationOperation)context.Operation;
-        if (!IsOfTheLibrary(invocation))
+        if (!DynaSharpCalls.IsOfTheLibrary(invocation))
         {
             return;
         }
@@ -81,18 +77,13 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static bool IsOfTheLibrary(IInvocationOperation invocation) => DynaSharpTypes.IsDeclaredByDynaSharp(invocation.TargetMethod.ContainingType);
-
-    // A static method of the consumer under the namespace of the library counts as the library, and it has no receiver.
-    private static IOperation? ReceiverOf(IInvocationOperation invocation) => invocation.Instance ?? (invocation.TargetMethod.IsExtensionMethod ? invocation.Arguments[0].Value : null);
-
     // Back along the chain to the verb that started it: orders.Query(pk).Limit(1).Filter(...).
     private static IInvocationOperation? QueryOf(IInvocationOperation filter)
     {
-        var current = ReceiverOf(filter);
-        while (current is IInvocationOperation call && IsOfTheLibrary(call))
+        var current = DynaSharpCalls.ReceiverOf(filter);
+        while (current is IInvocationOperation call && DynaSharpCalls.IsOfTheLibrary(call))
         {
-            var receiver = ReceiverOf(call);
+            var receiver = DynaSharpCalls.ReceiverOf(call);
             if (call.TargetMethod.Name == QueryVerb && !DynaSharpTypes.IsCommand(receiver?.Type))
             {
                 return call;
@@ -124,7 +115,7 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
                 var reason = isSortKey ? WhySortKeyFails(key, read) : WhyPartitionKeyFails(key, read);
                 if (reason is not null)
                 {
-                    var name = builder.ContainingType.ContainingType.ContainingType.Name + "." + KeysClass + "." + builder.ContainingType.Name;
+                    var name = builder.ContainingType.ContainingType.ContainingType.Name + "." + Names.KeysClass + "." + builder.ContainingType.Name;
                     var reads = isSortKey ? read.SortKey ?? "no sort key" : read.PartitionKey;
                     var edits = BuilderOfTheRead(builder, syntax, isSortKey ? read.SortKeyModel : read.PartitionKeyModel, read, query.SemanticModel!);
                     context.ReportDiagnostic(SuggestedEdit.Create(Descriptors.KeyOfAnotherAttribute, syntax.GetLocation(), edits, name, key.AttributeName, read.Name, reads, reason));
@@ -148,7 +139,7 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
         }
 
         var signature = Signature(builder);
-        var fits = read.Type.GetTypeMembers(KeysClass)
+        var fits = read.Type.GetTypeMembers(Names.KeysClass)
             .SelectMany(keys => keys.GetTypeMembers(wanted.BuilderName))
             .SelectMany(other => other.GetMembers(builder.Name))
             .OfType<IMethodSymbol>()
@@ -158,7 +149,7 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
             return [];
         }
 
-        var replacement = read.Type.ToMinimalDisplayString(model, receiver.SpanStart) + "." + KeysClass + "." + wanted.BuilderName;
+        var replacement = read.Type.ToMinimalDisplayString(model, receiver.SpanStart) + "." + Names.KeysClass + "." + wanted.BuilderName;
         return [new SuggestedEdit("Use " + replacement, receiver.Span, replacement)];
     }
 
@@ -180,7 +171,7 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
             return null;
         }
 
-        return "it throws ArgumentException." + (read.PartitionKeyModel is { } wanted ? " Use " + read.Type.Name + "." + KeysClass + "." + wanted.BuilderName + "." : string.Empty);
+        return "it throws ArgumentException." + (read.PartitionKeyModel is { } wanted ? " Use " + read.Type.Name + "." + Names.KeysClass + "." + wanted.BuilderName + "." : string.Empty);
     }
 
     // The sort key of an index can have another attribute and the same template, and then the text of the condition fits it. The same means the same segments, so {At} and {At:ticks},
@@ -198,7 +189,7 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
             return null;
         }
 
-        return "DynamoDB compares that attribute with text made for another key and finds the wrong items." + (read.SortKeyModel is { } other ? " Use " + read.Type.Name + "." + KeysClass + "." + other.BuilderName + "." : string.Empty);
+        return "DynamoDB compares that attribute with text made for another key and finds the wrong items." + (read.SortKeyModel is { } other ? " Use " + read.Type.Name + "." + Names.KeysClass + "." + other.BuilderName + "." : string.Empty);
     }
 
     // Order.Keys.Pk.Of(id), and Order.Keys.Pk.Of as a method group in a Select of several keys.
@@ -212,7 +203,7 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
                 IMethodReferenceOperation reference => reference.Method,
                 _ => null,
             };
-            if (method is { ReturnType.Name: var type, ContainingType.ContainingType: { Name: KeysClass, ContainingType: not null } } && type == returns)
+            if (method is { ReturnType.Name: var type, ContainingType.ContainingType: { Name: Names.KeysClass, ContainingType: not null } } && type == returns)
             {
                 yield return (method, operation.Syntax);
             }
@@ -224,7 +215,7 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
 
     private static Read? ReadOf(IInvocationOperation query, ModelCatalog models)
     {
-        var source = ReceiverOf(query);
+        var source = DynaSharpCalls.ReceiverOf(query);
         if (source?.Type is not INamedTypeSymbol { TypeArguments.Length: 1 } holder || holder.TypeArguments[0] is not INamedTypeSymbol type || models.ModelOf(type) is not { Entity: { } entity } model)
         {
             return null;
@@ -236,7 +227,7 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
         }
 
         // An index in a local, a field or a property that holds nothing else is the index of its one value: var byStatus = orders.Index(Order.Indexes.ByStatus).
-        if (OnlyValue.Of(source) is not IInvocationOperation { TargetMethod.Name: IndexVerb } index || !IsOfTheLibrary(index) || Constant(index, "name") is not { } name)
+        if (OnlyValue.Of(source) is not IInvocationOperation { TargetMethod.Name: IndexVerb } index || !DynaSharpCalls.IsOfTheLibrary(index) || Constant(index, "name") is not { } name)
         {
             return null;
         }
@@ -299,7 +290,7 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
     {
         foreach (var operation in condition.DescendantsAndSelf())
         {
-            if (operation is IPropertyReferenceOperation { Property: { ContainingType: { Name: HandlesClass, ContainingType: { } owner } } handle } && EntityCommandAnalyzer.Inherits(type, owner))
+            if (operation is IPropertyReferenceOperation { Property: var handle } && DynaSharpCalls.OwnerOfHandle(handle) is { } owner && DynaSharpCalls.Inherits(type, owner))
             {
                 yield return (handle.Name, operation.Syntax);
             }
@@ -328,7 +319,7 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
             return new Hold(attribute, Lossless: true, Plain: true);
         }
 
-        foreach (var placeholder in (key?.Template?.Placeholders() ?? []))
+        foreach (var placeholder in key?.Template?.Placeholders() ?? [])
         {
             if (placeholder.Property == name)
             {

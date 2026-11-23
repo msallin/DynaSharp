@@ -125,7 +125,7 @@ public sealed class SuggestedEditCodeFixTests
         var ids = fix.FixableDiagnosticIds;
 
         // Assert
-        await Assert.That(ids).IsEquivalentTo(["DYNA204", "DYNA206", "DYNA207", "DYNA208", "DYNA213", "DYNA224", "DYNA227", "DYNA233", "DYNA235", "DYNA241", "DYNA242", "DYNA243"]);
+        await Assert.That(ids).IsEquivalentTo(["DYNA204", "DYNA206", "DYNA207", "DYNA208", "DYNA213", "DYNA224", "DYNA227", "DYNA233", "DYNA234", "DYNA235", "DYNA236", "DYNA237", "DYNA239", "DYNA240", "DYNA241", "DYNA242", "DYNA243"]);
     }
 
     [Test]

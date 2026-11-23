@@ -21,4 +21,10 @@ internal sealed record KeyModel(
     string? PlainProperty,
     bool SharesAttribute,
     EquatableArray<EquatableArray<string>> Gates = default,
-    KeyWireType WireType = KeyWireType.String);
+    KeyWireType WireType = KeyWireType.String)
+{
+    /// <summary>Whether the key is made of a property, as its plain key or as a placeholder of its template.</summary>
+    /// <param name="property">The property, by <see cref="PropertyModel.Name"/>.</param>
+    /// <returns>Whether the key holds it.</returns>
+    public bool Holds(string property) => PlainProperty == property || (Template?.Placeholders() ?? []).Any(placeholder => placeholder.Property == property);
+}

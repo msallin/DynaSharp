@@ -3,7 +3,6 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
-using Microsoft.CodeAnalysis.Text;
 
 namespace DynaSharp.Generators;
 
@@ -31,8 +30,6 @@ internal sealed class UnreadableUpdateAnalyzer : DiagnosticAnalyzer
     private const string TableClass = "Table";
 
     private const string StepVerbs = "TransactWriteExtensions";
-
-    private const string HandlesClass = "Attrs";
 
     private const string PathParameter = "path";
 
@@ -63,7 +60,7 @@ internal sealed class UnreadableUpdateAnalyzer : DiagnosticAnalyzer
     {
         var invocation = (IInvocationOperation)context.Operation;
         var method = invocation.TargetMethod;
-        if (method.Name != UpdateVerb || !DynaSharpTypes.IsDeclaredByDynaSharp(method.ContainingType) || !EntityCommandAnalyzer.IsWriteByKey(method))
+        if (method.Name != UpdateVerb || !DynaSharpTypes.IsDeclaredByDynaSharp(method.ContainingType) || !DynaSharpCalls.IsWriteByKey(method))
         {
             return;
         }
@@ -103,14 +100,14 @@ internal sealed class UnreadableUpdateAnalyzer : DiagnosticAnalyzer
             }
         }
 
-        var missing = required.Where(property => !written.Contains(property.Name) && !(storesKeyInputs && EntityCommandAnalyzer.FeedsTableKey(entityModel, property.Name))).Select(static property => "'" + property.Name + "'").ToList();
+        var missing = required.Where(property => !written.Contains(property.Name) && !(storesKeyInputs && entityModel.FeedsTableKey(property.Name))).Select(static property => "'" + property.Name + "'").ToList();
         if (missing.Count == 0)
         {
             return;
         }
 
         var syntax = (InvocationExpressionSyntax)invocation.Syntax;
-        List<SuggestedEdit> edits = creates ? [] : [new SuggestedEdit("Add " + IfExistsClause, new TextSpan(syntax.Span.End, 0), EntityCommandAnalyzer.NextCall(syntax, IfExistsClause))];
+        List<SuggestedEdit> edits = creates ? [] : [SuggestedEdit.Of("Add " + IfExistsClause, ChainSyntax.Append(syntax, [IfExistsClause]))];
         var name = ((MemberAccessExpressionSyntax)syntax.Expression).Name;
         context.ReportDiagnostic(SuggestedEdit.Create(Descriptors.UpdateCreatesUnreadableItem, name.GetLocation(), edits, Join(missing), type.Name));
     }
@@ -130,7 +127,7 @@ internal sealed class UnreadableUpdateAnalyzer : DiagnosticAnalyzer
     // The calls on a command of this type anywhere in the member, as DYNA239 takes them, or null for a command that leaves the member, where the code that gets it can still add a clause.
     private static IEnumerable<IInvocationOperation>? CommandCalls(IInvocationOperation update)
     {
-        if (EntityCommandAnalyzer.LeavesMember(update))
+        if (DynaSharpCalls.LeavesMember(update))
         {
             return null;
         }
@@ -149,9 +146,9 @@ internal sealed class UnreadableUpdateAnalyzer : DiagnosticAnalyzer
     {
         var calls = new List<IInvocationOperation>();
         IOperation current = verb;
-        while (EntityCommandAnalyzer.NextCall(current) is { } next)
+        while (DynaSharpCalls.NextCall(current) is { } next)
         {
-            if (!DynaSharpTypes.IsDeclaredByDynaSharp(next.TargetMethod.ContainingType))
+            if (!DynaSharpCalls.IsOfTheLibrary(next))
             {
                 return null;
             }
@@ -174,7 +171,7 @@ internal sealed class UnreadableUpdateAnalyzer : DiagnosticAnalyzer
     {
         foreach (var operation in write.Arguments.SelectMany(static argument => argument.DescendantsAndSelf()))
         {
-            if (operation is IPropertyReferenceOperation { Property: { ContainingType.Name: HandlesClass } handle })
+            if (operation is IPropertyReferenceOperation { Property: var handle } && DynaSharpCalls.OwnerOfHandle(handle) is not null)
             {
                 yield return handle.Name;
             }

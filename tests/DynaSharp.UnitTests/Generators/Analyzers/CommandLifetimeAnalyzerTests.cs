@@ -1,4 +1,3 @@
-
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
 /// <summary>
