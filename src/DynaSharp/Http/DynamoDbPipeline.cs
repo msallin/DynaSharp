@@ -90,6 +90,26 @@ internal sealed class DynamoDbPipeline : IDisposable
     public OperationTelemetry Telemetry { get; }
 
     /// <summary>
+    /// Waits on a clock. A cancellation throws an <see cref="OperationCanceledException"/> with <paramref name="cancellationToken"/>, the same exception as from an attempt,
+    /// where <see cref="Task.Delay(TimeSpan, TimeProvider, CancellationToken)"/> throws a <see cref="TaskCanceledException"/>.
+    /// </summary>
+    /// <param name="delay">How long.</param>
+    /// <param name="timeProvider">The clock.</param>
+    /// <param name="cancellationToken">Cancels the wait.</param>
+    /// <returns>A task that completes when the wait is over.</returns>
+    public static async Task DelayAsync(TimeSpan delay, TimeProvider timeProvider, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(delay, timeProvider, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException exception)
+        {
+            throw new OperationCanceledException(exception.Message, exception, cancellationToken);
+        }
+    }
+
+    /// <summary>
     /// Runs a call: the one retry loop of the pipeline, for every kind of call. The state machine comes from a pool, so the returned
     /// task must be awaited exactly once. The call is released after the last attempt, so a retry sends the same bytes again.
     /// </summary>
@@ -193,26 +213,6 @@ internal sealed class DynamoDbPipeline : IDisposable
             buffers.Release();
             _buffers.Return(buffers);
             call.Release();
-        }
-    }
-
-    /// <summary>
-    /// Waits on a clock. A cancellation throws an <see cref="OperationCanceledException"/> with <paramref name="cancellationToken"/>, the same exception as from an attempt,
-    /// where <see cref="Task.Delay(TimeSpan, TimeProvider, CancellationToken)"/> throws a <see cref="TaskCanceledException"/>.
-    /// </summary>
-    /// <param name="delay">How long.</param>
-    /// <param name="timeProvider">The clock.</param>
-    /// <param name="cancellationToken">Cancels the wait.</param>
-    /// <returns>A task that completes when the wait is over.</returns>
-    public static async Task DelayAsync(TimeSpan delay, TimeProvider timeProvider, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await Task.Delay(delay, timeProvider, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException exception)
-        {
-            throw new OperationCanceledException(exception.Message, exception, cancellationToken);
         }
     }
 

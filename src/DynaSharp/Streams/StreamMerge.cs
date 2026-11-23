@@ -379,7 +379,8 @@ internal sealed class StreamMerge
                 {
                     if (look > 0)
                     {
-                        ClientLog.ChildListedLate(_core.Logger, shard.ShardId!, shardId, time.GetElapsedTime(ended));
+                        var elapsed = time.GetElapsedTime(ended);
+                        ClientLog.ChildListedLate(_core.Logger, shard.ShardId!, shardId, elapsed);
                     }
 
                     LaunchChild(shard, span);

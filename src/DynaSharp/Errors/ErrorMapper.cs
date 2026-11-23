@@ -84,7 +84,7 @@ internal static class ErrorMapper
         // When adding an exception type: add it here, its wire code to Retries/FailureClassifier.cs if it is retried (or a case of IsTransient there if it passes later
         // without a retry), a row to the tests of both and to the transience cases of DynamoDbExceptionTests, and the type to the list in the remarks of
         // DynamoDbClientOptions.MaxAttempts.
-        DynamoDbException failure = code switch
+        var failure = code switch
         {
             "AccessDeniedException" => new AccessDeniedException(message, requestId, statusCode),
             "ConditionalCheckFailedException" => new ConditionalCheckFailedException(message, item, requestId, statusCode),

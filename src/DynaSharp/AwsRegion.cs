@@ -63,6 +63,12 @@ public sealed record AwsRegion
     /// </exception>
     public static AwsRegion FromName(string name) => Parse(name, nameof(name));
 
+    /// <summary>
+    /// Returns the region name.
+    /// </summary>
+    /// <returns>The value of <see cref="Name"/>.</returns>
+    public override string ToString() => Name;
+
     /// <summary>Creates a region from its name, as <see cref="FromName"/> does, for a method whose own parameter holds the name.</summary>
     /// <param name="name">The region name.</param>
     /// <param name="paramName">The parameter the exceptions name.</param>
@@ -82,10 +88,4 @@ public sealed record AwsRegion
 
         return new AwsRegion(name, name.StartsWith(ChinaPrefix, StringComparison.Ordinal) ? "amazonaws.com.cn" : "amazonaws.com");
     }
-
-    /// <summary>
-    /// Returns the region name.
-    /// </summary>
-    /// <returns>The value of <see cref="Name"/>.</returns>
-    public override string ToString() => Name;
 }
