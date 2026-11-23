@@ -25,7 +25,7 @@ Real DynamoDB is the spec of `FakeDynamoDb`; the emulators are witnesses with kn
 
 ## Parity Suite
 
-- `build/parity.sh` (or `build/parity.ps1`) runs the pinned suite against `tools/DynaSharp.FakeServer`; needs git, Node 24 and the SDK. Output: `artifacts/parity/fake.json`; `build/parity-summary.mjs` prints the rows. By hand in CI: `parity.yml`.
+- `build/parity.sh` (Git Bash or WSL on Windows) runs the pinned suite against `tools/DynaSharp.FakeServer`; needs git, Node 24 and the SDK. Output: `artifacts/parity/fake.json`; `build/parity-summary.mjs` prints the rows. By hand in CI: `parity.yml`.
 - A measure, not a gate. The score goes into `spec/tasks.md`, never into the docs.
 
 ## Gaps
