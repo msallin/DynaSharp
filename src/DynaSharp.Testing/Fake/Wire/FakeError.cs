@@ -10,6 +10,7 @@ namespace DynaSharp.Testing.Fake;
 /// <summary>
 /// A failure of a request to the fake, as DynamoDB reports it: a code, an HTTP status, a message, and for some codes more of the body. The wire renders it as
 /// <c>{"__type":"com.amazonaws.dynamodb.v20120810#ValidationException","message":"..."}</c>, and the direct API of <see cref="FakeDynamoDb"/> throws what the client would make of that body.
+/// The error factories of <see cref="StubResponse"/> render their bodies through it as well, so the fake and the stubs send one shape.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -33,7 +34,8 @@ internal sealed class FakeError : Exception
     /// <summary>Where the docs say what the fake does, which every unsupported message names.</summary>
     public const string ScopeLink = "https://msallin.github.io/DynaSharp/testing.html#what-the-fake-does";
 
-    private const string ConditionFailedMessage = "The conditional request failed";
+    /// <summary>The message of a condition that did not hold, in the error and in the reason of a cancelled transaction.</summary>
+    public const string ConditionFailedMessage = "The conditional request failed";
 
     private FakeError(string type, string message, HttpStatusCode status = HttpStatusCode.BadRequest, Action<Utf8JsonWriter>? extraBody = null, bool isInputError = false, string messageMember = "message")
         : base(message)
@@ -65,6 +67,12 @@ internal sealed class FakeError : Exception
 
     /// <summary>Gets what the body holds beyond <c>__type</c> and <c>message</c>, or <see langword="null"/>.</summary>
     public Action<Utf8JsonWriter>? ExtraBody { get; }
+
+    /// <summary>Any error of DynamoDB by its code, for a body a test writes with <see cref="StubResponse.DynamoDbError"/>.</summary>
+    /// <param name="code">The code without namespace, such as <c>ThrottlingException</c>.</param>
+    /// <param name="message">The message.</param>
+    /// <returns>The error.</returns>
+    public static FakeError Of(string code, string message) => new(DynamoDbNamespace + code, message);
 
     /// <summary>A request DynamoDB rejects.</summary>
     /// <param name="message">The message, in the words of DynamoDB where they are known.</param>
@@ -144,7 +152,7 @@ internal sealed class FakeError : Exception
             "DynaSharp.Testing#" + UnsupportedCode,
             $"FakeDynamoDb does not support {what}{(operation is null ? string.Empty : " in " + operation)}: it is not supported by the fake, which answers what {ScopeLink} lists and ignores nothing it does not implement.");
 
-    /// <summary>Renders the body DynamoDB sends for this error.</summary>
+    /// <summary>Renders the body DynamoDB sends for this error: <c>__type</c>, the members of <see cref="ExtraBody"/>, then the message, in the order of a recorded answer.</summary>
     /// <returns>The UTF-8 JSON.</returns>
     public byte[] RenderBody()
     {
@@ -153,8 +161,8 @@ internal sealed class FakeError : Exception
         {
             json.WriteStartObject();
             json.WriteString("__type", Type);
-            json.WriteString(MessageMember, Message);
             ExtraBody?.Invoke(json);
+            json.WriteString(MessageMember, Message);
             json.WriteEndObject();
         }
 

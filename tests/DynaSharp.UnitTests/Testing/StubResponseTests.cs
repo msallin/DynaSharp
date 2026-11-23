@@ -427,14 +427,14 @@ public sealed class StubResponseTests
     [Test]
     public async Task TransactionCanceled_ReasonOfYourOwn_WritesWhatItHolds()
     {
-        // Arrange (a code from the future, and a reason without anything)
+        // Arrange (a code from the future, and a reason without anything, which the message lists as None)
 
         // Act
         var response = StubResponse.TransactionCanceled(new CancellationReason { Code = "ProvisionedThroughputExceeded", Message = "slow down" }, new CancellationReason());
 
         // Assert
         await Assert.That(response.Body).IsEqualTo(
-            """{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","CancellationReasons":[{"Code":"ProvisionedThroughputExceeded","Message":"slow down"},{}],"Message":"Transaction cancelled, please refer cancellation reasons for specific reasons [ProvisionedThroughputExceeded, ]"}""");
+            """{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","CancellationReasons":[{"Code":"ProvisionedThroughputExceeded","Message":"slow down"},{}],"Message":"Transaction cancelled, please refer cancellation reasons for specific reasons [ProvisionedThroughputExceeded, None]"}""");
     }
 
     [Test]

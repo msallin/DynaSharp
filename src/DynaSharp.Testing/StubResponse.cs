@@ -8,6 +8,7 @@ using DynaSharp.Mapping;
 using DynaSharp.Operations;
 using DynaSharp.Requests;
 using DynaSharp.Serialization;
+using DynaSharp.Testing.Fake;
 
 namespace DynaSharp.Testing;
 
@@ -43,9 +44,6 @@ namespace DynaSharp.Testing;
 /// </remarks>
 public sealed partial class StubResponse
 {
-    private const string ErrorTypePrefix = "com.amazonaws.dynamodb.v20120810#";
-    private const string ConditionFailedMessage = "The conditional request failed";
-
     private byte[]? _bodyBytes;
 
     /// <summary>Gets the HTTP status code. Defaults to <see cref="HttpStatusCode.OK"/>.</summary>
@@ -80,11 +78,7 @@ public sealed partial class StubResponse
     public static StubResponse DynamoDbError(string errorCode, string message, HttpStatusCode statusCode = HttpStatusCode.BadRequest, string? requestId = null) => new()
     {
         StatusCode = statusCode,
-        Body = Render(json =>
-        {
-            json.WriteString("__type", ErrorTypePrefix + errorCode);
-            json.WriteString("message", message);
-        }),
+        Body = ErrorBody(FakeError.Of(errorCode, message)),
         Headers = requestId is null ? null : new Dictionary<string, string> { [WireProtocol.RequestIdHeaderName] = requestId },
     };
 
@@ -206,16 +200,7 @@ public sealed partial class StubResponse
         {
             StatusCode = HttpStatusCode.BadRequest,
             Operations = For.Write,
-            Body = Render(json =>
-            {
-                json.WriteString("__type", ErrorTypePrefix + "ConditionalCheckFailedException");
-                if (item is not null)
-                {
-                    WriteDocument(json, "Item", item);
-                }
-
-                json.WriteString("message", ConditionFailedMessage);
-            }),
+            Body = ErrorBody(FakeError.ConditionalCheckFailed(item is null ? null : DynaSharp.Item.From(item))),
         };
 
     /// <summary>
@@ -244,25 +229,11 @@ public sealed partial class StubResponse
     /// <returns>The response: HTTP 400 with <c>TransactionCanceledException</c>.</returns>
     public static StubResponse TransactionCanceled(params ReadOnlySpan<CancellationReason> reasons)
     {
-        var all = reasons.ToArray();
         return new StubResponse
         {
             StatusCode = HttpStatusCode.BadRequest,
             Operations = For.Transaction,
-            Body = Render(json =>
-            {
-                json.WriteString("__type", ErrorTypePrefix + "TransactionCanceledException");
-                json.WriteStartArray("CancellationReasons");
-                foreach (var reason in all)
-                {
-                    WriteReason(json, reason);
-                }
-
-                json.WriteEndArray();
-
-                // This error says Message where most others say message, and it repeats the codes.
-                json.WriteString("Message", $"Transaction cancelled, please refer cancellation reasons for specific reasons [{string.Join(", ", all.Select(static reason => reason.Code))}]");
-            }),
+            Body = ErrorBody(FakeError.TransactionCanceled(reasons.ToArray())),
         };
     }
 
@@ -277,7 +248,7 @@ public sealed partial class StubResponse
     {
         // When adding a member of TransactionFailure: add its code and message here, from the API reference.
         TransactionFailure.None => new CancellationReason { Code = "None" },
-        TransactionFailure.ConditionalCheckFailed => new CancellationReason { Code = "ConditionalCheckFailed", Message = ConditionFailedMessage },
+        TransactionFailure.ConditionalCheckFailed => new CancellationReason { Code = "ConditionalCheckFailed", Message = FakeError.ConditionFailedMessage },
         TransactionFailure.ItemCollectionSizeLimitExceeded => new CancellationReason { Code = "ItemCollectionSizeLimitExceeded", Message = "Collection size exceeded." },
         TransactionFailure.TransactionConflict => new CancellationReason { Code = "TransactionConflict", Message = "Transaction is ongoing for the item" },
         TransactionFailure.Throttled => new CancellationReason
@@ -600,15 +571,7 @@ public sealed partial class StubResponse
         json.WriteEndArray();
     }
 
-    // {"Code":"ConditionalCheckFailed","Message":"The conditional request failed","Item":{...}}, and {"Code":"None"} for an action that caused no problem.
-    private static void WriteReason(Utf8JsonWriter json, CancellationReason reason)
-    {
-        json.WriteStartObject();
-        OperationJson.WriteStringIfSet(json, "Code"u8, reason.Code);
-        OperationJson.WriteStringIfSet(json, "Message"u8, reason.Message);
-        OperationJson.WriteItemIfSet(new DynamoDbWriter(json), "Item"u8, reason.Item);
-        json.WriteEndObject();
-    }
+    private static string ErrorBody(FakeError error) => Encoding.UTF8.GetString(error.RenderBody());
 
     private static string Render(Action<Utf8JsonWriter> writeMembers) => Encoding.UTF8.GetString(RenderBytes(writeMembers));
 
