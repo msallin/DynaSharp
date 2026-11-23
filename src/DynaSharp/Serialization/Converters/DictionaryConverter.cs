@@ -27,13 +27,7 @@ public readonly struct DictionaryConverter<T, TConverter> : IDynamoDbConverter<D
         writer.WriteStartMap();
         foreach (var (name, element) in value)
         {
-            if (name.Length == 0)
-            {
-                throw new EmptyMapNameException(nameof(value));
-            }
-
-            writer.WriteAttributeName(name);
-            TConverter.Write(writer, element);
+            WriteEntry(writer, name, element, nameof(value));
         }
 
         writer.WriteEndMap();
@@ -52,13 +46,41 @@ public readonly struct DictionaryConverter<T, TConverter> : IDynamoDbConverter<D
         var values = new ArrayBuilder<T>(valuePool);
         try
         {
-            MapEntries<T, TConverter>.Read(ref reader, ref names, ref values);
-            return MapEntries<T, TConverter>.ToDictionary(names.WrittenSpan, values.WrittenSpan);
+            while (reader.TryReadAttributeName())
+            {
+                names.Add(reader.GetAttributeName());
+                var entryType = reader.ReadStartAttribute();
+                values.Add(TConverter.Read(ref reader, entryType));
+                reader.ReadEndAttribute();
+            }
+
+            // Last wins for a name that appears twice, as in the generated reads; DynamoDB never sends one.
+            var keys = names.WrittenSpan;
+            var entries = values.WrittenSpan;
+            var dictionary = new Dictionary<string, T>(keys.Length);
+            for (var i = 0; i < keys.Length; i++)
+            {
+                dictionary[keys[i]] = entries[i];
+            }
+
+            return dictionary;
         }
         finally
         {
             names.Dispose();
             values.Dispose();
         }
+    }
+
+    // An entry of a dictionary of either kind.
+    internal static void WriteEntry(DynamoDbWriter writer, string name, T element, string paramName)
+    {
+        if (name.Length == 0)
+        {
+            throw new EmptyMapNameException(paramName);
+        }
+
+        writer.WriteAttributeName(name);
+        TConverter.Write(writer, element);
     }
 }
