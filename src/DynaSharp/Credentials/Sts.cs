@@ -34,6 +34,26 @@ internal static class Sts
     /// <summary>Gets the global endpoint, which botocore's legacy mode keeps for the regions that used it before regional endpoints existed. It signs for <c>us-east-1</c>.</summary>
     public static Uri GlobalEndpoint { get; } = new("https://sts.amazonaws.com/");
 
+    /// <summary>Checks what both providers take in code: the role, the session name and the endpoint.</summary>
+    /// <param name="roleArn">The role.</param>
+    /// <param name="roleSessionName">The session name, or <see langword="null"/> for the default of each fetch.</param>
+    /// <param name="options">The region and the endpoint.</param>
+    /// <exception cref="ArgumentException"><paramref name="roleArn"/> is null or empty, or the session name or the endpoint is not valid.</exception>
+    public static void Validate(string roleArn, string? roleSessionName, StsOptions options)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(roleArn);
+        if (roleSessionName is not null && !IsValidSessionName(roleSessionName))
+        {
+            throw new ArgumentException($"The session name {SessionNameRule}.", nameof(roleSessionName));
+        }
+
+        // The value is not echoed: an endpoint may carry credentials in its user info.
+        if (options.StsEndpoint is { } endpoint && ClientConfiguration.FindEndpointProblem(endpoint) is { } problem)
+        {
+            throw new ArgumentException($"The STS endpoint is not valid: {problem}.", nameof(options));
+        }
+    }
+
     /// <summary>Tells whether a name is a valid session name.</summary>
     /// <param name="name">The name.</param>
     /// <returns><see langword="true"/> if it follows <see cref="SessionNameRule"/>.</returns>

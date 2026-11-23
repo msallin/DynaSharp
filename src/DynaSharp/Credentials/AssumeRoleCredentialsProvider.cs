@@ -20,8 +20,8 @@ namespace DynaSharp.Credentials;
 /// A fetch asks the source for its credentials, signs a <c>POST</c> of a form with them (Signature Version 4, service <c>sts</c>) and sends it to
 /// <c>https://sts.{region}.amazonaws.com/</c>, or <c>amazonaws.com.cn</c> for a region whose name starts with <c>cn-</c>. As in botocore,
 /// <c>AWS_STS_REGIONAL_ENDPOINTS=legacy</c> selects the global endpoint <c>https://sts.amazonaws.com/</c> for the regions that used it before
-/// regional endpoints existed, and <c>AWS_ENDPOINT_URL_STS</c>, then <c>AWS_ENDPOINT_URL</c>, go ahead of the region; <see cref="AssumeRoleOptions.StsEndpoint"/>
-/// goes ahead of them all. The variables are read at every fetch. The region is <see cref="AssumeRoleOptions.Region"/>, or the one a client would
+/// regional endpoints existed, and <c>AWS_ENDPOINT_URL_STS</c>, then <c>AWS_ENDPOINT_URL</c>, go ahead of the region; <see cref="StsOptions.StsEndpoint"/>
+/// goes ahead of them all. The variables are read at every fetch. The region is <see cref="StsOptions.Region"/>, or the one a client would
 /// find, and a fetch that needs one and finds none fails.
 /// </para>
 /// <para>
@@ -117,12 +117,7 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
 
     private static Settings Validate(string roleArn, string? roleSessionName, AssumeRoleOptions options)
     {
-        ArgumentException.ThrowIfNullOrEmpty(roleArn);
-        if (roleSessionName is not null && !Sts.IsValidSessionName(roleSessionName))
-        {
-            throw new ArgumentException($"The session name {Sts.SessionNameRule}.", nameof(roleSessionName));
-        }
-
+        Sts.Validate(roleArn, roleSessionName, options);
         if (options.ExternalId is { Length: 0 })
         {
             throw new ArgumentException("The external id must not be empty; null sends none.", nameof(options));
@@ -142,12 +137,6 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
             }
 
             durationSeconds = (int)duration.TotalSeconds;
-        }
-
-        // The value is not echoed: an endpoint may carry credentials in its user info.
-        if (options.StsEndpoint is { } endpoint && ClientConfiguration.FindEndpointProblem(endpoint) is { } problem)
-        {
-            throw new ArgumentException($"The STS endpoint is not valid: {problem}.", nameof(options));
         }
 
         return new Settings(roleArn, roleSessionName, options.ExternalId, durationSeconds, options.Region, options.StsEndpoint);

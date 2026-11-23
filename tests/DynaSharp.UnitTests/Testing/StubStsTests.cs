@@ -258,7 +258,7 @@ public sealed class StubStsTests
         using var sts = new StubSts();
         using var directory = TokenDirectory();
         sts.Enqueue(StubStsResponse.Credentials(new AwsCredentials("ASIAIOSFODNN7EXAMPLE", "secret", "token")));
-        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), sts.Endpoint);
+        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), options: new StsOptions { StsEndpoint = sts.Endpoint });
 
         // Act
         var credentials = await provider.GetCredentialsAsync(CancellationToken.None);
@@ -275,7 +275,7 @@ public sealed class StubStsTests
         using var sts = new StubSts();
         using var directory = TokenDirectory();
         sts.Enqueue(StubStsResponse.Credentials(new AwsCredentials("ASIAIOSFODNN7EXAMPLE", "secret", "token")));
-        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), sts.Endpoint);
+        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), options: new StsOptions { StsEndpoint = sts.Endpoint });
         await provider.GetCredentialsAsync(CancellationToken.None);
 
         // Act
@@ -514,7 +514,7 @@ public sealed class StubStsTests
         using var sts = new StubSts();
         using var directory = TokenDirectory();
         sts.DefaultResponse = StubStsResponse.Error("IDPRejectedClaim");
-        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), sts.Endpoint);
+        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), options: new StsOptions { StsEndpoint = sts.Endpoint });
 
         // Act
         var exception = await TestClient.CaptureAsync<CredentialsUnavailableException>(async () => await provider.GetCredentialsAsync(CancellationToken.None));
@@ -563,7 +563,7 @@ public sealed class StubStsTests
         using var sts = new StubSts();
         using var directory = TokenDirectory();
         sts.DefaultResponse = StubStsResponse.Credentials(new AwsCredentials(Sample.Text("access_key_id"), Sample.Text("secret_access_key"), Sample.Text("session_token"), FarAhead));
-        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), sts.Endpoint);
+        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), options: new StsOptions { StsEndpoint = sts.Endpoint });
 
         // Act
         var credentials = await provider.GetCredentialsAsync(CancellationToken.None);
@@ -581,7 +581,7 @@ public sealed class StubStsTests
         using var directory = TokenDirectory();
         var given = new AwsCredentials("a&b", "c<d>e", "f\"g'h", FarAhead);
         sts.DefaultResponse = StubStsResponse.Credentials(given);
-        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), sts.Endpoint);
+        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), options: new StsOptions { StsEndpoint = sts.Endpoint });
 
         // Act
         var credentials = await provider.GetCredentialsAsync(CancellationToken.None);
@@ -597,7 +597,7 @@ public sealed class StubStsTests
         using var sts = new StubSts();
         using var directory = TokenDirectory();
         sts.DefaultResponse = StubStsResponse.Credentials(new AwsCredentials("a", "b", "c", FarAhead));
-        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), sts.Endpoint, "a-session");
+        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), "a-session", new StsOptions { StsEndpoint = sts.Endpoint });
 
         // Act
         await provider.GetCredentialsAsync(CancellationToken.None);
@@ -614,7 +614,7 @@ public sealed class StubStsTests
         using var sts = new StubSts();
         using var directory = TokenDirectory();
         sts.DefaultResponse = StubStsResponse.Credentials(new AwsCredentials(Sample.Text("access_key_id"), Sample.Text("secret_access_key"), Sample.Text("session_token"), FarAhead));
-        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), sts.Endpoint);
+        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), options: new StsOptions { StsEndpoint = sts.Endpoint });
         using var dynamoDb = new StubHandler(static _ => new StubResponse { Body = "{}" });
         using var client = TestClient.Create(dynamoDb, new ManualTimeProvider(Now), credentials: provider);
 
@@ -669,7 +669,7 @@ public sealed class StubStsTests
         using var directory = TokenDirectory();
         chosen.DefaultResponse = StubStsResponse.Credentials(new AwsCredentials("a", "b", "c", FarAhead));
         using var environment = new ScopedEnvironmentVariables(("AWS_ENDPOINT_URL_STS", other.Endpoint.AbsoluteUri));
-        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), chosen.Endpoint);
+        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), options: new StsOptions { StsEndpoint = chosen.Endpoint });
 
         // Act
         await provider.GetCredentialsAsync(CancellationToken.None);
@@ -687,7 +687,7 @@ public sealed class StubStsTests
         using var directory = TokenDirectory();
         sts.DefaultResponse = StubStsResponse.Credentials(new AwsCredentials("a", "b", "c", FarAhead));
         using var environment = new ScopedEnvironmentVariables(("AWS_ENDPOINT_URL_STS", sts.Endpoint.AbsoluteUri));
-        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), NoSuchRegion);
+        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), options: new StsOptions { Region = NoSuchRegion });
 
         // Act
         await provider.GetCredentialsAsync(CancellationToken.None);
@@ -702,7 +702,7 @@ public sealed class StubStsTests
         // Arrange
         using var sts = new StubSts();
         using var directory = TokenDirectory();
-        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), sts.Endpoint);
+        var provider = new WebIdentityCredentialsProvider(directory.Combine(TokenFile), Irsa.Text("role_arn"), options: new StsOptions { StsEndpoint = sts.Endpoint });
 
         // Act
         var exception = await TestClient.CaptureAsync<CredentialsUnavailableException>(async () => await provider.GetCredentialsAsync(CancellationToken.None));

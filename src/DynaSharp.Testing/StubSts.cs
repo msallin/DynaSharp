@@ -11,9 +11,9 @@ namespace DynaSharp.Testing;
 /// </para>
 /// <para>
 /// <b>Two ways to reach it.</b> Hand the provider the endpoint, which reads no variable, so the test can run in parallel with any other:
-/// <c>new WebIdentityCredentialsProvider(tokenFile, roleArn, sts.Endpoint)</c>. Or set <c>AWS_ENDPOINT_URL_STS</c> to <see cref="Endpoint"/> yourself, with <c>AWS_WEB_IDENTITY_TOKEN_FILE</c> and <c>AWS_ROLE_ARN</c>, to go through the
+/// <c>new WebIdentityCredentialsProvider(tokenFile, roleArn, options: new StsOptions { StsEndpoint = sts.Endpoint })</c>. Or set <c>AWS_ENDPOINT_URL_STS</c> to <see cref="Endpoint"/> yourself, with <c>AWS_WEB_IDENTITY_TOKEN_FILE</c> and <c>AWS_ROLE_ARN</c>, to go through the
 /// default chain as a pod does. <c>new AssumeRoleCredentialsProvider(source, roleArn, options: new AssumeRoleOptions { StsEndpoint = sts.Endpoint, Region = region })</c> reads no variable either; without
-/// <see cref="DynaSharp.Credentials.AssumeRoleOptions.Region"/> it looks for the region to sign for in the environment. The stub never touches the process environment, because that would make every test that uses it unsafe to run beside the others; a test that changes the variables runs on its own, by the rule of its test framework.
+/// <see cref="DynaSharp.Credentials.StsOptions.Region"/> it looks for the region to sign for in the environment. The stub never touches the process environment, because that would make every test that uses it unsafe to run beside the others; a test that changes the variables runs on its own, by the rule of its test framework.
 /// </para>
 /// <para>
 /// <b>The token file is yours.</b> The provider reads a file that the test writes, and the stub does not touch the disk. It takes any token and any signature of <c>AssumeRole</c>, and validates nothing; the
@@ -35,7 +35,7 @@ namespace DynaSharp.Testing;
 /// sts.Enqueue(StubStsResponse.Credentials(new AwsCredentials("ASIAEXAMPLE", "secret", "token", DateTimeOffset.UtcNow.AddHours(1))));
 /// await File.WriteAllTextAsync(tokenFile, "a-token");
 ///
-/// var provider = new WebIdentityCredentialsProvider(tokenFile, "arn:aws:iam::123456789012:role/orders", sts.Endpoint);
+/// var provider = new WebIdentityCredentialsProvider(tokenFile, "arn:aws:iam::123456789012:role/orders", options: new StsOptions { StsEndpoint = sts.Endpoint });
 /// using var client = new DynamoDbClient(new DynamoDbClientOptions { Region = AwsRegion.FromName("us-east-1"), Credentials = provider, HttpHandler = stub });
 /// // ... call the code under test, then:
 /// var token = sts.Requests[0].WebIdentityToken;

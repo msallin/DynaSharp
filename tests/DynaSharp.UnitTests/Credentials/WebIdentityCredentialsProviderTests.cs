@@ -38,17 +38,17 @@ public sealed class WebIdentityCredentialsProviderTests
     public async Task Constructor_ExplicitSettings_CreatesProviderWithoutTouchingAnything()
     {
         // Act
-        var provider = new WebIdentityCredentialsProvider(TokenPath, RoleArn, Region, "orders-session");
+        var provider = new WebIdentityCredentialsProvider(TokenPath, RoleArn, "orders-session", new StsOptions { Region = Region });
 
         // Assert
         await Assert.That(provider).IsAssignableTo<IRefreshableCredentialsProvider>();
     }
 
     [Test]
-    public async Task Constructor_NoSessionName_CreatesProvider()
+    public async Task Constructor_NoSessionNameNorOptions_CreatesProvider()
     {
         // Act
-        var provider = new WebIdentityCredentialsProvider(TokenPath, RoleArn, Region);
+        var provider = new WebIdentityCredentialsProvider(TokenPath, RoleArn);
 
         // Assert
         await Assert.That(provider).IsAssignableTo<IRefreshableCredentialsProvider>();
@@ -58,7 +58,7 @@ public sealed class WebIdentityCredentialsProviderTests
     public async Task Constructor_EmptyTokenFile_ThrowsArgumentException()
     {
         // Act
-        var act = () => new WebIdentityCredentialsProvider(string.Empty, RoleArn, Region);
+        var act = () => new WebIdentityCredentialsProvider(string.Empty, RoleArn);
 
         // Assert
         await Assert.That(act).Throws<ArgumentException>().WithParameterName("tokenFile");
@@ -68,27 +68,17 @@ public sealed class WebIdentityCredentialsProviderTests
     public async Task Constructor_EmptyRole_ThrowsArgumentException()
     {
         // Act
-        var act = () => new WebIdentityCredentialsProvider(TokenPath, string.Empty, Region);
+        var act = () => new WebIdentityCredentialsProvider(TokenPath, string.Empty);
 
         // Assert
         await Assert.That(act).Throws<ArgumentException>().WithParameterName("roleArn");
     }
 
     [Test]
-    public async Task Constructor_NoRegion_ThrowsArgumentNullException()
-    {
-        // Act
-        var act = () => new WebIdentityCredentialsProvider(TokenPath, RoleArn, (AwsRegion)null!);
-
-        // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("region");
-    }
-
-    [Test]
     public async Task Constructor_ExplicitEndpoint_CreatesProviderWithoutTouchingAnything()
     {
         // Act
-        var provider = new WebIdentityCredentialsProvider(TokenPath, RoleArn, new Uri("https://sts.example.com/"), "orders-session");
+        var provider = new WebIdentityCredentialsProvider(TokenPath, RoleArn, "orders-session", new StsOptions { StsEndpoint = new Uri("https://sts.example.com/") });
 
         // Assert
         await Assert.That(provider).IsAssignableTo<IRefreshableCredentialsProvider>();
@@ -98,20 +88,10 @@ public sealed class WebIdentityCredentialsProviderTests
     public async Task Constructor_EndpointAndEmptyTokenFile_ThrowsArgumentException()
     {
         // Act
-        var act = () => new WebIdentityCredentialsProvider(string.Empty, RoleArn, new Uri("https://sts.example.com/"));
+        var act = () => new WebIdentityCredentialsProvider(string.Empty, RoleArn, options: new StsOptions { StsEndpoint = new Uri("https://sts.example.com/") });
 
         // Assert
         await Assert.That(act).Throws<ArgumentException>().WithParameterName("tokenFile");
-    }
-
-    [Test]
-    public async Task Constructor_NoEndpoint_ThrowsArgumentNullException()
-    {
-        // Act
-        var act = () => new WebIdentityCredentialsProvider(TokenPath, RoleArn, (Uri)null!);
-
-        // Assert
-        await Assert.That(act).ThrowsExactly<ArgumentNullException>().WithParameterName("stsEndpoint");
     }
 
     [Test]
@@ -124,7 +104,7 @@ public sealed class WebIdentityCredentialsProviderTests
     public async Task Constructor_EndpointBreaksTheRule_ThrowsAndSaysWhy(string endpoint, UriKind kind, string reason)
     {
         // Act
-        var act = () => new WebIdentityCredentialsProvider(TokenPath, RoleArn, new Uri(endpoint, kind));
+        var act = () => new WebIdentityCredentialsProvider(TokenPath, RoleArn, options: new StsOptions { StsEndpoint = new Uri(endpoint, kind) });
 
         // Assert
         await Assert.That(act).ThrowsExactly<ArgumentException>().WithMessageContaining(reason, StringComparison.Ordinal);
@@ -134,7 +114,7 @@ public sealed class WebIdentityCredentialsProviderTests
     public async Task Constructor_EndpointWithUserInfo_LeavesTheValueOutOfTheMessage()
     {
         // Act
-        var exception = TestClient.Catch(() => _ = new WebIdentityCredentialsProvider(TokenPath, RoleArn, new Uri("https://user:secret@sts.example.com/")));
+        var exception = TestClient.Catch(() => _ = new WebIdentityCredentialsProvider(TokenPath, RoleArn, options: new StsOptions { StsEndpoint = new Uri("https://user:secret@sts.example.com/") }));
 
         // Assert
         await Assert.That(exception.Message.Contains("secret", StringComparison.Ordinal)).IsFalse();
@@ -159,7 +139,7 @@ public sealed class WebIdentityCredentialsProviderTests
     public async Task Constructor_InvalidSessionName_ThrowsAndSaysTheRule()
     {
         // Act
-        var act = () => new WebIdentityCredentialsProvider(TokenPath, RoleArn, Region, "not valid");
+        var act = () => new WebIdentityCredentialsProvider(TokenPath, RoleArn, "not valid");
 
         // Assert
         await Assert.That(act).ThrowsExactly<ArgumentException>()

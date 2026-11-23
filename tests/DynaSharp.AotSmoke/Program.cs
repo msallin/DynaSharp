@@ -456,7 +456,7 @@ using var stubSts = new StubSts();
 stubSts.Enqueue(StubStsResponse.Credentials(new AwsCredentials("ASIAIOSFODNN7EXAMPLE", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", "IQoJb3JpZ2luX2VjEEM/Example==", new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero))));
 var stubTokenFile = Path.GetTempFileName();
 await File.WriteAllTextAsync(stubTokenFile, "the-token");
-var stubAssumed = await new WebIdentityCredentialsProvider(stubTokenFile, "arn:aws:iam::123456789012:role/orders", stubSts.Endpoint).GetCredentialsAsync(CancellationToken.None);
+var stubAssumed = await new WebIdentityCredentialsProvider(stubTokenFile, "arn:aws:iam::123456789012:role/orders", options: new StsOptions { StsEndpoint = stubSts.Endpoint }).GetCredentialsAsync(CancellationToken.None);
 File.Delete(stubTokenFile);
 Check(stubAssumed.SessionToken == "IQoJb3JpZ2luX2VjEEM/Example==" && stubSts.Requests.Single().WebIdentityToken == "the-token", "the provider gets its credentials from the stub of STS over a socket");
 

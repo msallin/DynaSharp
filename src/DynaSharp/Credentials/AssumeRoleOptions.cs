@@ -1,9 +1,10 @@
 namespace DynaSharp.Credentials;
 
 /// <summary>
-/// The optional settings of <see cref="AssumeRoleCredentialsProvider"/>, which a profile spells <c>external_id</c> and <c>duration_seconds</c>.
+/// The optional settings of <see cref="AssumeRoleCredentialsProvider"/>, which a profile spells <c>external_id</c> and <c>duration_seconds</c>, besides the
+/// region and the endpoint of STS.
 /// </summary>
-public sealed class AssumeRoleOptions
+public sealed class AssumeRoleOptions : StsOptions
 {
     /// <summary>
     /// Gets the external id that the trust policy of the role asks for, which a third party that assumes a role in the account of a customer
@@ -17,17 +18,4 @@ public sealed class AssumeRoleOptions
     /// every 30 seconds, because it never leaves the advisory refresh period of 15 minutes before its expiration.
     /// </summary>
     public TimeSpan? Duration { get; init; }
-
-    /// <summary>
-    /// Gets the region of the STS endpoint, which is also the region the request is signed for. <see langword="null"/>, the default, looks for it
-    /// as a client does, in <c>AWS_REGION</c>, <c>AWS_DEFAULT_REGION</c> and the profile, at each fetch that needs it.
-    /// </summary>
-    public AwsRegion? Region { get; init; }
-
-    /// <summary>
-    /// Gets the endpoint of STS, for example a VPC endpoint: an absolute http or https URL without user info, path, query or fragment. It goes ahead of
-    /// <c>AWS_ENDPOINT_URL_STS</c>, <c>AWS_ENDPOINT_URL</c> and the region. The request is signed for <see cref="Region"/> or the region found as a
-    /// client finds it, and for <c>us-east-1</c> when there is none. <see langword="null"/>, the default, works the endpoint out at each fetch.
-    /// </summary>
-    public Uri? StsEndpoint { get; init; }
 }
