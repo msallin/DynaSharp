@@ -7,6 +7,15 @@ namespace DynaSharp.UnitTests.Coordination;
 // The test platform listens to every activity source, so a lock never meets a null span in the other tests. These pass one.
 public sealed class CoordinationTelemetryTests
 {
+    public static IEnumerable<Func<Exception>> Failures()
+    {
+        yield return () => new TimeoutException("waited");
+        yield return () => new ResourceNotFoundException("No such table.");
+        yield return () => new HttpRequestException("reset");
+        yield return () => new KeyNotFoundException("gone");
+        yield return () => new ArgumentOutOfRangeException("wait");
+    }
+
     [Test]
     public async Task Acquire_NoSpan_RecordsOnlyTheMetric()
     {
@@ -36,6 +45,21 @@ public sealed class CoordinationTelemetryTests
 
         // Assert
         await Assert.That(act).ThrowsNothing();
+    }
+
+    // One source and one meter: a lock tags error.type as the requests under its span do.
+    [Test]
+    [MethodDataSource(nameof(Failures))]
+    public async Task ErrorTypeOf_Exception_IsWhatTheClientReports(Exception exception)
+    {
+        // Arrange
+        var expected = DynaSharp.Telemetry.OperationTelemetry.GetErrorType(exception);
+
+        // Act
+        var errorType = CoordinationTelemetry.ErrorTypeOf(exception);
+
+        // Assert
+        await Assert.That(errorType).IsEqualTo(expected);
     }
 
     [Test]

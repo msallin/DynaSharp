@@ -314,7 +314,7 @@ The spans and metrics go to the activity source and the meter named `DynaSharp`,
 
 The requests of a lock have spans of their own under the span of the lock, so the polls of a waiting process show as `GetItem` spans under `Lock.Acquire`, and the client's request metrics count them.
 
-Spans and metrics carry `db.collection.name`, the table. The name of the lock is on the spans, as `dynasharp.lock.name`, and in the logs, so that an operator sees which lock it was, but not on the metrics, where it would be a dimension per lock. A span of an acquire also has `dynasharp.lock.acquired`, and for a lease `dynasharp.lock.takeover` and `dynasharp.lock.fencing_token`. Lock names are names chosen in code, as table names are, so put no data in them, such as a user id. The holder label is in the logs only, never on spans or metrics.
+Spans and metrics carry `db.collection.name`, the table. `error.type` is what the client puts on its own spans: the error code DynamoDB sent, `timeout`, or the name of the exception type. The name of the lock is on the spans, as `dynasharp.lock.name`, and in the logs, so that an operator sees which lock it was, but not on the metrics, where it would be a dimension per lock. A span of an acquire also has `dynasharp.lock.acquired`, and for a lease `dynasharp.lock.takeover` and `dynasharp.lock.fencing_token`. Lock names are names chosen in code, as table names are, so put no data in them, such as a user id. The holder label is in the logs only, never on spans or metrics.
 
 The log category is `DynaSharp.Coordination.LockTable`, and it logs what no caller sees:
 

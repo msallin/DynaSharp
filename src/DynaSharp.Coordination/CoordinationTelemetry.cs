@@ -35,6 +35,9 @@ internal static class CoordinationTelemetry
     public const string LossReason = "dynasharp.lock.loss_reason";
     public const string WakeupCount = "dynasharp.lock.wakeup_count";
 
+    /// <summary>The <c>error.type</c> of a <see cref="TimeoutException"/>, the one the client reports.</summary>
+    public const string TimeoutErrorType = "timeout";
+
     private static readonly ActivitySource ActivitySource = new(Source);
 
     private static readonly Meter Meter = new(Source);
@@ -153,8 +156,15 @@ internal static class CoordinationTelemetry
         }
     }
 
-    /// <summary>Gets what <c>error.type</c> says about an exception: the code DynamoDB sent, or the full name of the type.</summary>
+    /// <summary>
+    /// Gets what <c>error.type</c> says about an exception, as the client tags its own spans under the same source: the code DynamoDB sent, <c>timeout</c>, or the name of the type.
+    /// </summary>
     /// <param name="exception">The exception.</param>
     /// <returns>The error type.</returns>
-    public static string ErrorTypeOf(Exception exception) => exception is DynamoDbException dynamo ? dynamo.ErrorCode : exception.GetType().FullName!;
+    public static string ErrorTypeOf(Exception exception) => exception switch
+    {
+        DynamoDbException dynamo => dynamo.ErrorCode,
+        TimeoutException => TimeoutErrorType,
+        _ => exception.GetType().ToString(),
+    };
 }

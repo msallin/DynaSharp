@@ -65,7 +65,7 @@ public sealed class LockTableWaitTests
         // Assert
         var span = capture.All.Single(activity => activity.OperationName == "Lock.Acquire" && (string?)activity.GetTagItem("db.collection.name") == bench.TableName);
         await Assert.That((exception.Message.Contains($"lock job of table {bench.TableName}", StringComparison.Ordinal), bench.Clock.GetElapsedTime(start) >= TimeSpan.FromSeconds(15), span.GetTagItem("error.type")))
-            .IsEqualTo((true, true, (object?)"System.TimeoutException"));
+            .IsEqualTo((true, true, (object?)"timeout"));
     }
 
     [Test]
