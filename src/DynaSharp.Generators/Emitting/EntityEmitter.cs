@@ -83,6 +83,7 @@ internal static class EntityEmitter
         code.Line("internal static readonly __Map.DynamoDbEntityInfo Info = new(");
         code.Indent();
         code.Line($"discriminator: {CodeText.OptionalLiteral(entity.Discriminator)},");
+        code.Line($"discriminatorAttributeName: {CodeText.Literal(entity.DiscriminatorAttribute)},");
         code.Line($"partitionKeyName: {CodeText.Literal(entity.PartitionKey.AttributeName)},");
         code.Line($"partitionKeyType: {WireType(entity.PartitionKey)},");
         code.Line($"sortKeyName: {CodeText.OptionalLiteral(entity.SortKey?.AttributeName)},");
@@ -93,27 +94,31 @@ internal static class EntityEmitter
         {
             var names = $"{CodeText.Literal(index.IndexName)}, {CodeText.Literal(index.PartitionKey.AttributeName)}, {CodeText.OptionalLiteral(index.SortKey?.AttributeName)}";
             var kind = $"{(index.Sparse ? "true" : "false")}, {(index.IsLocal ? "true" : "false")}";
-            var include = index.Include is { } projected ? $", Include = new string[] {{ {string.Join(", ", projected.Select(static name => CodeText.Literal(name)))} }}" : string.Empty;
-            var builder = $" {{ PartitionKeyBuilder = {CodeText.Literal(index.PartitionKey.BuilderName)}{include} }}";
-            code.Line($"new __Map.DynamoDbIndexInfo({names}, {kind}, {WireType(index.PartitionKey)}, {WireType(index.SortKey)}){builder},");
+            var include = index.Include is { } projected ? $", new string[] {{ {string.Join(", ", projected.Select(static name => CodeText.Literal(name)))} }}" : string.Empty;
+            code.Line($"new __Map.DynamoDbIndexInfo({names}, {kind}, {WireType(index.PartitionKey)}, {WireType(index.SortKey)}, {CodeText.Literal(index.PartitionKey.BuilderName)}{include}),");
         }
 
         code.Close("},");
-        code.Line($"versionAttributeName: {CodeText.OptionalLiteral(version?.AttributeName)},");
+
+        // The optional arguments follow, each only where it says something, so the last one ends the call.
+        var optional = new List<string>();
         if (version is { ReadsMissingAsZero: true })
         {
-            code.Line("versionMissing: __Map.VersionMissing.Allow,");
+            optional.Add("versionMissing: __Map.VersionMissing.Allow");
         }
 
+        var templates = KeyTemplateEmitter.Lines(type, entity);
         if (entity.TimeToLiveAttribute is { } timeToLive)
         {
-            code.Line($"timeToLiveAttributeName: {CodeText.Literal(timeToLive)},");
+            optional.Add($"timeToLiveAttributeName: {CodeText.Literal(timeToLive)}");
         }
 
-        // The table is a property, so that an entity without one keeps the code it had.
-        var end = entity.TableName is { } table ? $") {{ TableName = {CodeText.Literal(table)} }};" : ");";
-        var templates = KeyTemplateEmitter.Lines(type, entity);
-        code.Line($"discriminatorAttributeName: {CodeText.Literal(entity.DiscriminatorAttribute)}{(templates.Count == 0 ? end : ",")}");
+        if (entity.TableName is { } table)
+        {
+            optional.Add($"tableName: {CodeText.Literal(table)}");
+        }
+
+        code.Line($"versionAttributeName: {CodeText.OptionalLiteral(version?.AttributeName)}{(optional.Count == 0 && templates.Count == 0 ? ");" : ",")}");
         if (templates.Count > 0)
         {
             code.Line("keyTemplates: new __Map.DynamoDbKeyTemplate[]");
@@ -123,7 +128,12 @@ internal static class EntityEmitter
                 code.Line($"{template},");
             }
 
-            code.Close("}" + end);
+            code.Close(optional.Count == 0 ? "});" : "},");
+        }
+
+        for (var i = 0; i < optional.Count; i++)
+        {
+            code.Line(optional[i] + (i == optional.Count - 1 ? ");" : ","));
         }
 
         code.Outdent();

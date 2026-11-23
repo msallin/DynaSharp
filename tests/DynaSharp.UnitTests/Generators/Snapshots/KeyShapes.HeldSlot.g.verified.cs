@@ -15,20 +15,20 @@ partial record HeldSlot : __Map.IDynamoDbDiscriminated<global::KeyShapes.HeldSlo
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "HELDSLOT",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "sk",
             sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             indexes: new __Map.DynamoDbIndexInfo[]
             {
-                new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "ByOwnerPk" },
+                new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown, "ByOwnerPk"),
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "ROOM#{Room}", true, new[] { new __Map.DynamoDbKeyInput("Room", "Room", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Room } : null },
-                new __Map.DynamoDbKeyTemplate("sk", "DAY#{Start:yyyy-MM-dd}", true, new[] { new __Map.DynamoDbKeyInput("Start", "Start", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value), IsCutOff: true) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { null } : null, LosesValues = true },
+                new __Map.DynamoDbKeyTemplate("pk", "ROOM#{Room}", true, new[] { new __Map.DynamoDbKeyInput("Room", "Room", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Room } : null },
+                new __Map.DynamoDbKeyTemplate("sk", "DAY#{Start:yyyy-MM-dd}", true, new[] { new __Map.DynamoDbKeyInput("Start", "Start", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value), isCutOff: true) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { null } : null, LosesValues = true },
                 new __Map.DynamoDbKeyTemplate("byownerpk", "OWNER#{Owner}#{Rank:d3}#{Room}#AT#{Start:ticks}", false, new[] { new __Map.DynamoDbKeyInput("Owner", "Owner"), new __Map.DynamoDbKeyInput("Rank", "Rank"), new __Map.DynamoDbKeyInput("Room", "Room"), new __Map.DynamoDbKeyInput("Start", "Start") }, static __values => Keys.ByOwnerPk.Format((string)__values[0]!, (int)__values[1]!, (string)__values[2]!, (global::System.DateTimeOffset)__values[3]!)),
             });
     }

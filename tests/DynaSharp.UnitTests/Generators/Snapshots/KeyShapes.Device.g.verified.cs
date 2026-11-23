@@ -15,6 +15,7 @@ partial class Device : __Map.IDynamoDbDiscriminated<global::KeyShapes.Device>
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "DEVICE",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "Serial",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "Slot",
@@ -22,8 +23,7 @@ partial class Device : __Map.IDynamoDbDiscriminated<global::KeyShapes.Device>
             indexes: new __Map.DynamoDbIndexInfo[]
             {
             },
-            versionAttributeName: null,
-            discriminatorAttributeName: "_type");
+            versionAttributeName: null);
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]

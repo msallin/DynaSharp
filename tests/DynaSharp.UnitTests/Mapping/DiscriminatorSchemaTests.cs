@@ -1,5 +1,6 @@
 using System.Text;
 using DynaSharp.Mapping;
+using DynaSharp.Requests;
 using DynaSharp.Serialization;
 
 namespace DynaSharp.UnitTests.Mapping;
@@ -50,7 +51,7 @@ public sealed class DiscriminatorSchemaTests
         await Assert.That((failure.EntityType, failure.AttributeName, failure.Message)).IsEqualTo(("Mixed<5, B>", "_type", new DynamoDbMappingException("Mixed<5, B>", "_type").Message));
     }
 
-    private static DynamoDbEntityInfo Info(string? discriminator) => new(discriminator, "pk", null, []);
+    private static DynamoDbEntityInfo Info(string? discriminator) => new(discriminator, "_type", "pk", ScalarAttributeType.Unknown, null, ScalarAttributeType.Unknown, [], null);
 
     private static int FindType(DiscriminatorSchema schema, byte[] json)
     {

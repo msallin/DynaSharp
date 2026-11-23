@@ -1,4 +1,5 @@
 using DynaSharp.Mapping;
+using DynaSharp.Requests;
 using DynaSharp.Serialization;
 
 namespace DynaSharp.UnitTests.Fluent;
@@ -6,7 +7,7 @@ namespace DynaSharp.UnitTests.Fluent;
 /// <summary>An entity written by hand whose discriminator is the sort key of the table, which the generator rejects.</summary>
 internal sealed record TypeKeyed(string Id) : IDynamoDbEntity<TypeKeyed>
 {
-    private static readonly DynamoDbEntityInfo EntityInfo = new("NOTE", "pk", "sk", [], discriminatorAttributeName: "sk");
+    private static readonly DynamoDbEntityInfo EntityInfo = new("NOTE", "sk", "pk", ScalarAttributeType.Unknown, "sk", ScalarAttributeType.Unknown, [], null);
 
     static DynamoDbEntityInfo IDynamoDbEntity<TypeKeyed>.Info => EntityInfo;
 

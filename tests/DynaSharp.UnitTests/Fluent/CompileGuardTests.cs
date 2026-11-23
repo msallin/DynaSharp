@@ -25,7 +25,7 @@ public sealed class CompileGuardTests
 
         public sealed record Order(string Id) : IDynamoDbEntity<Order>
         {
-            public static DynamoDbEntityInfo Info { get; } = new("ORDER", "pk", null, []);
+            public static DynamoDbEntityInfo Info { get; } = new("ORDER", "_type", "pk", DynaSharp.Requests.ScalarAttributeType.Unknown, null, DynaSharp.Requests.ScalarAttributeType.Unknown, [], null);
             public static void WriteKey(DynamoDbWriter writer, Order entity) => writer.WriteAttributeName("pk"u8);
             public static void WriteAttributes(DynamoDbWriter writer, Order entity) => writer.WriteAttributeName("pk"u8);
             public static Order ReadAttributes(ref DynamoDbReader reader) => new("a");
@@ -34,7 +34,7 @@ public sealed class CompileGuardTests
 
         public sealed record Invoice(string Id) : IDynamoDbDiscriminated<Invoice>
         {
-            public static DynamoDbEntityInfo Info { get; } = new("INVOICE", "pk", null, []);
+            public static DynamoDbEntityInfo Info { get; } = new("INVOICE", "_type", "pk", DynaSharp.Requests.ScalarAttributeType.Unknown, null, DynaSharp.Requests.ScalarAttributeType.Unknown, [], null);
             public static void WriteKey(DynamoDbWriter writer, Invoice entity) => writer.WriteAttributeName("pk"u8);
             public static void WriteAttributes(DynamoDbWriter writer, Invoice entity) => writer.WriteAttributeName("pk"u8);
             public static Invoice ReadAttributes(ref DynamoDbReader reader) => new("a");
@@ -42,7 +42,7 @@ public sealed class CompileGuardTests
 
         public sealed record Payment(string Id) : IDynamoDbDiscriminated<Payment>
         {
-            public static DynamoDbEntityInfo Info { get; } = new("PAYMENT", "pk", null, []);
+            public static DynamoDbEntityInfo Info { get; } = new("PAYMENT", "_type", "pk", DynaSharp.Requests.ScalarAttributeType.Unknown, null, DynaSharp.Requests.ScalarAttributeType.Unknown, [], null);
             public static void WriteKey(DynamoDbWriter writer, Payment entity) => writer.WriteAttributeName("pk"u8);
             public static void WriteAttributes(DynamoDbWriter writer, Payment entity) => writer.WriteAttributeName("pk"u8);
             public static Payment ReadAttributes(ref DynamoDbReader reader) => new("a");

@@ -15,6 +15,7 @@ partial class Article : __Map.IDynamoDbDiscriminated<global::KeyShapes.Article>
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "ARTICLE",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: null,
@@ -23,7 +24,6 @@ partial class Article : __Map.IDynamoDbDiscriminated<global::KeyShapes.Article>
             {
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
                 new __Map.DynamoDbKeyTemplate("pk", "SLUG#{Slug}", true, new[] { new __Map.DynamoDbKeyInput("Slug", null) }),

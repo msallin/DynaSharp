@@ -152,16 +152,16 @@ internal static class KeyTemplateEmitter
         var arguments = new List<string> { CodeText.Literal(property), CodeText.OptionalLiteral(AttributeOf(type, property)) };
         if (entity.ComputedInputs.FirstOrDefault(input => input.Property == property) is { } computed)
         {
-            arguments.Add($"ComputedFromAttributes: new[] {{ {string.Join(", ", computed.DependencyAttributes.Select(CodeText.Literal))} }}");
+            arguments.Add($"computedFromAttributes: new[] {{ {string.Join(", ", computed.DependencyAttributes.Select(CodeText.Literal))} }}");
         }
 
         if (stored is not null)
         {
             var converter = type.Property(property).Converter!.WriteConverter;
-            arguments.Add($"ToAttributeValue: static {Value} => __Ser.ConverterChecks.ToAttributeValue<{stored.ValueType}, {converter}>(({stored.ValueType}){Value})");
+            arguments.Add($"toAttributeValue: static {Value} => __Ser.ConverterChecks.ToAttributeValue<{stored.ValueType}, {converter}>(({stored.ValueType}){Value})");
             if (!stored.Encoding.IsLossless)
             {
-                arguments.Add("IsCutOff: true");
+                arguments.Add("isCutOff: true");
             }
         }
 

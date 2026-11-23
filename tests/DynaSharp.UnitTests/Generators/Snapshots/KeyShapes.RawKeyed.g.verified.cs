@@ -15,22 +15,22 @@ partial record RawKeyed : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKeye
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "RAWKEYED",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "Id",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "sk",
             sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             indexes: new __Map.DynamoDbIndexInfo[]
             {
-                new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", "byownersk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByOwnerPk" },
-                new __Map.DynamoDbIndexInfo("ByNote", "bynotepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "ByNotePk" },
-                new __Map.DynamoDbIndexInfo("BySeat", "Id", "byseatsk", false, true, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Pk" },
+                new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", "byownersk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "ByOwnerPk"),
+                new __Map.DynamoDbIndexInfo("ByNote", "bynotepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown, "ByNotePk"),
+                new __Map.DynamoDbIndexInfo("BySeat", "Id", "byseatsk", false, true, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "Pk"),
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("Id", "APPOINTMENT#{Key:raw}", true, new[] { new __Map.DynamoDbKeyInput("Key", "Key", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Key } : null },
-                new __Map.DynamoDbKeyTemplate("sk", "{Site}#{Day}#{Ref:raw}", true, new[] { new __Map.DynamoDbKeyInput("Site", "Site", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)), new __Map.DynamoDbKeyInput("Day", "Day", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateOnly, global::DynaSharp.Serialization.DateOnlyConverter>((global::System.DateOnly)__value)), new __Map.DynamoDbKeyInput("Ref", "Ref", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Site, __parts.Day, __parts.Ref } : null },
+                new __Map.DynamoDbKeyTemplate("Id", "APPOINTMENT#{Key:raw}", true, new[] { new __Map.DynamoDbKeyInput("Key", "Key", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Key } : null },
+                new __Map.DynamoDbKeyTemplate("sk", "{Site}#{Day}#{Ref:raw}", true, new[] { new __Map.DynamoDbKeyInput("Site", "Site", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)), new __Map.DynamoDbKeyInput("Day", "Day", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateOnly, global::DynaSharp.Serialization.DateOnlyConverter>((global::System.DateOnly)__value)), new __Map.DynamoDbKeyInput("Ref", "Ref", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Site, __parts.Day, __parts.Ref } : null },
                 new __Map.DynamoDbKeyTemplate("byownerpk", "OWNER#{Owner}", false, new[] { new __Map.DynamoDbKeyInput("Owner", "Owner") }, static __values => Keys.ByOwnerPk.Format((string)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("byownersk", "REF#{Ref:raw}", false, new[] { new __Map.DynamoDbKeyInput("Ref", "Ref") }, static __values => Keys.ByOwnerSk.Format((string)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("bynotepk", "NOTE#{Note:raw}", false, new[] { new __Map.DynamoDbKeyInput("Note", "Note") }, static __values => Keys.ByNotePk.Format((string)__values[0]!)),

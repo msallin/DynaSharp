@@ -7,81 +7,37 @@ namespace DynaSharp.UnitTests.Mapping;
 public sealed class DynamoDbEntityInfoTests
 {
     [Test]
-    public async Task Constructor_Defaults_UseTheDiscriminatorAttributeOfTheLibrary()
+    public async Task Constructor_RequiredValues_KeepsThem()
     {
         // Arrange
-        IReadOnlyList<DynamoDbIndexInfo> indexes = [new DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false)];
+        IReadOnlyList<DynamoDbIndexInfo> indexes = [new DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false, false, ScalarAttributeType.String, ScalarAttributeType.Unknown, "Gsi1Pk")];
 
         // Act
-        var info = new DynamoDbEntityInfo("ORDER", "pk", "sk", indexes);
+        var info = new DynamoDbEntityInfo("ORDER", "kind", "pk", ScalarAttributeType.Number, "sk", ScalarAttributeType.Binary, indexes, "revision");
 
         // Assert
-        await Assert.That((info.Discriminator, info.DiscriminatorAttributeName, info.PartitionKeyName, info.SortKeyName, info.Indexes, info.VersionAttributeName)).IsEqualTo(((string?)"ORDER", "_type", "pk", (string?)"sk", indexes, (string?)null));
+        await Assert.That((info.Discriminator, info.DiscriminatorAttributeName, info.PartitionKeyName, info.PartitionKeyType, info.SortKeyName, info.SortKeyType, info.Indexes, info.VersionAttributeName))
+            .IsEqualTo(((string?)"ORDER", "kind", "pk", ScalarAttributeType.Number, (string?)"sk", ScalarAttributeType.Binary, indexes, (string?)"revision"));
     }
 
     [Test]
-    public async Task Constructor_AllValues_KeepsThem()
-    {
-        // Arrange
-        const string version = "revision";
-
-        // Act
-        var info = new DynamoDbEntityInfo(null, "pk", null, [], version, "kind");
-
-        // Assert
-        await Assert.That((info.Discriminator, info.DiscriminatorAttributeName, info.SortKeyName, info.VersionAttributeName)).IsEqualTo(((string?)null, "kind", (string?)null, (string?)version));
-    }
-
-    [Test]
-    public async Task TableName_NotSet_IsNull()
+    public async Task Constructor_NoOptionalValues_HasNoneOfThem()
     {
         // Arrange, Act
-        var info = new DynamoDbEntityInfo(null, "pk", null, []);
+        var info = new DynamoDbEntityInfo(null, "_type", "pk", ScalarAttributeType.Unknown, null, ScalarAttributeType.Unknown, [], null);
 
         // Assert
-        await Assert.That(info.TableName).IsNull();
+        await Assert.That((info.VersionMissing, info.KeyTemplates.Count, info.TimeToLiveAttributeName, info.TableName)).IsEqualTo((VersionMissing.Reject, 0, (string?)null, (string?)null));
     }
 
     [Test]
-    public async Task TableName_Set_KeepsIt()
+    public async Task Constructor_OptionalValues_KeepsThem()
     {
         // Arrange, Act
-        var info = new DynamoDbEntityInfo(null, "pk", null, []) { TableName = "orders" };
+        var info = new DynamoDbEntityInfo(null, "_type", "pk", ScalarAttributeType.Unknown, null, ScalarAttributeType.Unknown, [], "revision", VersionMissing.Allow, timeToLiveAttributeName: "expiresAt", tableName: "orders");
 
         // Assert
-        await Assert.That(info.TableName).IsEqualTo("orders");
-    }
-
-    [Test]
-    public async Task Constructor_NoKeyTypes_SaysNothingAboutThem()
-    {
-        // Arrange, Act
-        var info = new DynamoDbEntityInfo(null, "pk", "sk", [new DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false)]);
-
-        // Assert
-        var index = info.Indexes.Single();
-        await Assert.That((info.PartitionKeyType, info.SortKeyType, index.PartitionKeyType, index.SortKeyType, index.IsLocal))
-            .IsEqualTo((ScalarAttributeType.Unknown, ScalarAttributeType.Unknown, ScalarAttributeType.Unknown, ScalarAttributeType.Unknown, false));
-    }
-
-    [Test]
-    public async Task Constructor_KeyTypes_KeepsThem()
-    {
-        // Arrange, Act
-        var info = new DynamoDbEntityInfo(null, "pk", "sk", [], partitionKeyType: ScalarAttributeType.Number, sortKeyType: ScalarAttributeType.Binary);
-
-        // Assert
-        await Assert.That((info.PartitionKeyType, info.SortKeyType)).IsEqualTo((ScalarAttributeType.Number, ScalarAttributeType.Binary));
-    }
-
-    [Test]
-    public async Task Constructor_TimeToLive_KeepsItAndDefaultsToNone()
-    {
-        // Arrange, Act
-        var (with, without) = (new DynamoDbEntityInfo(null, "pk", null, [], timeToLiveAttributeName: "expiresAt"), new DynamoDbEntityInfo(null, "pk", null, []));
-
-        // Assert
-        await Assert.That((with.TimeToLiveAttributeName, without.TimeToLiveAttributeName)).IsEqualTo(((string?)"expiresAt", (string?)null));
+        await Assert.That((info.VersionMissing, info.TimeToLiveAttributeName, info.TableName)).IsEqualTo((VersionMissing.Allow, (string?)"expiresAt", (string?)"orders"));
     }
 
     [Test]
@@ -117,28 +73,19 @@ public sealed class DynamoDbEntityInfoTests
     }
 
     [Test]
-    public async Task Constructor_NoKeyTemplates_HasAnEmptyList()
-    {
-        // Arrange, Act
-        var info = new DynamoDbEntityInfo(null, "pk", null, []);
-
-        // Assert
-        await Assert.That(info.KeyTemplates).IsEmpty();
-    }
-
-    [Test]
     public async Task Constructor_KeyTemplates_KeepsThem()
     {
         // Arrange
         var template = new DynamoDbKeyTemplate("gsi1pk", "S#{State}", false, [new DynamoDbKeyInput("State", "state")], static values => "S#" + values[0]);
 
         // Act
-        var info = new DynamoDbEntityInfo(null, "pk", null, [], keyTemplates: [template]);
+        var info = new DynamoDbEntityInfo(null, "_type", "pk", ScalarAttributeType.Unknown, null, ScalarAttributeType.Unknown, [], null, keyTemplates: [template]);
 
         // Assert
         var kept = info.KeyTemplates.Single();
-        await Assert.That((kept.AttributeName, kept.Text, kept.IsTableKey, kept.Inputs.Single(), kept.Format!(["a"])))
-            .IsEqualTo(("gsi1pk", "S#{State}", false, new DynamoDbKeyInput("State", "state"), "S#a"));
+        var input = kept.Inputs.Single();
+        await Assert.That((kept.AttributeName, kept.Text, kept.IsTableKey, input.PropertyName, input.AttributeName, input.ComputedFromAttributes, input.ToAttributeValue, input.IsCutOff, kept.Format!(["a"])))
+            .IsEqualTo(("gsi1pk", "S#{State}", false, "State", (string?)"state", (IReadOnlyList<string>?)null, (Func<object, AttributeValue>?)null, false, "S#a"));
     }
 
     private static DynamoDbEntityInfo GeneratedInfo<T>()

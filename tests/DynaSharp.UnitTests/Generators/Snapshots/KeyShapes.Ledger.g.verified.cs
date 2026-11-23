@@ -15,6 +15,7 @@ partial class Ledger : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ledger>
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "LEDGER",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "sk",
@@ -23,11 +24,10 @@ partial class Ledger : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ledger>
             {
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "LEDGER#{At:yyyy-MM}", true, new[] { new __Map.DynamoDbKeyInput("At", "At", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value), IsCutOff: true) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { null } : null },
-                new __Map.DynamoDbKeyTemplate("sk", "AT#{At:ticks}#{Id}", true, new[] { new __Map.DynamoDbKeyInput("At", "At", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value)), new __Map.DynamoDbKeyInput("Id", "Id", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>((global::System.Guid)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.At, __parts.Id } : null },
+                new __Map.DynamoDbKeyTemplate("pk", "LEDGER#{At:yyyy-MM}", true, new[] { new __Map.DynamoDbKeyInput("At", "At", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value), isCutOff: true) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { null } : null },
+                new __Map.DynamoDbKeyTemplate("sk", "AT#{At:ticks}#{Id}", true, new[] { new __Map.DynamoDbKeyInput("At", "At", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value)), new __Map.DynamoDbKeyInput("Id", "Id", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>((global::System.Guid)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.At, __parts.Id } : null },
             });
     }
 

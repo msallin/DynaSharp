@@ -7,9 +7,7 @@ namespace DynaSharp.UnitTests.Fluent;
 // The projection of an index: what the request asks for, from the Include lists and the discriminators of the entities that declare it, and the check of a table that exists against it.
 public sealed class TableSchemaTests
 {
-    private static readonly DynamoDbIndexInfo Index = new("GSI1", "gpk", "gsk", false);
-
-    private static readonly DynamoDbIndexInfo KeysOnly = Index with { Include = [] };
+    private static readonly DynamoDbIndexInfo KeysOnly = Index([]);
 
     [Test]
     [Arguments("projected", "_type", null, "")]
@@ -42,7 +40,7 @@ public sealed class TableSchemaTests
     {
         // Arrange
         var schema = new TableSchema("Shop", "pk", "sk");
-        schema.Add("First", Entity(Index, "_type"));
+        schema.Add("First", Entity(Index(null), "_type"));
 
         // Act
         var drift = schema.Check("Shop", Described(new IndexProjection { ProjectionType = ProjectionType.KeysOnly }));
@@ -61,7 +59,7 @@ public sealed class TableSchemaTests
     {
         // Arrange
         var schema = new TableSchema("Shop", "pk", "sk");
-        schema.Add("First", Entity(Index with { Include = include?.Split(',', StringSplitOptions.RemoveEmptyEntries) }, discriminator));
+        schema.Add("First", Entity(Index(include?.Split(',', StringSplitOptions.RemoveEmptyEntries)), discriminator));
 
         // Act
         var request = schema.ToRequest("Shop", null, null);
@@ -78,8 +76,8 @@ public sealed class TableSchemaTests
     {
         // Arrange
         var schema = new TableSchema("Shop", "pk", "sk");
-        schema.Add("First", Entity(Index with { Include = first is null ? null : [first] }, "_type"));
-        schema.Add("Second", Entity(Index with { Include = second is null ? null : [second] }, "_type"));
+        schema.Add("First", Entity(Index(first is null ? null : [first]), "_type"));
+        schema.Add("Second", Entity(Index(second is null ? null : [second]), "_type"));
 
         // Act
         var request = schema.ToRequest("Shop", null, null);
@@ -93,7 +91,7 @@ public sealed class TableSchemaTests
     {
         // Arrange
         var schema = new TableSchema("Shop", "pk", "sk");
-        schema.Add("First", Entity(new DynamoDbIndexInfo("LSI1", "pk", "lsk", false, IsLocal: true) { Include = ["total"] }, "_type"));
+        schema.Add("First", Entity(new DynamoDbIndexInfo("LSI1", "pk", "lsk", false, true, ScalarAttributeType.Unknown, ScalarAttributeType.Unknown, null, ["total"]), "_type"));
 
         // Act
         var request = schema.ToRequest("Shop", null, null);
@@ -111,7 +109,7 @@ public sealed class TableSchemaTests
     {
         // Arrange (the entity includes total, and the discriminator joins it)
         var schema = new TableSchema("Shop", "pk", "sk");
-        schema.Add("First", Entity(Index with { Include = ["total"] }, "_type"));
+        schema.Add("First", Entity(Index(["total"]), "_type"));
 
         // Act
         var drift = schema.Check("Shop", Described(Projection(type, attributes)));
@@ -127,7 +125,7 @@ public sealed class TableSchemaTests
     {
         // Arrange
         var schema = new TableSchema("Shop", "pk", "sk");
-        schema.Add("First", Entity(Index with { Include = ["total"] }, "_type"));
+        schema.Add("First", Entity(Index(["total"]), "_type"));
 
         // Act
         var drift = schema.Check("Shop", Described(Projection(type, attributes)));
@@ -155,7 +153,7 @@ public sealed class TableSchemaTests
     {
         // Arrange
         var schema = new TableSchema("Shop", "pk", "sk");
-        schema.Add("First", Entity(Index, "_type"));
+        schema.Add("First", Entity(Index(null), "_type"));
 
         // Act
         var drift = schema.Check("Shop", Described(Included("_type")));
@@ -171,7 +169,7 @@ public sealed class TableSchemaTests
     {
         // Arrange
         var schema = new TableSchema("Shop", "pk", "sk");
-        schema.Add("First", Entity(new DynamoDbIndexInfo("LSI1", "pk", "lsk", false, IsLocal: true) { Include = ["total"] }, "_type"));
+        schema.Add("First", Entity(new DynamoDbIndexInfo("LSI1", "pk", "lsk", false, true, ScalarAttributeType.Unknown, ScalarAttributeType.Unknown, null, ["total"]), "_type"));
         var found = new TableDescription
         {
             KeySchema = [new KeySchemaElement("pk", KeyType.Hash), new KeySchemaElement("sk", KeyType.Range)],
@@ -185,10 +183,12 @@ public sealed class TableSchemaTests
         await Assert.That(drift.Single().Description).EndsWith("A local index keeps the projection it was created with: only a new table with the index changes it with INCLUDE (total, _type).");
     }
 
+    private static DynamoDbIndexInfo Index(IReadOnlyList<string>? include) => new DynamoDbIndexInfo("GSI1", "gpk", "gsk", false, false, ScalarAttributeType.Unknown, ScalarAttributeType.Unknown, null, include);
+
     private static DynamoDbEntityInfo Entity(DynamoDbIndexInfo index, string? discriminatorAttributeName) =>
         discriminatorAttributeName is null
-            ? new DynamoDbEntityInfo(null, "pk", "sk", [index])
-            : new DynamoDbEntityInfo("X", "pk", "sk", [index], discriminatorAttributeName: discriminatorAttributeName);
+            ? new DynamoDbEntityInfo(null, "_type", "pk", ScalarAttributeType.Unknown, "sk", ScalarAttributeType.Unknown, [index], null)
+            : new DynamoDbEntityInfo("X", discriminatorAttributeName, "pk", ScalarAttributeType.Unknown, "sk", ScalarAttributeType.Unknown, [index], null);
 
     private static IndexProjection Projection(string type, string? attributes) => new()
     {

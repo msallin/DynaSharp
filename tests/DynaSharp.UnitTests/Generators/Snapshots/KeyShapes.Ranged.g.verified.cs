@@ -15,20 +15,20 @@ partial record Ranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Ranged>
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "RANGED",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "sk",
             sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             indexes: new __Map.DynamoDbIndexInfo[]
             {
-                new __Map.DynamoDbIndexInfo("ByBounds", "byboundspk", "byboundssk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByBoundsPk" },
+                new __Map.DynamoDbIndexInfo("ByBounds", "byboundspk", "byboundssk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "ByBoundsPk"),
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
-                new __Map.DynamoDbKeyTemplate("sk", "{Name} {Seat:d2}", true, new[] { new __Map.DynamoDbKeyInput("Name", "Name", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)), new __Map.DynamoDbKeyInput("Seat", "Seat", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<int, global::DynaSharp.Serialization.NumberConverter<int>>((int)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Name, __parts.Seat } : null },
+                new __Map.DynamoDbKeyTemplate("pk", "{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
+                new __Map.DynamoDbKeyTemplate("sk", "{Name} {Seat:d2}", true, new[] { new __Map.DynamoDbKeyInput("Name", "Name", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)), new __Map.DynamoDbKeyInput("Seat", "Seat", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<int, global::DynaSharp.Serialization.NumberConverter<int>>((int)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Name, __parts.Seat } : null },
                 new __Map.DynamoDbKeyTemplate("byboundspk", "B", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.ByBoundsPk.Format()),
                 new __Map.DynamoDbKeyTemplate("byboundssk", "{From:d2}#{To:d2}#{Seat:d2}", false, new[] { new __Map.DynamoDbKeyInput("From", "From"), new __Map.DynamoDbKeyInput("To", "To"), new __Map.DynamoDbKeyInput("Seat", "Seat") }, static __values => Keys.ByBoundsSk.Format((int)__values[0]!, (int)__values[1]!, (int)__values[2]!)),
             });

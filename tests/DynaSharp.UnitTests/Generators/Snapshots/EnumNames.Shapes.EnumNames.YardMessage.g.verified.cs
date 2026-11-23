@@ -15,6 +15,7 @@ partial class YardMessage : __Map.IDynamoDbDiscriminated<global::Shapes.EnumName
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "YARD_MESSAGE",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "sk",
@@ -23,11 +24,10 @@ partial class YardMessage : __Map.IDynamoDbDiscriminated<global::Shapes.EnumName
             {
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "{Owner}#{OwnerKey:raw}", true, new[] { new __Map.DynamoDbKeyInput("Owner", "Owner", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::Shapes.EnumNames.MessageOwner, Shapes_EnumNames_MessageOwnerConverter>((global::Shapes.EnumNames.MessageOwner)__value)), new __Map.DynamoDbKeyInput("OwnerKey", "OwnerKey", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Owner, __parts.OwnerKey } : null },
-                new __Map.DynamoDbKeyTemplate("sk", "MSG#{Owner:d1}#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Owner", "Owner", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::Shapes.EnumNames.MessageOwner, Shapes_EnumNames_MessageOwnerConverter>((global::Shapes.EnumNames.MessageOwner)__value)), new __Map.DynamoDbKeyInput("Id", "Id", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Owner, __parts.Id } : null },
+                new __Map.DynamoDbKeyTemplate("pk", "{Owner}#{OwnerKey:raw}", true, new[] { new __Map.DynamoDbKeyInput("Owner", "Owner", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::Shapes.EnumNames.MessageOwner, Shapes_EnumNames_MessageOwnerConverter>((global::Shapes.EnumNames.MessageOwner)__value)), new __Map.DynamoDbKeyInput("OwnerKey", "OwnerKey", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Owner, __parts.OwnerKey } : null },
+                new __Map.DynamoDbKeyTemplate("sk", "MSG#{Owner:d1}#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Owner", "Owner", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::Shapes.EnumNames.MessageOwner, Shapes_EnumNames_MessageOwnerConverter>((global::Shapes.EnumNames.MessageOwner)__value)), new __Map.DynamoDbKeyInput("Id", "Id", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Owner, __parts.Id } : null },
             });
     }
 

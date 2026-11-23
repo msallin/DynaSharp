@@ -1,4 +1,5 @@
 using DynaSharp.Mapping;
+using DynaSharp.Requests;
 using DynaSharp.Serialization;
 
 namespace DynaSharp.UnitTests.Fluent;
@@ -6,7 +7,7 @@ namespace DynaSharp.UnitTests.Fluent;
 /// <summary>An entity written by hand that names a version attribute and forgets to write it.</summary>
 internal sealed record HandVersioned(string Id) : IDynamoDbEntity<HandVersioned>
 {
-    private static readonly DynamoDbEntityInfo EntityInfo = new("HAND", "pk", null, [], versionAttributeName: "revision");
+    private static readonly DynamoDbEntityInfo EntityInfo = new("HAND", "_type", "pk", ScalarAttributeType.Unknown, null, ScalarAttributeType.Unknown, [], "revision");
 
     static DynamoDbEntityInfo IDynamoDbEntity<HandVersioned>.Info => EntityInfo;
 

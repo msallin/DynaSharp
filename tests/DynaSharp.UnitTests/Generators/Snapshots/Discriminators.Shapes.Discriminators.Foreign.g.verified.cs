@@ -15,6 +15,7 @@ partial class Foreign : __Map.IDynamoDbEntity<global::Shapes.Discriminators.Fore
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: null,
+            discriminatorAttributeName: "_type",
             partitionKeyName: "id",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: null,
@@ -22,8 +23,7 @@ partial class Foreign : __Map.IDynamoDbEntity<global::Shapes.Discriminators.Fore
             indexes: new __Map.DynamoDbIndexInfo[]
             {
             },
-            versionAttributeName: null,
-            discriminatorAttributeName: "_type");
+            versionAttributeName: null);
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]

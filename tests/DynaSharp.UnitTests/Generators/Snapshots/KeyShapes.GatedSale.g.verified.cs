@@ -15,20 +15,20 @@ partial record GatedSale : __Map.IDynamoDbDiscriminated<global::KeyShapes.GatedS
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "GATED",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: null,
             sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
             indexes: new __Map.DynamoDbIndexInfo[]
             {
-                new __Map.DynamoDbIndexInfo("BySeller", "shared", "bysellersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "BySellerPk" },
-                new __Map.DynamoDbIndexInfo("ByBuyer", "shared", "bybuyersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByBuyerPk" },
+                new __Map.DynamoDbIndexInfo("BySeller", "shared", "bysellersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "BySellerPk"),
+                new __Map.DynamoDbIndexInfo("ByBuyer", "shared", "bybuyersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "ByBuyerPk"),
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
+                new __Map.DynamoDbKeyTemplate("pk", "{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
                 new __Map.DynamoDbKeyTemplate("shared", "TENANT#{Tenant}", false, new[] { new __Map.DynamoDbKeyInput("Tenant", "Tenant") }, static __values => Keys.BySellerPk.Format((string)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("bysellersk", "SELLER#{Seller}", false, new[] { new __Map.DynamoDbKeyInput("Seller", "Seller") }, static __values => Keys.BySellerSk.Format((string)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("bybuyersk", "BUYER#{Buyer}", false, new[] { new __Map.DynamoDbKeyInput("Buyer", "Buyer") }, static __values => Keys.ByBuyerSk.Format((string)__values[0]!)),

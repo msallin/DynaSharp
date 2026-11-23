@@ -1,4 +1,5 @@
 using DynaSharp.Mapping;
+using DynaSharp.Requests;
 using DynaSharp.Serialization;
 
 namespace DynaSharp.UnitTests.Fluent;
@@ -6,7 +7,7 @@ namespace DynaSharp.UnitTests.Fluent;
 /// <summary>Written by hand, with the keys of <see cref="SchemaReading"/> and nothing about their types.</summary>
 internal sealed record SchemaReadingByHand(string Id) : IDynamoDbEntity<SchemaReadingByHand>
 {
-    private static readonly DynamoDbEntityInfo EntityInfo = new("HAND", "Sensor", "Stamp", []);
+    private static readonly DynamoDbEntityInfo EntityInfo = new("HAND", "_type", "Sensor", ScalarAttributeType.Unknown, "Stamp", ScalarAttributeType.Unknown, [], null);
 
     static DynamoDbEntityInfo IDynamoDbEntity<SchemaReadingByHand>.Info => EntityInfo;
 

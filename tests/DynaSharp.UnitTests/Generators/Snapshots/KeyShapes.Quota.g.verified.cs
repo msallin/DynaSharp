@@ -15,6 +15,7 @@ partial class Quota : __Map.IDynamoDbDiscriminated<global::KeyShapes.Quota>
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "QUOTA",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "Plan",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: null,
@@ -22,8 +23,7 @@ partial class Quota : __Map.IDynamoDbDiscriminated<global::KeyShapes.Quota>
             indexes: new __Map.DynamoDbIndexInfo[]
             {
             },
-            versionAttributeName: null,
-            discriminatorAttributeName: "_type");
+            versionAttributeName: null);
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]

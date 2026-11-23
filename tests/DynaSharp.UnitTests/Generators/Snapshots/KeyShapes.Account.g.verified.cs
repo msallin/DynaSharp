@@ -15,6 +15,7 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "ACCOUNT",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "Id",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "sk",
@@ -23,10 +24,9 @@ partial class Account : __Map.IDynamoDbDiscriminated<global::KeyShapes.Account>
             {
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("sk", "ACCOUNT#{Id}#V{Version:d3}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id"), new __Map.DynamoDbKeyInput("Version", "Version", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<int, global::DynaSharp.Serialization.NumberConverter<int>>((int)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id, __parts.Version } : null },
+                new __Map.DynamoDbKeyTemplate("sk", "ACCOUNT#{Id}#V{Version:d3}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id"), new __Map.DynamoDbKeyInput("Version", "Version", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<int, global::DynaSharp.Serialization.NumberConverter<int>>((int)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id, __parts.Version } : null },
             });
     }
 

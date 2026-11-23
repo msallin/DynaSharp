@@ -1,4 +1,5 @@
 using DynaSharp.Mapping;
+using DynaSharp.Requests;
 using DynaSharp.Serialization;
 
 namespace DynaSharp.IntegrationTests.Commands;
@@ -6,7 +7,7 @@ namespace DynaSharp.IntegrationTests.Commands;
 /// <summary>An entity written by hand the way the generator will write it, in a table of strings <c>pk</c> and <c>sk</c>.</summary>
 internal sealed record Profile(string Id, string FullName, int OrderCount = 0) : IDynamoDbEntity<Profile>
 {
-    private static readonly DynamoDbEntityInfo EntityInfo = new("PROFILE", "pk", "sk", []);
+    private static readonly DynamoDbEntityInfo EntityInfo = new("PROFILE", "_type", "pk", ScalarAttributeType.Unknown, "sk", ScalarAttributeType.Unknown, [], null);
 
     static DynamoDbEntityInfo IDynamoDbEntity<Profile>.Info => EntityInfo;
 

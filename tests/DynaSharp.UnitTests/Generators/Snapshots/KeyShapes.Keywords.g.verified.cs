@@ -15,6 +15,7 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "KEYWORDS",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "sk",
@@ -23,11 +24,10 @@ partial class Keywords : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keywords
             {
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "C#{class}", true, new[] { new __Map.DynamoDbKeyInput("class", "class", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.@class } : null },
-                new __Map.DynamoDbKeyTemplate("sk", "E#{event}", true, new[] { new __Map.DynamoDbKeyInput("event", "event", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.@event } : null },
+                new __Map.DynamoDbKeyTemplate("pk", "C#{class}", true, new[] { new __Map.DynamoDbKeyInput("class", "class", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.@class } : null },
+                new __Map.DynamoDbKeyTemplate("sk", "E#{event}", true, new[] { new __Map.DynamoDbKeyInput("event", "event", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.@event } : null },
             });
     }
 

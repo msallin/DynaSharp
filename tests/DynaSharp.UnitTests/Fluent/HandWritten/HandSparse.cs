@@ -1,4 +1,5 @@
 using DynaSharp.Mapping;
+using DynaSharp.Requests;
 using DynaSharp.Serialization;
 
 namespace DynaSharp.UnitTests.Fluent;
@@ -10,9 +11,13 @@ internal sealed record HandSparse(string Id) : IDynamoDbEntity<HandSparse>
 
     private static readonly DynamoDbEntityInfo EntityInfo = new(
         "SPARSE",
+        "_type",
         "pk",
+        ScalarAttributeType.Unknown,
         null,
-        [new DynamoDbIndexInfo("ByTag", "derived", "other", Sparse: true)],
+        ScalarAttributeType.Unknown,
+        [new DynamoDbIndexInfo("ByTag", "derived", "other", true, false, ScalarAttributeType.Unknown, ScalarAttributeType.Unknown, null)],
+        null,
         keyTemplates: [new DynamoDbKeyTemplate("derived", "T#{Tag}", false, [new DynamoDbKeyInput("Tag", "tag")], static values => "T#" + values[0])]);
 
     static DynamoDbEntityInfo IDynamoDbEntity<HandSparse>.Info => EntityInfo;

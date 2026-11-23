@@ -15,6 +15,7 @@ partial class SiteSettings : __Map.IDynamoDbDiscriminated<global::KeyShapes.Site
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "SETTINGS",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "sk",
@@ -22,8 +23,7 @@ partial class SiteSettings : __Map.IDynamoDbDiscriminated<global::KeyShapes.Site
             indexes: new __Map.DynamoDbIndexInfo[]
             {
             },
-            versionAttributeName: null,
-            discriminatorAttributeName: "_type");
+            versionAttributeName: null);
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
