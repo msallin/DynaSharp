@@ -112,7 +112,7 @@ public static class TableStreamExtensions
         Action<string>? onGap = null,
         CancellationToken cancellationToken = default)
         where T : IDynamoDbEntity<T> =>
-        StartChanges<T, SingleChange<T>, Change<T>>(table, streams, shardIteratorType, emptyPageDelay, onJoined, onMappingFailure, onGap, cancellationToken);
+        StartChanges<T, Change<T>, Change<T>>(table, streams, shardIteratorType, emptyPageDelay, onJoined, onMappingFailure, onGap, cancellationToken);
 
     internal static IAsyncEnumerable<TOut> StartChanges<TTable, TTypes, TOut>(
         Table<TTable> table,

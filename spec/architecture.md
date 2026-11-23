@@ -58,7 +58,7 @@ Exceptions                                            what the service and the c
 | `Http` | `ClientCore` (also hands out its `HttpClient`, handler and logger), `DynamoDbPipeline`, `IWireCall<T>`, `RawCall` (of `SendRawAsync`), `CallBuffers`, `BoundedPool<T>`, `ConflictRetry`, `WireProtocol` (the fixed parts of the protocol, shared with `Operations`, `Fluent` and `DynaSharp.Testing`) |
 | `Operations` | One `IOperation<,>` struct per service call, `RequestCall<,,>`, `OperationCalls.ExecuteAsync` (an extension of `ClientCore` that runs one), `OperationJson`, `WireNames`, `EnumWireNames`, `TableJson`, `BatchJson`, `ReadTags`, `ClientRequestToken` (the token of a transaction the caller gave none), the envelopes of the responses both APIs read, `IResponseMember` |
 | `Requests` | Records of the request API and `DynamoDbRequests` |
-| `Streams` | `DynamoDbStreamsClient` and its records, `StreamMerge` (the shards of `ReadStreamAsync`), `ShardRun` (retries and signal of a shard), `TableStreamExtensions`, `Table.Streams.cs`, `Change<T>`, `MixedChange<...>`, `ChangeTyping` with `IChangeTypes<TOut>` and `SingleChange<T>` |
+| `Streams` | `DynamoDbStreamsClient` and its records, `StreamMerge` (the shards of `ReadStreamAsync`), `ShardRun` (retries and signal of a shard), `TableStreamExtensions`, `Table.Streams.cs`, `Change<T>`, `MixedChange<...>`, `ChangeTyping` with `IChangeTypes<TOut>`, which `Change<T>` and each `MixedChange<...>` implement |
 | `Fluent` | `Table<T>`, `Index<T>`, `ItemTableExtensions`, `EntityTableExtensions`, `EntityWriteExtensions`, `TableModel`, `DiscriminatorCheck`, `TableAdministration`, `TableSchema` |
 | `Fluent/Commands` | Every command and step, their interfaces, the verbs of a transaction, and what sends one item: `CommandCall`, `ICommandOperation<T>`, the write operations, `WriteResult<T>`, `FailedCondition`, `RejectedRequest` |
 | `Fluent/Reads` | The read operations, `PagedRead`, `PageCall`, `PageResponse`, `Page<T>`, `ContinuationToken`, parallel scan, fan-out and mixed machinery, `FailedItem` |
@@ -148,7 +148,7 @@ for it, so no reader outlives the enumeration.
 
 **Typed changes** add nothing to the reading. `ChangeTyping.Split<TTypes, TOut>` types each image and makes one change, or a removal and an insert when the type changed.
 `IChangeTypes<TOut>` is an internal interface of static abstract members, so `TableStreamExtensions.ReadTypedAsync` is one generic iterator for every arity with no delegate per
-record; `SingleChange<T>` and each `MixedChange<...>` ask a `DiscriminatorSchema`, so a mixed read, a typed change and `Item.Is<T>()` share one rule. The mixed readings are
+record; `Change<T>` and each `MixedChange<...>` ask a `DiscriminatorSchema`, so a mixed read, a typed change and `Item.Is<T>()` share one rule. The mixed readings are
 members of `Table<T>` (`Streams/Table.Streams.cs`), because an extension over `Table<TTable>` cannot be called with the types of the reading alone. `MixedChange` holds the change
 as `object` plus an index, because a change is a class and a field per type only adds size; that `object` is its `Value` of the union shape (below).
 

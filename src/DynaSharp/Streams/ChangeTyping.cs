@@ -82,8 +82,6 @@ internal static class ChangeTyping
             Kind = kind,
             Before = before ? Read<T>(data.OldImage!, data.Keys) : default,
             After = after ? Read<T>(data.NewImage!, data.Keys) : default,
-            Keys = data.Keys,
-            SequenceNumber = data.SequenceNumber,
             Record = record,
         };
     }

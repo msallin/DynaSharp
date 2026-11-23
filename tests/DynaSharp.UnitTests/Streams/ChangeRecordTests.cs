@@ -166,7 +166,7 @@ public sealed class ChangeRecordTests
         var change = record.As<Alpha>();
 
         // Assert
-        await Assert.That(change).IsEqualTo(new Change<Alpha> { Kind = OperationType.Insert, After = AlphaValue(), Keys = record.DynamoDb!.Keys, SequenceNumber = "101", Record = record });
+        await Assert.That(change).IsEqualTo(new Change<Alpha> { Kind = OperationType.Insert, After = AlphaValue(), Record = record });
     }
 
     [Test]

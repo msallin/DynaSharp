@@ -1,1 +1,3 @@
 #nullable enable
+*REMOVED*DynaSharp.Streams.Change<T>.Keys.init -> void
+*REMOVED*DynaSharp.Streams.Change<T>.SequenceNumber.init -> void
