@@ -55,14 +55,14 @@ public class DynamoDbException : Exception
     /// proxy answering for it) returns; <see langword="null"/> on an exception made elsewhere. The message stays the one DynamoDB
     /// sent, which often does not say what was called.
     /// </summary>
-    public string? OperationName { get; internal init; }
+    public string? OperationName { get; internal set; }
 
     /// <summary>
     /// Gets the table the failed call addressed, exactly as the request named it (a name or an ARN). <see langword="null"/> when
     /// the call has no single table: a batch or transaction (which may span several), <c>ListTables</c>, or a
     /// <c>ListStreams</c> without a table. Never a key or a value.
     /// </summary>
-    public string? TableName { get; internal init; }
+    public string? TableName { get; internal set; }
 
     /// <summary>
     /// Gets the number of runs after which <c>RetryOnConflictAsync</c> gave up and passed this conflict on, the last run included, or <see langword="null"/> if the exception did not end such a retry.
