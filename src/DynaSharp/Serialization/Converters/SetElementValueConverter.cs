@@ -25,7 +25,7 @@ public readonly struct SetElementValueConverter<T, TElement> : IDynamoDbConverte
     public static void Write(DynamoDbWriter writer, T value)
     {
         // {"S":"a"}: an element is a plain JSON string, the same one inside a set and after a descriptor.
-        var descriptor = ScalarType() switch
+        var descriptor = SetElements<T, TElement>.ScalarType() switch
         {
             AttributeType.String => "S"u8,
             AttributeType.Number => "N"u8,
@@ -43,21 +43,7 @@ public readonly struct SetElementValueConverter<T, TElement> : IDynamoDbConverte
     /// <exception cref="InvalidOperationException"><typeparamref name="TElement"/> does not return a set type from <see cref="IDynamoDbSetElementConverter{T}.SetType"/>.</exception>
     public static T Read(ref DynamoDbReader reader, AttributeType type)
     {
-        ConverterChecks.Expect(type, ScalarType());
+        ConverterChecks.Expect(type, SetElements<T, TElement>.ScalarType());
         return TElement.ReadElement(ref reader);
-    }
-
-    private static AttributeType ScalarType()
-    {
-        var setType = TElement.SetType;
-        return setType switch
-        {
-            AttributeType.StringSet => AttributeType.String,
-            AttributeType.NumberSet => AttributeType.Number,
-            AttributeType.BinarySet => AttributeType.Binary,
-
-            // An implementation of the public interface can return anything; failing here beats writing a value of the wrong kind.
-            _ => throw new InvalidOperationException($"{setType} is not a set type: a set element converter must return StringSet, NumberSet or BinarySet."),
-        };
     }
 }
