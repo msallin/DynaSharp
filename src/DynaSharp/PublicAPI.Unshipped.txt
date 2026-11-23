@@ -3,3 +3,6 @@
 *REMOVED*DynaSharp.AwsRegion.DynamoDbStreamsEndpoint.get -> System.Uri!
 *REMOVED*DynaSharp.Streams.Change<T>.Keys.init -> void
 *REMOVED*DynaSharp.Streams.Change<T>.SequenceNumber.init -> void
+*REMOVED*DynaSharp.Keys.KeyWriter.WriteUtf8Value(scoped System.ReadOnlySpan<byte> utf8Value, scoped System.ReadOnlySpan<byte> delimiters, string! placeholder) -> void
+*REMOVED*DynaSharp.KeyFormatException.KeyFormatException(string! placeholder, string! reason) -> void
+*REMOVED*static DynaSharp.DynamoDbMappingException.OtherType(string! entityType, string! attributeName, string! foundType) -> DynaSharp.DynamoDbMappingException!
