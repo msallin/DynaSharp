@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 
@@ -8,7 +7,7 @@ namespace DynaSharp.Generators;
 
 /// <summary>
 /// DYNA201 reports what the compiler refuses for a DynaSharp ref struct and says why DynaSharp did this: a value that crosses an <c>await</c> or a
-/// <c>yield return</c> (CS4007), an async parameter or, before C# 13, an async local (CS4012, CS9202), and a capture (CS8175, CS9108).
+/// <c>yield return</c> (CS4007), an async parameter (CS4012), and a capture (CS8175, CS9108).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -36,7 +35,6 @@ internal sealed class CommandLifetimeAnalyzer : DiagnosticAnalyzer
             {
                 start.RegisterOperationAction(AnalyzeLocal, OperationKind.LocalReference);
                 start.RegisterOperationAction(AnalyzeParameter, OperationKind.ParameterReference);
-                start.RegisterOperationAction(AnalyzeDeclarator, OperationKind.VariableDeclarator);
                 start.RegisterOperationAction(AnalyzeAwait, OperationKind.Await);
                 start.RegisterOperationAction(AnalyzeFunction, OperationKind.MethodBody, OperationKind.AnonymousFunction, OperationKind.LocalFunction);
             }
@@ -67,18 +65,6 @@ internal sealed class CommandLifetimeAnalyzer : DiagnosticAnalyzer
         if (DynaSharpTypes.IsRefStruct(parameter.Type) && (IsCaptured(reference, parameter.ContainingSymbol) || parameter.ContainingSymbol is IMethodSymbol { IsIterator: true }))
         {
             Report(context, reference.Syntax.GetLocation());
-        }
-    }
-
-    private static void AnalyzeDeclarator(OperationAnalysisContext context)
-    {
-        var declarator = (IVariableDeclaratorOperation)context.Operation;
-        var local = declarator.Symbol;
-        if (DynaSharpTypes.IsRefStruct(local.Type)
-            && local.ContainingSymbol is IMethodSymbol { IsAsync: true }
-            && ((CSharpParseOptions)declarator.Syntax.SyntaxTree.Options).LanguageVersion < LanguageVersion.CSharp13)
-        {
-            Report(context, local.Locations[0]);
         }
     }
 

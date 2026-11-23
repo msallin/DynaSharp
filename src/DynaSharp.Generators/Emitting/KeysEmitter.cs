@@ -6,7 +6,7 @@ namespace DynaSharp.Generators;
 /// and the converters of enums it refers to, belong to <see cref="EntityEmitter"/>.
 /// </summary>
 /// <remarks>
-/// Generated code targets C# 11 and is compiled by consumers with implicit usings off, so every name is fully qualified and collection
+/// Generated code targets C# 13 and is compiled by consumers with implicit usings off, so every name is fully qualified and collection
 /// expressions and primary constructors stay out.
 /// </remarks>
 internal static class KeysEmitter

@@ -1,4 +1,3 @@
-using Microsoft.CodeAnalysis.CSharp;
 
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
@@ -217,39 +216,6 @@ public sealed class CommandLifetimeAnalyzerTests
 
         // Assert
         await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message));
-    }
-
-    [Test]
-    [Arguments("""static async Task Run() { var [|c|] = shop.Update("a"); await c.SendAsync(); }""")]
-    [Arguments("""static void Run() { Func<Task> f = async () => { var [|c|] = shop.Update("a"); await c.SendAsync(); }; }""")]
-    public async Task Analyze_AsyncLocalBeforeCSharp13_IsReported(string member)
-    {
-        // Arrange
-        var source = AnalyzerRun.Member(Helpers + member, Outside);
-
-        // Act
-        var report = await AnalyzerRun.ReportAsync(source, LanguageVersion.CSharp12);
-
-        // Assert
-        await Assert.That(report).IsEqualTo(AnalyzerRun.Expect(source, Message));
-    }
-
-    [Test]
-    [Arguments("""static async Task Run(CancellationToken ct) { await shop.Update("a").Set("x", 1).SendAsync(ct); }""")]
-    [Arguments("""static void Run() { var c = shop.Update("a"); c.ToRequestJson(); }""")]
-    [Arguments("""static IEnumerable<int> Run() { var c = shop.Update("a"); c.ToRequestJson(); yield return 1; }""")]
-    public async Task Analyze_WhatCSharp12Compiles_ReportsNothing(string member)
-    {
-        // Arrange
-        var source = AnalyzerRun.Member(Helpers + member, Outside);
-
-        // Act
-        var report = await AnalyzerRun.ReportAsync(source, LanguageVersion.CSharp12);
-        var errors = AnalyzerRun.CompilerErrors(source, LanguageVersion.CSharp12);
-
-        // Assert
-        await Assert.That(errors).IsEmpty();
-        await Assert.That(report).IsEmpty();
     }
 
     [Test]

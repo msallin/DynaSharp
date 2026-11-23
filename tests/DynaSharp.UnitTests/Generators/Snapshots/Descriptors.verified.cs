@@ -125,7 +125,7 @@ DYNA011 | Error | DynaSharp.Mapping | [Version] is not valid here | [Version] re
 DYNA012 | Error | DynaSharp.Mapping | Attribute is not valid on a document | [{0}] is not valid on a document
 DYNA013 | Error | DynaSharp.Mapping | Both entity and document | Type '{0}' cannot be both an entity and a document
 DYNA014 | Error | DynaSharp.Mapping | Generated member conflicts | Generated member '{0}' conflicts with a member of '{1}'
-DYNA015 | Error | DynaSharp.Mapping | C# version is too low | DynaSharp generated code needs C# 11 or later; this project uses {0}
+DYNA015 | Error | DynaSharp.Mapping | C# version is too low | DynaSharp generated code needs C# 13 or later; this project uses {0}
 DYNA016 | Error | DynaSharp.Mapping | Type is not accessible | Type '{0}' used by '{1}' is not accessible to generated code
 DYNA017 | Error | DynaSharp.Mapping | Property cannot be a key | Property '{0}' of type '{1}' cannot be a DynamoDB key, which must be a string, number or binary
 DYNA018 | Error | DynaSharp.Mapping | Index is invalid | Index '{0}' is invalid: {1}

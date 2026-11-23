@@ -22,7 +22,7 @@ The source generator reports these on `[DynamoDbEntity]` and `[DynamoDbDocument]
 | `DYNA012` | An attribute only an entity can have, on a document | Remove it, or make the type an entity. The code fix offers both |
 | `DYNA013` | A type is an entity and a document | Keep one; the code fix removes either attribute |
 | `DYNA014` | A member clashes with generated code, such as `Keys`, or `TableName` in an entity that declares a table; a type outside it named so is `DYNA043` | Rename the member |
-| `DYNA015` | The project is below C# 11 | Raise `LangVersion` |
+| `DYNA015` | The project is below C# 13 | Raise `LangVersion` |
 | `DYNA016` | A type a member needs is less visible than the generated code | Make it as visible as the entity. The code fix does, on each type the property's type is made of that is less visible, where all of them are in source |
 | `DYNA017` | A key whose type DynamoDB cannot hold | Use a string, number or binary, or a converter |
 | `DYNA018` | An index that cannot exist, as the message says, or an `Include` that names no stored property | Fix its name, keys or list |
@@ -218,7 +218,7 @@ A command such as `PutCommand<T>` is a `ref struct` over pooled state, so build 
 |---|---|---|
 | Stores a command in a field or property | CS8345 (no `DYNA201`: the compiler stops before analyzers run) | A method that builds it: `UpdateCommand<Customer> IncrementOrders(string id) => customers.Update(Customer.Keys.Of(id)).Add(Customer.Attrs.OrderCount, 1);` |
 | Keeps one across an `await` or a `yield return` | CS4007 | Compute every value first, then build and send in one synchronous stretch. `if (x) { command = command.Set(...); }` between the steps is fine: each call returns a new handle to the same local. |
-| Takes one as a parameter of an `async` method, or as an `async` local before C# 13 | CS4012, CS9202 | A synchronous helper that takes and returns the command, and an `await` in the caller. |
+| Takes one as a parameter of an `async` method | CS4012 | A synchronous helper that takes and returns the command, and an `await` in the caller. |
 | Captures one in a lambda or a local function | CS8175, CS9108 | Build inside the lambda: `pipeline.ExecuteAsync(ct => customers.Update(key).Add(attr, 1).SendAsync(ct))`. A retry from outside must rebuild anyway, since the buffers are gone after the send. |
 
 Sending a command twice is no compile error. It throws `InvalidOperationException`, as does a second use of a handle after a fluent call: build the command again. `DYNA204` reports what the build can see of that. A synchronous helper that returns a command for the caller to finish and send is supported; what the rules below then cannot see is under [Helpers that return a command](commands.md#helpers-that-return-a-command).

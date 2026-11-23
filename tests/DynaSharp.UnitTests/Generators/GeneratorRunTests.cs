@@ -19,7 +19,7 @@ public sealed class GeneratorRunTests
     }
 
     [Test]
-    [Arguments(LanguageVersion.CSharp11)]
+    [Arguments(LanguageVersion.CSharp13)]
     [Arguments(LanguageVersion.Latest)]
     public async Task Run_WellFormedGeneratedFile_HasNoWarningsAtEachLanguageVersion(LanguageVersion language)
     {
@@ -34,7 +34,7 @@ public sealed class GeneratorRunTests
     }
 
     [Test]
-    [Arguments(LanguageVersion.CSharp11)]
+    [Arguments(LanguageVersion.CSharp13)]
     [Arguments(LanguageVersion.Latest)]
     public async Task Run_PublicMemberWithoutDocs_ReportsTheWarningInTheGeneratedFile(LanguageVersion language)
     {

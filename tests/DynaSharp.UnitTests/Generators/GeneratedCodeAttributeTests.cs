@@ -101,7 +101,7 @@ public sealed class GeneratedCodeAttributeTests
     }
 
     [Test]
-    [Arguments(LanguageVersion.CSharp11)]
+    [Arguments(LanguageVersion.CSharp13)]
     [Arguments(LanguageVersion.Latest)]
     public async Task Run_AttributeOfTheUserOnTheType_DoesNotClash(LanguageVersion language)
     {

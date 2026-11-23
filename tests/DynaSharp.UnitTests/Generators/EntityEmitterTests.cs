@@ -8,7 +8,7 @@ namespace DynaSharp.UnitTests.Generators;
 public sealed class EntityEmitterTests
 {
     public static IEnumerable<(string Shape, LanguageVersion Language)> ShapesAtEachLanguageVersion() =>
-        EmitterShapes.Names().SelectMany(static shape => new[] { (shape, LanguageVersion.CSharp11), (shape, LanguageVersion.Latest) });
+        EmitterShapes.Names().SelectMany(static shape => new[] { (shape, LanguageVersion.CSharp13), (shape, LanguageVersion.Latest) });
 
     [Test]
     [MethodDataSource(typeof(EmitterShapes), nameof(EmitterShapes.Names))]
@@ -50,7 +50,7 @@ public sealed class EntityEmitterTests
         var source = EmitterShapes.Versioned.Replace("public short Revision", $"public {type} Revision", StringComparison.Ordinal);
 
         // Act
-        var output = GeneratorRun.Run(source, new DynaSharpGenerator(), LanguageVersion.CSharp11);
+        var output = GeneratorRun.Run(source, new DynaSharpGenerator(), LanguageVersion.CSharp13);
 
         // Assert
         await Assert.That(output.Problems).IsEmpty();
@@ -71,7 +71,7 @@ public sealed class EntityEmitterTests
         var source = EmitterShapes.VersionAllowed.Replace("public required short Revision", $"public required {type} Revision", StringComparison.Ordinal);
 
         // Act
-        var output = GeneratorRun.Run(source, new DynaSharpGenerator(), LanguageVersion.CSharp11);
+        var output = GeneratorRun.Run(source, new DynaSharpGenerator(), LanguageVersion.CSharp13);
 
         // Assert
         await Assert.That(output.Problems).IsEmpty();

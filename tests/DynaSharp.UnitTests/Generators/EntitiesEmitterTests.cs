@@ -87,7 +87,7 @@ public sealed class EntitiesEmitterTests
     }
 
     [Test]
-    [Arguments(LanguageVersion.CSharp11)]
+    [Arguments(LanguageVersion.CSharp13)]
     [Arguments(LanguageVersion.Latest)]
     public async Task Run_Entities_CompilesWithoutWarnings(LanguageVersion language)
     {

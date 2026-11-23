@@ -59,7 +59,7 @@ public sealed class PlainKeyBuilderTests
     }
 
     [Test]
-    [Arguments(LanguageVersion.CSharp11)]
+    [Arguments(LanguageVersion.CSharp13)]
     [Arguments(LanguageVersion.Latest)]
     public async Task Run_BarePlaceholderOfAnIndex_HasAnOfAtEveryLanguageVersion(LanguageVersion language)
     {

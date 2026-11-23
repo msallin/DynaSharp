@@ -1317,39 +1317,39 @@ public sealed class TypeDiagnosticsTests
     }
 
     [Test]
-    public async Task Build_CSharp10_ReportsDyna015AndNoModel()
+    public async Task Build_CSharp12_ReportsDyna015AndNoModel()
     {
         // Arrange
         const string Source = """[DynamoDbEntity, Discriminator("E"), PartitionKey("E")] public partial class [|E|] { }""";
 
         // Act
-        var report = Analysis.Report(Source, LanguageVersion.CSharp10);
+        var report = Analysis.Report(Source, LanguageVersion.CSharp12);
 
         // Assert
-        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA015 Error: DynaSharp generated code needs C# 11 or later; this project uses 10.0"));
+        await Assert.That(report).IsEqualTo(Analysis.Expect(Source, "DYNA015 Error: DynaSharp generated code needs C# 13 or later; this project uses 12.0"));
     }
 
     [Test]
-    public async Task Build_CSharp10_SuppressesAllOutputForTheType()
+    public async Task Build_CSharp12_SuppressesAllOutputForTheType()
     {
         // Arrange
         const string Source = """namespace Shop { [DynaSharp.Mapping.DynamoDbDocument] public partial class A { } }""";
 
         // Act
-        var result = Analysis.Results(Source, [], LanguageVersion.CSharp10).Single();
+        var result = Analysis.Results(Source, [], LanguageVersion.CSharp12).Single();
 
         // Assert
         await Assert.That(result.Type).IsNull();
     }
 
     [Test]
-    public async Task Build_CSharp11_ReportsNothing()
+    public async Task Build_CSharp13_ReportsNothing()
     {
         // Arrange
         const string Source = """[DynamoDbEntity, Discriminator("E"), PartitionKey("E")] public partial class E { }""";
 
         // Act
-        var report = Analysis.Report(Source, LanguageVersion.CSharp11);
+        var report = Analysis.Report(Source, LanguageVersion.CSharp13);
 
         // Assert
         await Assert.That(report).IsEmpty();

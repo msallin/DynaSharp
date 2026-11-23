@@ -20,7 +20,7 @@ dotnet_diagnostic.CA2000.severity = none
 # CA1812: generated code creates mapped types, and dotnet format analyzes without it.
 dotnet_diagnostic.CA1812.severity = none
 
-# The entities of the key tests stand for what consumers declare, so their shapes and names are the point, and they must parse as C# 11.
+# The entities of the key tests stand for what consumers declare, so their shapes and names are the point, and they must parse as C# 13.
 [DynaSharp.{UnitTests/Mapping/KeyModels,IntegrationTests/Mapping/ShopModel,AotSmoke/Shapes}.cs]
 dotnet_diagnostic.CA1002.severity = none
 dotnet_diagnostic.CA1008.severity = none
