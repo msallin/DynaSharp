@@ -147,144 +147,42 @@ public sealed class SsoCredentialsProvider : IRefreshableCredentialsProvider
     private static string? TryParseRoleCredentials(byte[] json, out AwsCredentials? credentials)
     {
         credentials = null;
-        string? accessKeyId = null, secretAccessKey = null, sessionToken = null;
-        long? expiration = null;
-        var reader = new Utf8JsonReader(json);
-        try
+        if (CredentialsJson.TryRead(json, "roleCredentials") is not { } members)
         {
-            reader.Read();
-            if (reader.TokenType != JsonTokenType.StartObject)
-            {
-                return "the response is not a JSON object";
-            }
-
-            for (reader.Read(); reader.TokenType == JsonTokenType.PropertyName; reader.Read())
-            {
-                var outer = reader.ValueTextEquals("roleCredentials"u8);
-                reader.Read();
-                if (!outer || reader.TokenType != JsonTokenType.StartObject)
-                {
-                    reader.Skip();
-                    continue;
-                }
-
-                for (reader.Read(); reader.TokenType == JsonTokenType.PropertyName; reader.Read())
-                {
-                    var name = reader.GetString();
-                    reader.Read();
-                    switch (name)
-                    {
-                        case "accessKeyId" when reader.TokenType == JsonTokenType.String:
-                            accessKeyId = reader.GetString();
-                            break;
-                        case "secretAccessKey" when reader.TokenType == JsonTokenType.String:
-                            secretAccessKey = reader.GetString();
-                            break;
-                        case "sessionToken" when reader.TokenType == JsonTokenType.String:
-                            sessionToken = reader.GetString();
-                            break;
-                        case "expiration" when reader.TokenType == JsonTokenType.Number && reader.TryGetInt64(out var milliseconds):
-                            expiration = milliseconds;
-                            break;
-                        default:
-                            reader.Skip();
-                            break;
-                    }
-                }
-            }
-        }
-        catch (Exception exception) when (exception is JsonException or InvalidOperationException)
-        {
-            // The exception may quote the response, which holds the secret. InvalidOperationException: a string that is not valid UTF-8.
             return "the response is not a JSON object";
         }
 
-        var missing = new List<string>(4);
-        if (string.IsNullOrEmpty(accessKeyId))
+        var accessKeyId = members.GetString("accessKeyId");
+        var secretAccessKey = members.GetString("secretAccessKey");
+        var sessionToken = members.GetString("sessionToken");
+        var hasExpiration = members.TryGetInt64("expiration", out var expiration)
+            && expiration >= DateTimeOffset.MinValue.ToUnixTimeMilliseconds() && expiration <= DateTimeOffset.MaxValue.ToUnixTimeMilliseconds();
+        var missing = CredentialsJson.DescribeMissing(
+            ("accessKeyId", string.IsNullOrEmpty(accessKeyId)),
+            ("secretAccessKey", string.IsNullOrEmpty(secretAccessKey)),
+            ("sessionToken", string.IsNullOrEmpty(sessionToken)),
+            ("expiration", !hasExpiration));
+        if (missing is not null)
         {
-            missing.Add("accessKeyId");
+            return "the response does not contain roleCredentials with " + missing;
         }
 
-        if (string.IsNullOrEmpty(secretAccessKey))
-        {
-            missing.Add("secretAccessKey");
-        }
-
-        if (string.IsNullOrEmpty(sessionToken))
-        {
-            missing.Add("sessionToken");
-        }
-
-        if (expiration is not { } value || value < DateTimeOffset.MinValue.ToUnixTimeMilliseconds() || value > DateTimeOffset.MaxValue.ToUnixTimeMilliseconds())
-        {
-            missing.Add("expiration");
-        }
-
-        if (missing.Count > 0)
-        {
-            return "the response does not contain roleCredentials with " + string.Join(", ", missing);
-        }
-
-        credentials = new AwsCredentials(accessKeyId!, secretAccessKey!, sessionToken, DateTimeOffset.FromUnixTimeMilliseconds(expiration!.Value));
+        credentials = new AwsCredentials(accessKeyId!, secretAccessKey!, sessionToken, DateTimeOffset.FromUnixTimeMilliseconds(expiration));
         return null;
     }
 
     // Input:  {"accessToken":"...","tokenType":"Bearer","expiresIn":28800,"refreshToken":"..."}
     // Result: the access token, its lifetime in seconds and the refresh token if there is one; null if one of the first two is missing.
-    private static (string AccessToken, int ExpiresIn, string? RefreshToken)? TryParseCreatedToken(byte[] json)
-    {
-        string? accessToken = null, refreshToken = null;
-        int? expiresIn = null;
-        var reader = new Utf8JsonReader(json);
-        try
-        {
-            // A name comes only after the brace of an object, so a document that is no object ends the loop at once.
-            reader.Read();
-            for (reader.Read(); reader.TokenType == JsonTokenType.PropertyName; reader.Read())
-            {
-                var name = reader.GetString();
-                reader.Read();
-                switch (name)
-                {
-                    case "accessToken" when reader.TokenType == JsonTokenType.String:
-                        accessToken = reader.GetString();
-                        break;
-                    case "refreshToken" when reader.TokenType == JsonTokenType.String:
-                        refreshToken = reader.GetString();
-                        break;
-                    case "expiresIn" when reader.TokenType == JsonTokenType.Number && reader.TryGetInt32(out var seconds):
-                        expiresIn = seconds;
-                        break;
-                    default:
-                        reader.Skip();
-                        break;
-                }
-            }
-        }
-        catch (Exception exception) when (exception is JsonException or InvalidOperationException)
-        {
-            return null;
-        }
-
-        return string.IsNullOrEmpty(accessToken) || expiresIn is not { } lifetime ? null : (accessToken, lifetime, refreshToken);
-    }
+    private static (string AccessToken, int ExpiresIn, string? RefreshToken)? TryParseCreatedToken(byte[] json) =>
+        CredentialsJson.TryRead(json) is { } members
+        && members.GetString("accessToken") is { Length: > 0 } accessToken
+        && members.TryGetInt64("expiresIn", out var expiresIn) && expiresIn is >= int.MinValue and <= int.MaxValue
+            ? (accessToken, (int)expiresIn, members.GetString("refreshToken"))
+            : null;
 
     // The code of an error of the OIDC service, such as invalid_grant, which says why without the description, which may quote the request.
-    private static string? ReadOidcError(byte[] json)
-    {
-        // A body of a result without a response is empty, which is no JSON either.
-        try
-        {
-            using var document = JsonDocument.Parse(json);
-            return document.RootElement is { ValueKind: JsonValueKind.Object } root && root.TryGetProperty("error", out var error) && error.ValueKind == JsonValueKind.String
-                ? error.GetString()
-                : null;
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
+    // A body of a result without a response is empty, which is no JSON either.
+    private static string? ReadOidcError(byte[] json) => CredentialsJson.TryRead(json)?.GetString("error");
 
     // The status codes of the errors of GetRoleCredentials in botocore's sso/2019-06-10/service-2.json, and 403, which the portal sends for a role it does not give the user.
     private string DescribeRejection(HttpStatusCode status) => (int)status switch
@@ -350,7 +248,7 @@ public sealed class SsoCredentialsProvider : IRefreshableCredentialsProvider
         }
 
         var token = SsoToken.Parse(text);
-        return token is { AccessToken.Length: > 0 } && SsoToken.ParseTime(token.ExpiresAt) is { } expiresAt
+        return token is { AccessToken.Length: > 0 } && CredentialsJson.ParseTime(token.ExpiresAt) is { } expiresAt
             ? (path, token, expiresAt)
             : throw LoginNeeded("is not valid");
     }
@@ -360,7 +258,7 @@ public sealed class SsoCredentialsProvider : IRefreshableCredentialsProvider
     private async ValueTask<(SsoToken Token, DateTimeOffset ExpiresAt)?> TryRefreshTokenAsync(string path, SsoToken token)
     {
         var now = _dependencies.TimeProvider.GetUtcNow();
-        if (token.RefreshToken is null || token.ClientId is null || token.ClientSecret is null || SsoToken.ParseTime(token.RegistrationExpiresAt) is not { } registrationExpiresAt)
+        if (token.RefreshToken is null || token.ClientId is null || token.ClientSecret is null || CredentialsJson.ParseTime(token.RegistrationExpiresAt) is not { } registrationExpiresAt)
         {
             return null;
         }

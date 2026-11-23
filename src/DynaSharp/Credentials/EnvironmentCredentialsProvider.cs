@@ -114,10 +114,8 @@ public sealed class EnvironmentCredentialsProvider : IRefreshableCredentialsProv
         if (_getEnvironmentVariable(ExpirationVariable) is { Length: > 0 } text)
         {
             // The value is not echoed, as for the other variables of credentials.
-            if (!DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsed))
-            {
-                throw new CredentialsUnavailableException($"{ExpirationVariable} is not an ISO 8601 time, such as 2026-11-03T12:00:00Z.");
-            }
+            var parsed = CredentialsJson.ParseTime(text)
+                ?? throw new CredentialsUnavailableException($"{ExpirationVariable} is not an ISO 8601 time, such as 2026-11-03T12:00:00Z.");
 
             if (parsed <= _timeProvider.GetUtcNow())
             {

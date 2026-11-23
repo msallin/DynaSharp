@@ -51,38 +51,6 @@ public sealed class SsoTokenTests
     }
 
     [Test]
-    [Arguments("2026-11-03T20:00:00Z", "2026-11-03T20:00:00.0000000+00:00")]
-    [Arguments("2026-11-03T20:00:00UTC", "2026-11-03T20:00:00.0000000+00:00")]
-    [Arguments("2026-11-03T22:00:00+02:00", "2026-11-03T20:00:00.0000000+00:00")]
-    [Arguments("2026-11-03T20:00:00", "2026-11-03T20:00:00.0000000+00:00")]
-    public async Task ParseTime_FormsOfTheCliAndOfBotocore_AreUtc(string text, string expected)
-    {
-        // Arrange
-
-        // Act
-        var time = SsoToken.ParseTime(text);
-
-        // Assert
-        await Assert.That(time?.ToString("O", System.Globalization.CultureInfo.InvariantCulture)).IsEqualTo(expected);
-    }
-
-    [Test]
-    [Arguments(null)]
-    [Arguments("")]
-    [Arguments("tomorrow")]
-    [Arguments("UTC")]
-    public async Task ParseTime_NoTime_ReturnsNull(string? text)
-    {
-        // Arrange
-
-        // Act
-        var time = SsoToken.ParseTime(text);
-
-        // Assert
-        await Assert.That(time).IsNull();
-    }
-
-    [Test]
     public async Task ToJson_RefreshedToken_WritesTheMembersInTheOrderOfBotocore()
     {
         // Arrange

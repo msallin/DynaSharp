@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
 namespace DynaSharp.Credentials;
@@ -80,65 +79,19 @@ internal sealed class ProcessCredentialsProvider : IRefreshableCredentialsProvid
     // Result: the four fields and whether Version is the number 1. A member of another type counts as missing.
     private static bool TryParse(byte[] json, out Document document)
     {
-        document = default;
-        var reader = new Utf8JsonReader(json);
-        try
+        if (CredentialsJson.TryRead(json) is not { } members)
         {
-            // With all of the input at hand, the reader throws where it runs out of it, so Read never returns false here.
-            reader.Read();
-            if (reader.TokenType != JsonTokenType.StartObject)
-            {
-                return false;
-            }
-
-            for (reader.Read(); reader.TokenType == JsonTokenType.PropertyName; reader.Read())
-            {
-                if (reader.ValueTextEquals("Version"u8))
-                {
-                    reader.Read();
-                    document = document with { IsVersion1 = reader.TokenType == JsonTokenType.Number && reader.TryGetDouble(out var version) && version == 1 };
-                    reader.Skip();
-                }
-                else if (reader.ValueTextEquals("AccessKeyId"u8))
-                {
-                    document = document with { AccessKeyId = ReadString(ref reader) };
-                }
-                else if (reader.ValueTextEquals("SecretAccessKey"u8))
-                {
-                    document = document with { SecretAccessKey = ReadString(ref reader) };
-                }
-                else if (reader.ValueTextEquals("SessionToken"u8))
-                {
-                    document = document with { SessionToken = ReadString(ref reader) };
-                }
-                else if (reader.ValueTextEquals("Expiration"u8))
-                {
-                    document = document with { Expiration = ReadString(ref reader) };
-                }
-                else
-                {
-                    // On a name, Skip passes its value too.
-                    reader.Skip();
-                }
-            }
-        }
-        catch (Exception exception) when (exception is JsonException or InvalidOperationException)
-        {
-            // The exception may quote the output, so it goes no further. InvalidOperationException: a string that is not valid UTF-8.
             document = default;
             return false;
         }
 
+        document = new Document(
+            members.TryGetDouble("Version", out var version) && version == 1,
+            members.GetString("AccessKeyId"),
+            members.GetString("SecretAccessKey"),
+            members.GetString("SessionToken"),
+            members.GetString("Expiration"));
         return true;
-    }
-
-    // The reader is on a property name; moves to the value and returns it if it is a string.
-    private static string? ReadString(ref Utf8JsonReader reader)
-    {
-        reader.Read();
-        var value = reader.TokenType == JsonTokenType.String ? reader.GetString() : null;
-        reader.Skip();
-        return value;
     }
 
     private CredentialsUnavailableException Failure(string reason, Exception? inner = null) =>
@@ -189,9 +142,7 @@ internal sealed class ProcessCredentialsProvider : IRefreshableCredentialsProvid
         DateTimeOffset? expiration = null;
         if (document.Expiration is { } text)
         {
-            expiration = DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsed)
-                ? parsed
-                : throw Failure("wrote an Expiration that is not a timestamp");
+            expiration = CredentialsJson.ParseTime(text) ?? throw Failure("wrote an Expiration that is not a timestamp");
         }
 
         return CredentialsOutcome.Found(new AwsCredentials(document.AccessKeyId, document.SecretAccessKey, document.SessionToken, expiration));

@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
@@ -37,69 +36,18 @@ internal sealed record SsoToken(
     /// <summary>Parses the content of a cache file.</summary>
     /// <param name="json">The content.</param>
     /// <returns>The token, or <see langword="null"/> if the content is not a JSON object.</returns>
-    public static SsoToken? Parse(string json)
-    {
-        var values = new Dictionary<string, string>(StringComparer.Ordinal);
-        var reader = new Utf8JsonReader(Encoding.UTF8.GetBytes(json));
-        try
-        {
-            // With all of the input at hand, the reader throws where it runs out of it, so Read never returns false here.
-            reader.Read();
-            if (reader.TokenType != JsonTokenType.StartObject)
-            {
-                return null;
-            }
-
-            for (reader.Read(); reader.TokenType == JsonTokenType.PropertyName; reader.Read())
-            {
-                var name = reader.GetString()!;
-                reader.Read();
-                if (reader.TokenType == JsonTokenType.String)
-                {
-                    values[name] = reader.GetString()!;
-                }
-
-                reader.Skip();
-            }
-        }
-        catch (JsonException)
-        {
-            // The exception may quote the file, which holds the token.
-            return null;
-        }
-
-        return new SsoToken(
-            values.GetValueOrDefault("startUrl"),
-            values.GetValueOrDefault("region"),
-            values.GetValueOrDefault("accessToken"),
-            values.GetValueOrDefault("expiresAt"),
-            values.GetValueOrDefault("clientId"),
-            values.GetValueOrDefault("clientSecret"),
-            values.GetValueOrDefault("registrationExpiresAt"),
-            values.GetValueOrDefault("refreshToken"));
-    }
-
-    /// <summary>
-    /// Parses a time of the file: ISO 8601, as the AWS CLI writes it (<c>2026-11-03T20:00:00Z</c>), and also with <c>UTC</c> in place of <c>Z</c>, which
-    /// botocore's JSONFileCache writes when it formats a time with <c>%Z</c>.
-    /// </summary>
-    /// <param name="text">The time, or <see langword="null"/>.</param>
-    /// <returns>The time, or <see langword="null"/> if it is missing or not a time.</returns>
-    // Input: "2026-11-03T20:00:00UTC"   Result: 2026-11-03 20:00:00 +00:00
-    public static DateTimeOffset? ParseTime(string? text)
-    {
-        if (text is null)
-        {
-            return null;
-        }
-
-        if (text.EndsWith("UTC", StringComparison.Ordinal))
-        {
-            text = string.Concat(text.AsSpan(0, text.Length - 3), "Z");
-        }
-
-        return DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var time) ? time : null;
-    }
+    public static SsoToken? Parse(string json) =>
+        CredentialsJson.TryRead(Encoding.UTF8.GetBytes(json)) is { } members
+            ? new SsoToken(
+                members.GetString("startUrl"),
+                members.GetString("region"),
+                members.GetString("accessToken"),
+                members.GetString("expiresAt"),
+                members.GetString("clientId"),
+                members.GetString("clientSecret"),
+                members.GetString("registrationExpiresAt"),
+                members.GetString("refreshToken"))
+            : null;
 
     /// <summary>Writes the token as botocore's <c>SSOTokenProvider</c> saves a refreshed one: its members in its order, and no member that is not set.</summary>
     /// <returns>The JSON.</returns>
