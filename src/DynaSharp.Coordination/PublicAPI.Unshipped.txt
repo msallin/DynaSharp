@@ -1,4 +1,5 @@
 #nullable enable
+*REMOVED*const DynaSharp.Coordination.LockTableOptions.MaxHolderLabelLength = 256 -> int
 *REMOVED*DynaSharp.Coordination.LockTable.AcquireAsync(string! name, System.TimeSpan leaseDuration, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Coordination.Lease!>!
 *REMOVED*DynaSharp.Coordination.LockTable.AcquireAsync(string! name, System.TimeSpan leaseDuration, System.TimeSpan wait, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Coordination.Lease!>!
 *REMOVED*DynaSharp.Coordination.LockTable.TryAcquireAsync(string! name, System.TimeSpan leaseDuration, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DynaSharp.Coordination.Lease?>!
