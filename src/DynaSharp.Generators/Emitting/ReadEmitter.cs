@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace DynaSharp.Generators;
 
 /// <summary>
@@ -160,28 +158,12 @@ internal static class ReadEmitter
         }
 
         code.Line("var name = reader.GetAttributeNameUtf8();");
-        code.Line("switch (name.Length)");
-        code.Open();
-        foreach (var length in candidates.OrderBy(static candidate => candidate.Attribute, StringComparer.Ordinal).GroupBy(static candidate => candidate.Utf8Length).OrderBy(static group => group.Key))
-        {
-            code.Line($"case {CodeText.Number(length.Key)}:");
-            code.Indent();
-            foreach (var candidate in length)
-            {
-                EmitCandidate(code, candidate);
-            }
-
-            code.Line("break;");
-            code.Outdent();
-        }
-
-        code.Close();
-        code.Blank();
+        code.SwitchOnUtf8("name", candidates, static candidate => candidate.Attribute, (candidate, matches) => EmitCandidate(code, candidate, matches));
     }
 
-    private static void EmitCandidate(IndentedCode code, ReadCandidate candidate)
+    private static void EmitCandidate(IndentedCode code, ReadCandidate candidate, string matches)
     {
-        code.Line($"if (global::System.MemoryExtensions.SequenceEqual(name, {CodeText.Utf8(candidate.Attribute)}))");
+        code.Line($"if ({matches})");
         code.Open();
         code.Line($"attribute = {CodeText.Literal(candidate.Attribute)};");
         foreach (var line in candidate.Lines)
@@ -211,8 +193,5 @@ internal static class ReadEmitter
     /// <summary>What a read does for one attribute name.</summary>
     /// <param name="Attribute">The attribute.</param>
     /// <param name="Lines">The statements that read its value.</param>
-    private sealed record ReadCandidate(string Attribute, IReadOnlyList<string> Lines)
-    {
-        public int Utf8Length { get; } = Encoding.UTF8.GetByteCount(Attribute);
-    }
+    private sealed record ReadCandidate(string Attribute, IReadOnlyList<string> Lines);
 }

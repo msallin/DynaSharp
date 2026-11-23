@@ -5,7 +5,6 @@ namespace DynaSharp.Generators;
 /// <param name="Identifier">The name as code, for example <c>Total</c> or <c>@class</c>.</param>
 /// <param name="ValueType">The declared type as code, with its nullability.</param>
 /// <param name="AttributeName">The DynamoDB attribute. Unused when <see cref="RestoredFromKey"/> is set.</param>
-/// <param name="AttributeNameUtf8Length">The bytes of <paramref name="AttributeName"/>, the switch key of reads.</param>
 /// <param name="Converter">The converters, or null when <see cref="RestoredFromKey"/> is set.</param>
 /// <param name="Write">When the property is written.</param>
 /// <param name="Missing">What a read does without the attribute.</param>
@@ -25,7 +24,6 @@ internal sealed record PropertyModel(
     string Identifier,
     string ValueType,
     string AttributeName,
-    int AttributeNameUtf8Length,
     ConverterModel? Converter,
     WriteCondition Write,
     MissingBehavior Missing,

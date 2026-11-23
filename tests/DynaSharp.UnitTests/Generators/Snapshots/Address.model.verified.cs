@@ -25,7 +25,6 @@ Properties:
     Identifier: Street
     ValueType: string
     AttributeName: Street
-    AttributeNameUtf8Length: 6
     Converter: ConverterModel
       WriteConverter: global::DynaSharp.Serialization.StringConverter
       ReadConverter: global::DynaSharp.Serialization.StringConverter
@@ -50,7 +49,6 @@ Properties:
     Identifier: City
     ValueType: string
     AttributeName: City
-    AttributeNameUtf8Length: 4
     Converter: ConverterModel
       WriteConverter: global::DynaSharp.Serialization.StringConverter
       ReadConverter: global::DynaSharp.Serialization.StringConverter
@@ -75,7 +73,6 @@ Properties:
     Identifier: Zip
     ValueType: string?
     AttributeName: Zip
-    AttributeNameUtf8Length: 3
     Converter: ConverterModel
       WriteConverter: global::DynaSharp.Serialization.StringConverter
       ReadConverter: global::DynaSharp.Serialization.NullableReferenceConverter<string, global::DynaSharp.Serialization.StringConverter>

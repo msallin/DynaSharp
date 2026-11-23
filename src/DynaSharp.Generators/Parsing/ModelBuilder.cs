@@ -1,4 +1,3 @@
-using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -166,7 +165,6 @@ internal sealed class ModelBuilder
             Names.Identifier(property.Name),
             Names.Of(property.Type),
             property.AttributeName,
-            Encoding.UTF8.GetByteCount(property.AttributeName),
             property.Resolved?.Model,
             write,
             MissingOf(property),

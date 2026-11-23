@@ -540,8 +540,8 @@ public sealed class ModelBuilderTests
         var mode = model.Enums.Single();
 
         // Assert
-        await Assert.That((mode.FullName, mode.ConverterName, mode.UnderlyingType, mode.StoreAsNumber, string.Join(" ", mode.Members.Select(member => $"{member.Name}:{member.Utf8Length}:{member.IsCanonical}"))))
-            .IsEqualTo(("global::Shop.Mode", "Shop_ModeConverter", "byte", false, "A:1:True Aé:3:True B:1:False"));
+        await Assert.That((mode.FullName, mode.ConverterName, mode.UnderlyingType, mode.StoreAsNumber, string.Join(" ", mode.Members.Select(member => $"{member.Name}:{member.IsCanonical}"))))
+            .IsEqualTo(("global::Shop.Mode", "Shop_ModeConverter", "byte", false, "A:True Aé:True B:False"));
     }
 
     [Test]
