@@ -6,8 +6,8 @@ A high-performance DynamoDB client for .NET. Items are mapped by a source genera
 
 **Documentation: [msallin.github.io/DynaSharp](https://msallin.github.io/DynaSharp/)**, with the full guide, the [API reference](https://msallin.github.io/DynaSharp/api/DynaSharp.html) and the [diagnostics](https://msallin.github.io/DynaSharp/diagnostics.html) of the analyzers.
 
-- **Fast:** a mapped `GetItem` or `PutItem` takes about a third of the time of EfficientDynamoDb and a sixth of the AWS SDK's `DynamoDBContext`, and a query of 100 items 9 % less than EfficientDynamoDb and a seventh of `DynamoDBContext`.
-- **Lean:** fewer bytes allocated per call than EfficientDynamoDb, from 11 % fewer for a query of 100 items to 3 times fewer for a `PutItem` (1.49 KB against 4.52 KB), and 12 to 29 times fewer than the AWS SDK's `DynamoDBContext`. See [Performance](https://msallin.github.io/DynaSharp/performance.html#benchmarks).
+- **Fast:** a mapped `GetItem` or `PutItem` takes about a third of the time of EfficientDynamoDb and a fifth to a sixth of the AWS SDK's `DynamoDBContext`, and a query of 100 items 5 % less than EfficientDynamoDb and a sixth of `DynamoDBContext`.
+- **Lean:** fewer bytes allocated per call than EfficientDynamoDb, from 11 % fewer for a query of 100 items to 3 times fewer for a `PutItem` (1.49 KB against 4.52 KB), and 12 to 26 times fewer than the AWS SDK's `DynamoDBContext`. See [Performance](https://msallin.github.io/DynaSharp/performance.html#benchmarks).
 - **Native AOT:** no reflection and no runtime code generation, see [Native AOT](https://msallin.github.io/DynaSharp/getting-started.html#native-aot).
 - **Single-table first, one table per entity just as well:** key templates, global and sparse indexes, mixed-type reads, fan-out queries, transactions across tables with typed failure reasons.
 - **Compile-time safety:** a key of the wrong entity or a clause an operation does not have fails at build time, and a broken expression is a build warning.
