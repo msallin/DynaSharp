@@ -27,7 +27,7 @@ namespace DynaSharp.Streams;
 /// Streams have their own endpoint, <c>https://streams.dynamodb.&lt;region&gt;.amazonaws.com</c>. The settings follow the same order as
 /// for <see cref="DynamoDbClient"/>, with the endpoint taken from <see cref="DynamoDbClientOptions.ServiceUrl"/>, then the
 /// <c>AWS_ENDPOINT_URL_DYNAMODB_STREAMS</c> environment variable, then <c>AWS_ENDPOINT_URL</c>, and otherwise the public endpoint of
-/// the region (<see cref="AwsRegion.DynamoDbStreamsEndpoint"/>). Region, credentials, retries, timeouts, telemetry and logging work
+/// the region. Region, credentials, retries, timeouts, telemetry and logging work
 /// as they do for <see cref="DynamoDbClient"/>, and <see cref="Requests.DynamoDbRequests"/> describes the retries, the errors and the telemetry that both share; requests are signed for the service name <c>dynamodb</c>. A client without
 /// <see cref="DynamoDbClientOptions.Credentials"/> makes its own default credentials provider, so an application that uses this client
 /// together with a <see cref="DynamoDbClient"/> on EC2 or ECS should pass one provider to both, as described there. Note that

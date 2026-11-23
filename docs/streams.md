@@ -44,7 +44,7 @@ A table has one stream at a time. Another view takes turning the stream off and 
 
 ## Creating the client
 
-Streams have their own endpoint, `https://streams.dynamodb.<region>.amazonaws.com`, which `AwsRegion.DynamoDbStreamsEndpoint` gives. `DynamoDbStreamsClient` takes the same `DynamoDbClientOptions` as `DynamoDbClient` and picks that endpoint itself, so the options of a client make the second one, which then shares its credentials:
+Streams have their own endpoint, `https://streams.dynamodb.<region>.amazonaws.com`. `DynamoDbStreamsClient` takes the same `DynamoDbClientOptions` as `DynamoDbClient` and picks that endpoint itself, so the options of a client make the second one, which then shares its credentials:
 
 ```csharp
 using DynaSharp;
