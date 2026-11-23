@@ -110,13 +110,13 @@ internal sealed class FailureClassifierTests
         yield return new("IOException", new IOException("Disk gone."), FailureKind.Permanent);
     }
 
-    // Every response the retry policy repeats, so that IsTransient cannot say false where the client retried.
-    public static IEnumerable<FailureCase> RepeatedResponses() =>
-        Failures().Where(static failure => failure is { Exception: DynamoDbException, Expected: not FailureKind.Permanent });
+    // Every failure the retry policy repeats, so that IsTransient cannot say false where the client retried.
+    public static IEnumerable<FailureCase> RepeatedFailures() =>
+        Failures().Where(static failure => failure.Expected != FailureKind.Permanent);
 
-    // Every response it does not repeat, but for the conflicts of a transaction, which IsTransient counts as passing on their own.
-    public static IEnumerable<FailureCase> SurfacedResponses() =>
-        Failures().Where(static failure => failure is { Exception: DynamoDbException { ErrorCode: not ("TransactionConflictException" or "TransactionCanceledException") }, Expected: FailureKind.Permanent });
+    // Every failure it does not repeat, but for the conflicts of a transaction, which IsTransient counts as passing on their own.
+    public static IEnumerable<FailureCase> SurfacedFailures() =>
+        Failures().Where(static failure => failure is { Exception: not DynamoDbException { ErrorCode: "TransactionConflictException" or "TransactionCanceledException" }, Expected: FailureKind.Permanent });
 
     [Test]
     [Arguments("ExpiredTokenException")]
@@ -165,26 +165,26 @@ internal sealed class FailureClassifierTests
     }
 
     [Test]
-    [MethodDataSource(nameof(RepeatedResponses))]
-    public async Task IsTransient_ResponseThatTheRetryPolicyRepeats_IsTrue(FailureCase failure)
+    [MethodDataSource(nameof(RepeatedFailures))]
+    public async Task IsTransient_FailureThatTheRetryPolicyRepeats_IsTrue(FailureCase failure)
     {
         // Arrange (the case)
 
         // Act
-        var transient = FailureClassifier.IsTransient((DynamoDbException)failure.Exception);
+        var transient = FailureClassifier.IsTransient(failure.Exception);
 
         // Assert
         await Assert.That(transient).IsTrue();
     }
 
     [Test]
-    [MethodDataSource(nameof(SurfacedResponses))]
-    public async Task IsTransient_ResponseThatTheRetryPolicySurfaces_IsFalse(FailureCase failure)
+    [MethodDataSource(nameof(SurfacedFailures))]
+    public async Task IsTransient_FailureThatTheRetryPolicySurfaces_IsFalse(FailureCase failure)
     {
         // Arrange (the case)
 
         // Act
-        var transient = FailureClassifier.IsTransient((DynamoDbException)failure.Exception);
+        var transient = FailureClassifier.IsTransient(failure.Exception);
 
         // Assert
         await Assert.That(transient).IsFalse();
