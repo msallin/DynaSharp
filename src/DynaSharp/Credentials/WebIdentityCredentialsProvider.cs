@@ -90,7 +90,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     private readonly AwsRegion? _region;
     private readonly Settings? _settings;
     private readonly RefreshingCredentialsCache _cache;
-    private int _unencryptedWarned;
+    private readonly UnencryptedEndpointWarning _unencrypted;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WebIdentityCredentialsProvider"/> class that reads its settings from the environment of the
@@ -134,6 +134,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
         _handler = dependencies.Handler;
         _timeProvider = dependencies.TimeProvider;
         _logger = dependencies.LoggerFactory.CreateLogger<WebIdentityCredentialsProvider>();
+        _unencrypted = new UnencryptedEndpointWarning(_logger, CredentialsLog.UnencryptedStsEndpoint);
         _region = clientRegion;
         _settings = settings;
         _cache = new RefreshingCredentialsCache(SourceName, _timeProvider, _logger, FetchOutcomeAsync);
@@ -248,10 +249,10 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
         {
             text = _readFile(path);
         }
-        catch (Exception exception) when (SharedConfigFiles.IsFileReadFailure(exception))
+        catch (Exception exception) when (TextFiles.IsFileReadFailure(exception))
         {
             throw new CredentialsUnavailableException(
-                $"The {SourceName} cannot be read: {SharedConfigFiles.DescribeFileReadFailure(exception)}.", exception);
+                $"The {SourceName} cannot be read: {TextFiles.DescribeFileReadFailure(exception)}.", exception);
         }
 
         var token = text?.Trim() ?? throw new CredentialsUnavailableException($"The {SourceName} does not exist.");
@@ -272,10 +273,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     {
         var settings = ResolveSettings();
         var (endpoint, _, note) = ResolveEndpoint(settings);
-        if (ClientConfiguration.IsUnencryptedRemote(endpoint) && Interlocked.Exchange(ref _unencryptedWarned, 1) == 0)
-        {
-            CredentialsLog.UnencryptedStsEndpoint(_logger, endpoint.Host);
-        }
+        _unencrypted.Check(endpoint);
 
         var http = CredentialsHttp.GetClientFor(endpoint, _handler);
 

@@ -1,4 +1,5 @@
 using System.Net;
+using DynaSharp.Configuration;
 
 namespace DynaSharp.Credentials;
 
@@ -83,6 +84,28 @@ internal static class CredentialsHttp
     /// <returns>The client. Do not dispose it.</returns>
     public static HttpClient GetClientFor(Uri endpoint, HttpMessageHandler? handler) =>
         handler is not null ? CreateClient(handler) : endpoint.IsLoopback ? SharedClient : ProxiedClient;
+
+    /// <summary>
+    /// Finds the endpoint of a service that the environment configures, <paramref name="variable"/> and then <c>AWS_ENDPOINT_URL</c>, with what a failed call
+    /// adds to its message: that <c>AWS_ENDPOINT_URL</c> redirects this service too.
+    /// </summary>
+    /// <param name="getEnvironmentVariable">Reads an environment variable.</param>
+    /// <param name="variable">The variable of the service, such as <c>AWS_ENDPOINT_URL_STS</c>.</param>
+    /// <param name="service">The name of the service in messages, such as <c>STS</c>.</param>
+    /// <returns>The endpoint, or <see langword="null"/> if none is configured, and the note, empty without an endpoint.</returns>
+    /// <exception cref="CredentialsUnavailableException">The variable that is set is no valid endpoint. The message names it, and not its value.</exception>
+    public static (Uri? Endpoint, string FailureNote) FindConfiguredEndpoint(Func<string, string?> getEnvironmentVariable, string variable, string service)
+    {
+        try
+        {
+            var (endpoint, source) = ClientConfiguration.FindEndpointInEnvironment(getEnvironmentVariable, variable);
+            return (endpoint, endpoint is null ? string.Empty : ClientConfiguration.GenericEndpointNote(source, service));
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw new CredentialsUnavailableException(exception.Message, exception);
+        }
+    }
 
     /// <summary>
     /// Sends a request until the answer is not transient, at most <see cref="MaxAttempts"/> times, one second apart. Each attempt gets 5 seconds, so a

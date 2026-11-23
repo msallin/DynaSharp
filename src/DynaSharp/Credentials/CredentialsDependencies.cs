@@ -32,7 +32,7 @@ internal sealed record CredentialsDependencies(
     /// <returns>The dependencies.</returns>
     public static CredentialsDependencies CreateDefault() => new(
         ProcessEnvironment.GetVariable,
-        SharedConfigFiles.DiskReader,
+        TextFiles.DiskReader,
         TextFiles.DiskWriter,
         CredentialProcess.Runner,
         null,

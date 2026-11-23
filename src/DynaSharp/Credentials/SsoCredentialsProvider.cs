@@ -51,7 +51,7 @@ public sealed class SsoCredentialsProvider : IRefreshableCredentialsProvider
     private readonly CredentialsDependencies _dependencies;
     private readonly ILogger _logger;
     private readonly RefreshingCredentialsCache _cache;
-    private int _unencryptedWarned;
+    private readonly UnencryptedEndpointWarning _unencrypted;
 
     /// <summary>Initializes a new instance of the <see cref="SsoCredentialsProvider"/> class.</summary>
     /// <param name="startUrl">The start URL of the portal, for example <c>https://my-sso-portal.awsapps.com/start</c>: <c>sso_start_url</c>.</param>
@@ -75,6 +75,7 @@ public sealed class SsoCredentialsProvider : IRefreshableCredentialsProvider
         _settings = settings;
         _dependencies = dependencies;
         _logger = dependencies.LoggerFactory.CreateLogger<SsoCredentialsProvider>();
+        _unencrypted = new UnencryptedEndpointWarning(_logger, CredentialsLog.UnencryptedSsoEndpoint);
         _cache = new RefreshingCredentialsCache(SourceName, dependencies.TimeProvider, _logger, FetchAsync);
     }
 
@@ -199,24 +200,9 @@ public sealed class SsoCredentialsProvider : IRefreshableCredentialsProvider
 
     private (Uri Endpoint, string FailureNote) ResolveEndpoint(string variable, Uri regional)
     {
-        Uri endpoint;
-        string note;
-        try
-        {
-            var (found, source) = ClientConfiguration.FindEndpointInEnvironment(_dependencies.GetEnvironmentVariable, variable);
-            endpoint = found ?? regional;
-            note = found is null ? string.Empty : ClientConfiguration.GenericEndpointNote(source, "SSO");
-        }
-        catch (InvalidOperationException exception)
-        {
-            throw new CredentialsUnavailableException(exception.Message, exception);
-        }
-
-        if (ClientConfiguration.IsUnencryptedRemote(endpoint) && Interlocked.Exchange(ref _unencryptedWarned, 1) == 0)
-        {
-            CredentialsLog.UnencryptedSsoEndpoint(_logger, endpoint.Host);
-        }
-
+        var (configured, note) = CredentialsHttp.FindConfiguredEndpoint(_dependencies.GetEnvironmentVariable, variable, "SSO");
+        var endpoint = configured ?? regional;
+        _unencrypted.Check(endpoint);
         return (endpoint, note);
     }
 
@@ -236,10 +222,10 @@ public sealed class SsoCredentialsProvider : IRefreshableCredentialsProvider
         {
             text = _dependencies.ReadFile(path);
         }
-        catch (Exception exception) when (SharedConfigFiles.IsFileReadFailure(exception))
+        catch (Exception exception) when (TextFiles.IsFileReadFailure(exception))
         {
             throw new CredentialsUnavailableException(
-                $"The cached SSO token of {TokenName} cannot be read: {SharedConfigFiles.DescribeFileReadFailure(exception)}.", exception);
+                $"The cached SSO token of {TokenName} cannot be read: {TextFiles.DescribeFileReadFailure(exception)}.", exception);
         }
 
         if (text is null)
@@ -308,10 +294,10 @@ public sealed class SsoCredentialsProvider : IRefreshableCredentialsProvider
             _dependencies.WriteFile(path, refreshed.ToJson());
             CredentialsLog.SsoTokenRefreshed(_logger, TokenName);
         }
-        catch (Exception exception) when (SharedConfigFiles.IsFileReadFailure(exception))
+        catch (Exception exception) when (TextFiles.IsFileReadFailure(exception))
         {
             // The new token works for this fetch all the same; the next one refreshes again.
-            CredentialsLog.SsoTokenNotSaved(_logger, exception, TokenName, SharedConfigFiles.DescribeFileReadFailure(exception));
+            CredentialsLog.SsoTokenNotSaved(_logger, exception, TokenName, TextFiles.DescribeFileReadFailure(exception));
         }
 
         return (refreshed, expiresAt);

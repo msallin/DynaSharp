@@ -45,9 +45,6 @@ internal sealed class SharedConfigFiles
         Description = description;
     }
 
-    /// <summary>Gets the default <see cref="ReadTextFile"/>, which reads from disk (see <see cref="ReadFromDisk"/>). One shared delegate, so that no call site converts a method group.</summary>
-    public static ReadTextFile DiskReader { get; } = ReadFromDisk;
-
     /// <summary>Gets what happened to each file, for example <c>credentials file 'C:\Users\a\.aws\credentials' (not found)</c>. For messages.</summary>
     public string Description { get; }
 
@@ -70,40 +67,6 @@ internal sealed class SharedConfigFiles
     /// <param name="getEnvironmentVariable">Reads an environment variable.</param>
     /// <returns><see langword="true"/> if the variable is set and not empty.</returns>
     public static bool IsProfileNamed(Func<string, string?> getEnvironmentVariable) => !string.IsNullOrEmpty(getEnvironmentVariable(ProfileVariable));
-
-    /// <summary>The default <see cref="ReadTextFile"/>: reads a UTF-8 file from disk.</summary>
-    /// <param name="path">The path of the file.</param>
-    /// <returns>The content, or <see langword="null"/> if the file or its folder does not exist.</returns>
-    public static string? ReadFromDisk(string path)
-    {
-        try
-        {
-            return File.ReadAllText(path);
-        }
-        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
-        {
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Tells whether an exception from a <see cref="ReadTextFile"/> means that the file cannot be read (permissions, I/O, a path
-    /// the platform does not support), as opposed to a bug.
-    /// </summary>
-    /// <param name="exception">The exception.</param>
-    /// <returns><see langword="true"/> if the file cannot be read.</returns>
-    public static bool IsFileReadFailure(Exception exception) =>
-        exception is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException;
-
-    /// <summary>Describes a failure for which <see cref="IsFileReadFailure"/> is true, without paths or content.</summary>
-    /// <param name="exception">The exception.</param>
-    /// <returns>For example <c>access denied</c>.</returns>
-    public static string DescribeFileReadFailure(Exception exception) => exception switch
-    {
-        UnauthorizedAccessException => "access denied",
-        IOException => "I/O error",
-        _ => "path not supported",
-    };
 
     /// <summary>Reads and parses both files. A missing or unreadable file counts as empty.</summary>
     /// <param name="getEnvironmentVariable">Reads an environment variable.</param>
@@ -266,10 +229,10 @@ internal sealed class SharedConfigFiles
         {
             text = readFile(path);
         }
-        catch (Exception exception) when (IsFileReadFailure(exception))
+        catch (Exception exception) when (TextFiles.IsFileReadFailure(exception))
         {
             // botocore also treats a file it cannot read as empty.
-            return new LoadedFile(kind, path, null, $"cannot be read: {DescribeFileReadFailure(exception)}");
+            return new LoadedFile(kind, path, null, $"cannot be read: {TextFiles.DescribeFileReadFailure(exception)}");
         }
 
         return text is null

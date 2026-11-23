@@ -91,9 +91,9 @@ internal static class Sts
             return (explicitEndpoint, null, string.Empty);
         }
 
-        if (ReadConfiguredEndpoint(getEnvironmentVariable) is ({ } configured, var source))
+        if (CredentialsHttp.FindConfiguredEndpoint(getEnvironmentVariable, EndpointVariable, "STS") is ({ } configured, var note))
         {
-            return (configured, null, ClientConfiguration.GenericEndpointNote(source, "STS"));
+            return (configured, null, note);
         }
 
         var resolved = region();
@@ -117,18 +117,6 @@ internal static class Sts
         catch (InvalidOperationException exception)
         {
             throw new CredentialsUnavailableException($"The STS endpoint depends on the region, and it is not known: {exception.Message}", exception);
-        }
-    }
-
-    private static (Uri? Endpoint, string Source) ReadConfiguredEndpoint(Func<string, string?> getEnvironmentVariable)
-    {
-        try
-        {
-            return ClientConfiguration.FindEndpointInEnvironment(getEnvironmentVariable, EndpointVariable);
-        }
-        catch (InvalidOperationException exception)
-        {
-            throw new CredentialsUnavailableException(exception.Message, exception);
         }
     }
 }
