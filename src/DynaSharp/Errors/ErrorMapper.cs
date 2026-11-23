@@ -22,6 +22,36 @@ internal static class ErrorMapper
     /// </summary>
     public const string UnrecognizedResponseCode = "UnrecognizedResponse";
 
+    // Error codes as DynamoDB sends them, which is also what ErrorCode reports. InternalServerError and RequestLimitExceeded have no "Exception" suffix on the wire.
+    // When adding an exception type: add its factory here, its wire code to Retries/FailureClassifier.cs if it is retried (or a case of IsTransient there if it passes later
+    // without a retry), a row to the tests of both and to the transience cases of DynamoDbExceptionTests, and the type to the list in the remarks of
+    // DynamoDbClientOptions.MaxAttempts. Map names the call on whichever exception a factory makes.
+    private static readonly Dictionary<string, Factory> Factories = new(StringComparer.Ordinal)
+    {
+        ["AccessDeniedException"] = static (m, r, s, _, _) => new AccessDeniedException(m, r, s),
+        ["ConditionalCheckFailedException"] = static (m, r, s, item, _) => new ConditionalCheckFailedException(m, item, r, s),
+        ["IdempotentParameterMismatchException"] = static (m, r, s, _, _) => new IdempotentParameterMismatchException(m, r, s),
+        ["ExpiredIteratorException"] = static (m, r, s, _, _) => new ExpiredIteratorException(m, r, s),
+        ["InternalServerError"] = static (m, r, s, _, _) => new InternalServerErrorException(m, r, s),
+        ["ItemCollectionSizeLimitExceededException"] = static (m, r, s, _, _) => new ItemCollectionSizeLimitExceededException(m, r, s),
+        ["LimitExceededException"] = static (m, r, s, _, _) => new LimitExceededException(m, r, s),
+        ["ProvisionedThroughputExceededException"] = static (m, r, s, _, _) => new ProvisionedThroughputExceededException(m, r, s),
+        ["ReplicatedWriteConflictException"] = static (m, r, s, _, _) => new ReplicatedWriteConflictException(m, r, s),
+        ["RequestLimitExceeded"] = static (m, r, s, _, _) => new RequestLimitExceededException(m, r, s),
+        ["ResourceInUseException"] = static (m, r, s, _, _) => new ResourceInUseException(m, r, s),
+        ["ResourceNotFoundException"] = static (m, r, s, _, _) => new ResourceNotFoundException(m, r, s),
+        ["ThrottlingException"] = static (m, r, s, _, _) => new ThrottlingException(m, r, s),
+        ["TransactionCanceledException"] = static (m, r, s, _, reasons) => new TransactionCanceledException(m, reasons, r, s),
+        ["TransactionConflictException"] = static (m, r, s, _, _) => new TransactionConflictException(m, r, s),
+        ["TransactionInProgressException"] = static (m, r, s, _, _) => new TransactionInProgressException(m, r, s),
+        ["TrimmedDataAccessException"] = static (m, r, s, _, _) => new TrimmedDataAccessException(m, r, s),
+        ["UnrecognizedClientException"] = static (m, r, s, _, _) => new UnrecognizedClientException(m, r, s),
+        ["ValidationException"] = static (m, r, s, _, _) => new ValidationException(m, r, s),
+    };
+
+    // What a factory gets of the body: the message, the request id, the status, the Item of a failed condition and the reasons of a cancelled transaction.
+    private delegate DynamoDbException Factory(string message, string? requestId, HttpStatusCode statusCode, Item? item, IReadOnlyList<CancellationReason>? cancellationReasons);
+
     /// <summary>Maps an error response.</summary>
     /// <param name="statusCode">The HTTP status code.</param>
     /// <param name="requestId">The value of the <c>x-amzn-RequestId</c> header, if any.</param>
@@ -80,34 +110,9 @@ internal static class ErrorMapper
             message = $"DynamoDB returned the error {code} (HTTP {(int)statusCode}) without a message.";
         }
 
-        // Error codes as DynamoDB sends them, which is also what ErrorCode reports. InternalServerError and RequestLimitExceeded have no "Exception" suffix on the wire.
-        // When adding an exception type: add it here, its wire code to Retries/FailureClassifier.cs if it is retried (or a case of IsTransient there if it passes later
-        // without a retry), a row to the tests of both and to the transience cases of DynamoDbExceptionTests, and the type to the list in the remarks of
-        // DynamoDbClientOptions.MaxAttempts.
-        var failure = code switch
-        {
-            "AccessDeniedException" => new AccessDeniedException(message, requestId, statusCode),
-            "ConditionalCheckFailedException" => new ConditionalCheckFailedException(message, item, requestId, statusCode),
-            "IdempotentParameterMismatchException" => new IdempotentParameterMismatchException(message, requestId, statusCode),
-            "ExpiredIteratorException" => new ExpiredIteratorException(message, requestId, statusCode),
-            "InternalServerError" => new InternalServerErrorException(message, requestId, statusCode),
-            "ItemCollectionSizeLimitExceededException" => new ItemCollectionSizeLimitExceededException(message, requestId, statusCode),
-            "LimitExceededException" => new LimitExceededException(message, requestId, statusCode),
-            "ProvisionedThroughputExceededException" => new ProvisionedThroughputExceededException(message, requestId, statusCode),
-            "ReplicatedWriteConflictException" => new ReplicatedWriteConflictException(message, requestId, statusCode),
-            "RequestLimitExceeded" => new RequestLimitExceededException(message, requestId, statusCode),
-            "ResourceInUseException" => new ResourceInUseException(message, requestId, statusCode),
-            "ResourceNotFoundException" => new ResourceNotFoundException(message, requestId, statusCode),
-            "ThrottlingException" => new ThrottlingException(message, requestId, statusCode),
-            "TransactionCanceledException" => new TransactionCanceledException(message, cancellationReasons, requestId, statusCode),
-            "TransactionConflictException" => new TransactionConflictException(message, requestId, statusCode),
-            "TransactionInProgressException" => new TransactionInProgressException(message, requestId, statusCode),
-            "TrimmedDataAccessException" => new TrimmedDataAccessException(message, requestId, statusCode),
-            "UnrecognizedClientException" => new UnrecognizedClientException(message, requestId, statusCode),
-            "ValidationException" => new ValidationException(message, requestId, statusCode),
-            _ => new DynamoDbException(message, code, statusCode, requestId),
-        };
-
+        var failure = Factories.TryGetValue(code, out var create)
+            ? create(message, requestId, statusCode, item, cancellationReasons)
+            : new DynamoDbException(message, code, statusCode, requestId);
         failure.OperationName = operationName;
         failure.TableName = tableName;
         return failure;
