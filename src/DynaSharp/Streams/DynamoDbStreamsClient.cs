@@ -544,7 +544,7 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// <param name="cancellationToken">Cancels the wait.</param>
     /// <returns>The wait.</returns>
     internal Task IdleAsync(TimeSpan delay, Task? changed, CancellationToken cancellationToken) =>
-        changed is null ? Task.Delay(delay, _core.TimeProvider, cancellationToken) : IdleUntilChangedAsync(delay, changed, cancellationToken);
+        changed is null ? _core.DelayAsync(delay, cancellationToken) : IdleUntilChangedAsync(delay, changed, cancellationToken);
 
     /// <summary>
     /// Reads a shard as <see cref="ReadShardAsync"/> does, for a request that is checked. With a <paramref name="run"/>, as <see cref="ReadStreamAsync"/> reads, a transient failure
@@ -615,8 +615,8 @@ public sealed class DynamoDbStreamsClient : IDisposable
         var delayed = Task.Delay(delay, _core.TimeProvider, timer.Token);
         if (await Task.WhenAny(changed, delayed).ConfigureAwait(false) == delayed)
         {
-            // Throws when the caller cancelled.
-            await delayed.ConfigureAwait(false);
+            // Only the caller cancels the timer before the change comes, and the exception of the delay would carry the linked token, not theirs.
+            cancellationToken.ThrowIfCancellationRequested();
         }
         else
         {

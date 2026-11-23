@@ -481,6 +481,31 @@ public sealed class DynamoDbStreamsClientReadShardTests
     }
 
     [Test]
+    public async Task ReadShardAsync_CancelledWhileWaiting_ThrowsWithTheTokenOfTheCaller()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        using var stub = new StubHandler();
+        using var streams = TestClient.CreateStreams(stub, time);
+        using var cancellation = new CancellationTokenSource();
+        stub.Enqueue(StubResponse.ShardIterator("it-1"));
+        stub.Enqueue(StubResponse.Records("it-2"));
+        var delay = TimeSpan.FromMinutes(1);
+        var reading = streams.ReadShardAsync(FromTrimHorizon() with { EmptyPageDelay = delay }, cancellation.Token).ToListAsync().AsTask();
+        while (time.NextDueIn != delay && !reading.IsCompleted)
+        {
+            await Task.Yield();
+        }
+
+        // Act
+        await cancellation.CancelAsync();
+        var failure = await TestClient.CaptureAsync<OperationCanceledException>(() => reading);
+
+        // Assert (as from a call: no TaskCanceledException of the delay)
+        await Assert.That((failure.GetType(), failure.CancellationToken == cancellation.Token)).IsEqualTo((typeof(OperationCanceledException), true));
+    }
+
+    [Test]
     public async Task ReadShardAsync_TokenOfWithCancellation_IsHonoured()
     {
         // Arrange

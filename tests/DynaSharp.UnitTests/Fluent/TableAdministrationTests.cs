@@ -728,6 +728,28 @@ public sealed class TableAdministrationTests
     }
 
     [Test]
+    public async Task WaitUntilActiveAsync_CancelledWhileItWaits_ThrowsAsACallDoes()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        using var cancellation = new CancellationTokenSource();
+        using var handler = new StubHandler(_ => StubResponse.Json(Creating));
+        using var client = TestClient.Create(handler, time);
+        var waiting = client.Table("Shop", "pk").WaitUntilActiveAsync(cancellation.Token).AsTask();
+        while (time.ArmedTimers == 0 && !waiting.IsCompleted)
+        {
+            await Task.Yield();
+        }
+
+        // Act
+        await cancellation.CancelAsync();
+        var failure = await TestClient.CaptureAsync<OperationCanceledException>(() => waiting);
+
+        // Assert (no TaskCanceledException of the delay)
+        await Assert.That(failure.GetType()).IsEqualTo(typeof(OperationCanceledException));
+    }
+
+    [Test]
     public async Task DescribeTableAsync_TimeoutOutOfRange_ThrowsSayingWhatADescribeTableTakes()
     {
         // Arrange

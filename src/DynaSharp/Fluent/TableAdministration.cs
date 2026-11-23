@@ -204,7 +204,7 @@ internal static class TableAdministration
                 throw new TableNotActiveException(OutOfTime(table.Name, timeout, status, pending), table.Name, status, pending?.Name, missing);
             }
 
-            await Task.Delay(left < ShortestDelay ? ShortestDelay : delay < left ? delay : left, clock, cancellationToken).ConfigureAwait(false);
+            await table.Core.DelayAsync(left < ShortestDelay ? ShortestDelay : delay < left ? delay : left, cancellationToken).ConfigureAwait(false);
             delay = delay * 2 < LongestDelay ? delay * 2 : LongestDelay;
         }
     }
