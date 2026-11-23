@@ -89,6 +89,6 @@ public sealed record ChangeRecord
         where T : IDynamoDbEntity<T>
     {
         // Only the callback of a reading reads the shard, and there is none here.
-        return ChangeTyping.Split<SingleChange<T>, Change<T>>(new ShardChangeRecord(string.Empty, this), null, out var change, out _) == 0 ? null : change;
+        return ChangeTyping.Split<Change<T>, Change<T>>(new ShardChangeRecord(string.Empty, this), null, out var change, out _) == 0 ? null : change;
     }
 }

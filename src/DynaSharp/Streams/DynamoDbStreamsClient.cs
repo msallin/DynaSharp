@@ -383,8 +383,9 @@ public sealed class DynamoDbStreamsClient : IDisposable
     /// <remarks>
     /// <para>
     /// This reads one stream in one process and is no consumer: nothing stores how far it got, nothing shares the shards with other processes, and there is no
-    /// position to resume at, no checkpoint store, no lease, no setting of the retries of a shard or of the buffer, and no typed record. An image is an
-    /// <see cref="Item"/>: <see cref="Item.Is{T}"/> tells the entities apart and <see cref="Item.To{T}"/> reads one. The position to keep is on each record:
+    /// position to resume at, no checkpoint store, no lease, and no setting of the retries of a shard or of the buffer. An image is an <see cref="Item"/>:
+    /// <see cref="ChangeRecord.As{T}"/> types the change of a record, and <c>ReadChangesAsync</c> of <see cref="TableStreamExtensions"/> reads the typed changes of
+    /// a table. The position to keep is on each record:
     /// <see cref="ShardChangeRecord.ShardId"/> and <see cref="ShardChangeRecord.SequenceNumber"/>, from which <see cref="ReadShardAsync"/> with
     /// <see cref="ShardIteratorType.AfterSequenceNumber"/> reads that shard on. The shard is on <see cref="ShardChangeRecord"/> and not on
     /// <see cref="ChangeRecord"/>, because <see cref="GetRecordsAsync"/> cannot know it.

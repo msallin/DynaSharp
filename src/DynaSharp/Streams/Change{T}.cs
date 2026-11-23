@@ -37,7 +37,7 @@ namespace DynaSharp.Streams;
 /// </para>
 /// </remarks>
 /// <typeparam name="T">The entity.</typeparam>
-public sealed record Change<T>
+public sealed record Change<T> : IChangeTypes<Change<T>>
     where T : IDynamoDbEntity<T>
 {
     /// <summary>
@@ -59,16 +59,16 @@ public sealed record Change<T>
     public T? After { get; init; }
 
     /// <summary>
-    /// Gets the key attributes of the item, as stored, <see cref="StreamRecord.Keys"/> of the record. DynamoDB sends them with every record: <see langword="null"/> only if the
+    /// Gets the key attributes of the item, as stored, <see cref="StreamRecord.Keys"/> of <see cref="Record"/>. DynamoDB sends them with every record: <see langword="null"/> only if the
     /// response omits them.
     /// </summary>
-    public IReadOnlyDictionary<string, AttributeValue>? Keys { get; init; }
+    public IReadOnlyDictionary<string, AttributeValue>? Keys => Record.DynamoDb?.Keys;
 
     /// <summary>
-    /// Gets the sequence number of the record, <see cref="StreamRecord.SequenceNumber"/>. Both changes of an item whose type changed have the one of their record.
+    /// Gets the sequence number of the record, <see cref="StreamRecord.SequenceNumber"/> of <see cref="Record"/>. Both changes of an item whose type changed have the one of their record.
     /// DynamoDB sends it with every record: <see langword="null"/> only if the response omits it.
     /// </summary>
-    public string? SequenceNumber { get; init; }
+    public string? SequenceNumber => Record.DynamoDb?.SequenceNumber;
 
     /// <summary>
     /// Gets the identifier to tell a record seen again by, <see cref="ChangeRecord.Id"/> of <see cref="Record"/>: the event id, or the sequence number when the event id is empty,
@@ -87,4 +87,10 @@ public sealed record Change<T>
     /// which tells a deletion by time to live.
     /// </summary>
     public required ChangeRecord Record { get; init; }
+
+    /// <inheritdoc/>
+    static int IChangeTypes<Change<T>>.FindType(Item? image) => ChangeTyping.FindType<T>(image);
+
+    /// <inheritdoc/>
+    static Change<T> IChangeTypes<Change<T>>.Create(int index, ChangeRecord record, bool before, bool after) => ChangeTyping.Create<T>(record, before, after);
 }

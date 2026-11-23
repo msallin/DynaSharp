@@ -32,4 +32,31 @@ public sealed class ChangeTests
         // Assert
         await Assert.That(value).IsEqualTo(at);
     }
+
+    [Test]
+    public async Task KeysAndSequenceNumber_Record_AreThoseOfTheRecord()
+    {
+        // Arrange
+        var keys = new Item { ["pk"] = "a" };
+        var change = new Change<Alpha> { Kind = OperationType.Insert, Record = new ChangeRecord { DynamoDb = new StreamRecord { Keys = keys, SequenceNumber = "101" } } };
+
+        // Act
+        var values = (change.Keys, change.SequenceNumber);
+
+        // Assert
+        await Assert.That(values).IsEqualTo(((IReadOnlyDictionary<string, AttributeValue>?)keys, "101"));
+    }
+
+    [Test]
+    public async Task KeysAndSequenceNumber_RecordWithoutData_AreNull()
+    {
+        // Arrange
+        var change = new Change<Alpha> { Kind = OperationType.Insert, Record = new ChangeRecord() };
+
+        // Act
+        var values = (change.Keys, change.SequenceNumber);
+
+        // Assert
+        await Assert.That(values).IsEqualTo(((IReadOnlyDictionary<string, AttributeValue>?)null, (string?)null));
+    }
 }
