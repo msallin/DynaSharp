@@ -290,7 +290,7 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
             return $"{each}new PartitionKey<{entity.Name}>({single?.ToString() ?? "..."})";
         }
 
-        if (entity.GetTypeMembers("Keys").FirstOrDefault() is not { } keys)
+        if (entity.GetTypeMembers(Names.KeysClass).FirstOrDefault() is not { } keys)
         {
             return $"Pass a key that implements IKey<{entity.Name}>";
         }
@@ -303,7 +303,7 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
     // The builders under Keys whose Of makes a partition key of the read: Pk for a table, and for an index those of the indexes, or Pk where there are none but local ones.
     private static List<INamedTypeSymbol> PartitionBuilders(INamedTypeSymbol entity, INamedTypeSymbol holder, Library library)
     {
-        var builders = entity.GetTypeMembers("Keys").SelectMany(static keys => keys.GetTypeMembers())
+        var builders = entity.GetTypeMembers(Names.KeysClass).SelectMany(static keys => keys.GetTypeMembers())
             .Where(builder => builder.GetMembers("Of").OfType<IMethodSymbol>().Any(of => SymbolEqualityComparer.Default.Equals(of.ReturnType.OriginalDefinition, library.PartitionKey)))
             .ToList();
         var table = builders.Where(static builder => builder.Name == "Pk").ToList();
@@ -355,7 +355,7 @@ internal sealed class TypeArgumentAnalyzer : DiagnosticAnalyzer
     // The attribute of a handle such as Session.Attrs.ExpiresAt when its property is the [TimeToLive] of its entity, which an instant such as a DateTimeOffset stores as seconds.
     private static string? TimeToLiveOf(SyntaxNodeAnalysisContext context, ExpressionSyntax handle, ModelCatalog models)
     {
-        if (context.SemanticModel.GetSymbolInfo(handle, context.CancellationToken).Symbol is not IPropertySymbol { ContainingType: { Name: "Attrs", ContainingType: { } type } } property
+        if (context.SemanticModel.GetSymbolInfo(handle, context.CancellationToken).Symbol is not IPropertySymbol property || DynaSharpCalls.OwnerOfHandle(property) is not { } type
             || models.ModelOf(type) is not { Entity.TimeToLiveAttribute: { } attribute } model)
         {
             return null;

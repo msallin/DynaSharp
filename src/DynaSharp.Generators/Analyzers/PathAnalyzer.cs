@@ -71,7 +71,7 @@ internal sealed class PathAnalyzer : DiagnosticAnalyzer
             {
                 case IArgumentOperation { Parameter.ContainingType: var command } when DynaSharpTypes.IsCommand(command):
                     return command;
-                case IInvocationOperation call when !DynaSharpTypes.IsDeclaredByDynaSharp(call.TargetMethod.ContainingType):
+                case IInvocationOperation call when !DynaSharpCalls.IsOfTheLibrary(call):
                     return null;
             }
         }

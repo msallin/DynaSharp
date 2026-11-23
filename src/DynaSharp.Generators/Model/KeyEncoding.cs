@@ -7,7 +7,6 @@ namespace DynaSharp.Generators;
 /// <param name="FixedWidth">The width in bytes, or 0 for a variable width. Only variable-width values are checked against delimiters.</param>
 internal abstract record KeyEncoding(int FixedWidth)
 {
-    /// <summary>The namespace of the built-in converters, as code.</summary>
     /// <summary>Gets a value indicating whether parsing returns the value that was formatted, which <c>[KeyOnly]</c> depends on.</summary>
     public virtual bool IsLossless => true;
 

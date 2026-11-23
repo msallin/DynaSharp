@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
 
 namespace DynaSharp.Generators;
 
@@ -34,6 +35,8 @@ internal sealed class DiscardedCommandCodeFix : CodeFixProvider
 
     private const string Discard = "_";
 
+    private const string SendCall = "SendAsync()";
+
     /// <inheritdoc/>
     public override ImmutableArray<string> FixableDiagnosticIds { get; } = [Descriptors.CommandDiscarded.Id];
 
@@ -57,31 +60,28 @@ internal sealed class DiscardedCommandCodeFix : CodeFixProvider
                     && model.GetSymbolInfo(name, context.CancellationToken).Symbol is ILocalSymbol local
                     && SymbolEqualityComparer.Default.Equals(local.Type, model.GetTypeInfo(command, context.CancellationToken).Type))
                 {
-                    Register(context, root, diagnostic, "Assign it back to '" + local.Name + "'", AssignKey, command, Assigned(local.Name, command));
+                    Register(context, diagnostic, "Assign it back to '" + local.Name + "'", AssignKey, Assigned(local.Name, command));
                 }
             }
             else if (CanAwait(model, command, context.CancellationToken))
             {
-                var send = (InvocationExpressionSyntax)ChainSyntax.Append(command, ["SendAsync()"]);
-                if (model.GetSpeculativeSymbolInfo(command.SpanStart, send, SpeculativeBindingOption.BindAsExpression).Symbol is not null)
+                if (model.GetSpeculativeSymbolInfo(command.SpanStart, ChainSyntax.WithCall(command, SendCall), SpeculativeBindingOption.BindAsExpression).Symbol is not null)
                 {
-                    var awaited = SyntaxFactory.AwaitExpression(SyntaxFactory.Token(default, SyntaxKind.AwaitKeyword, SyntaxFactory.TriviaList(SyntaxFactory.Space)), send.WithoutLeadingTrivia())
-                        .WithLeadingTrivia(send.GetLeadingTrivia());
-                    Register(context, root, diagnostic, "Send it with await and SendAsync()", SendKey, command, awaited);
+                    Register(context, diagnostic, "Send it with await and SendAsync()", SendKey, new TextChange(new TextSpan(command.SpanStart, 0), "await "), ChainSyntax.Append(command, [SendCall]));
                 }
             }
 
             if (model.LookupSymbols(command.SpanStart, name: Discard).IsEmpty)
             {
-                Register(context, root, diagnostic, "Discard it with _ =", DiscardKey, command, Assigned(Discard, command));
+                Register(context, diagnostic, "Discard it with _ =", DiscardKey, Assigned(Discard, command));
             }
         }
     }
 
-    private static void Register(CodeFixContext context, SyntaxNode root, Diagnostic diagnostic, string title, string key, ExpressionSyntax command, ExpressionSyntax replacement)
+    private static void Register(CodeFixContext context, Diagnostic diagnostic, string title, string key, params TextChange[] changes)
     {
         var document = context.Document;
-        context.RegisterCodeFix(CodeAction.Create(title, _ => Task.FromResult(document.WithSyntaxRoot(root.ReplaceNode(command, replacement))), key), diagnostic);
+        context.RegisterCodeFix(CodeAction.Create(title, token => SourceEdits.ApplyAsync(document, changes, token), key), diagnostic);
     }
 
     // query.Descending().Limit(5) starts at query: down the receivers of the calls, extension methods of the library included, which are written as calls on their receiver.
@@ -100,10 +100,5 @@ internal sealed class DiscardedCommandCodeFix : CodeFixProvider
         model.GetEnclosingSymbol(command.SpanStart, token) is IMethodSymbol { IsAsync: true }
         && command.FirstAncestorOrSelf<SyntaxNode>(static node => node is LockStatementSyntax or AnonymousFunctionExpressionSyntax or LocalFunctionStatementSyntax or MemberDeclarationSyntax) is not LockStatementSyntax;
 
-    private static AssignmentExpressionSyntax Assigned(string name, ExpressionSyntax command) =>
-        SyntaxFactory.AssignmentExpression(
-            SyntaxKind.SimpleAssignmentExpression,
-            SyntaxFactory.IdentifierName(name).WithLeadingTrivia(command.GetLeadingTrivia()).WithTrailingTrivia(SyntaxFactory.Space),
-            SyntaxFactory.Token(default, SyntaxKind.EqualsToken, SyntaxFactory.TriviaList(SyntaxFactory.Space)),
-            command.WithoutLeadingTrivia());
+    private static TextChange Assigned(string name, ExpressionSyntax command) => new(new TextSpan(command.SpanStart, 0), name + " = ");
 }

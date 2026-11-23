@@ -20,9 +20,6 @@ namespace DynaSharp.Generators;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 internal sealed class ReadTerminalAnalyzer : DiagnosticAnalyzer
 {
-    /// <summary>The property of a DYNA234 with the terminal that streams the items, which the fix inserts.</summary>
-    internal const string TerminalProperty = "Terminal";
-
     private const string SendTerminal = "SendAsync";
 
     private const string ItemsTerminal = "ItemsAsync";
@@ -83,8 +80,8 @@ internal sealed class ReadTerminalAnalyzer : DiagnosticAnalyzer
         {
             // A read after Select ends in values and has no ItemsAsync.
             var terminal = read.GetMembers(ItemsTerminal).IsEmpty ? ValuesTerminal : ItemsTerminal;
-            var properties = ImmutableDictionary<string, string?>.Empty.Add(TerminalProperty, terminal);
-            context.ReportDiagnostic(Diagnostic.Create(Descriptors.ItemMethodOnRead, access.Name.GetLocation(), properties, name, terminal));
+            var edit = SuggestedEdit.Of("Call " + terminal + "() before " + name, ChainSyntax.Append(access.Expression, [terminal + "()"]));
+            context.ReportDiagnostic(SuggestedEdit.Create(Descriptors.ItemMethodOnRead, access.Name.GetLocation(), [edit], name, terminal));
         }
     }
 

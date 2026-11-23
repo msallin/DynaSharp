@@ -28,4 +28,20 @@ internal sealed record EntityModel(
     /// <summary>Returns every key of the table and its indexes.</summary>
     /// <returns>The keys.</returns>
     public IEnumerable<KeyModel> Keys() => TableKeys().Concat(Indexes.SelectMany(static index => index.Keys()));
+
+    /// <summary>Whether a property feeds a key of the table, itself or through a computed input.</summary>
+    /// <param name="property">The property.</param>
+    /// <returns>Whether an update of it by handle throws, because DynamoDB cannot update a key.</returns>
+    public bool FeedsTableKey(string property) =>
+        TableKeys().Any(key => key.Holds(property) || ComputedInputs.Any(input => input.Dependencies.Contains(property) && key.Holds(input.Property)));
+
+    /// <summary>The keys of indexes that a computed input feeds, for that input and for each property it is derived from.</summary>
+    /// <param name="property">A property a handle writes.</param>
+    /// <returns>The computed input, the index and the key, for each key the property reaches through a getter.</returns>
+    public IEnumerable<(string Input, string Index, KeyModel Key)> IndexKeysDerivedFrom(string property) =>
+        from input in ComputedInputs.Where(input => input.Property == property || input.Dependencies.Contains(property))
+        from index in Indexes
+        from key in index.Keys()
+        where key.Holds(input.Property)
+        select (input.Property, index.IndexName, key);
 }

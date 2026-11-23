@@ -22,7 +22,12 @@ namespace DynaSharp.Generators;
 /// <item><c>DYNA224</c>: the builder of the key the query reads.</item>
 /// <item><c>DYNA227</c>: <c>GetValueOrDefault()</c>, or <c>result.Found ? result.Value : default</c>.</item>
 /// <item><c>DYNA233</c>: <c>Set</c> for <c>Add</c>.</item>
+/// <item><c>DYNA234</c>: <c>ItemsAsync()</c> before the method of LINQ, or <c>ValuesAsync()</c> after <c>Select</c>.</item>
 /// <item><c>DYNA235</c>: <c>IfVersion(n)</c> removed, or replaced with <c>IgnoreVersion()</c>.</item>
+/// <item><c>DYNA236</c>: <c>IgnoreVersion()</c> after the first write of the batch to a table of a versioned entity.</item>
+/// <item><c>DYNA237</c>: <c>DateTimeKind.Utc</c> as the last argument of the constructor, after midnight for a date.</item>
+/// <item><c>DYNA239</c>: <c>IgnoreVersion()</c>, or <c>IfVersion(version)</c> with a name nothing in scope has, right after the verb.</item>
+/// <item><c>DYNA240</c>: an <c>Including&lt;T&gt;()</c> for each entity left out, after <c>CreateTable()</c>.</item>
 /// <item><c>DYNA241</c>: <c>IfExists()</c> after the <c>Update</c>.</item>
 /// <item><c>DYNA242</c>: <c>Set</c> for <c>Add</c>, or the handle of a number under the attribute, <c>Expr.Attr&lt;long&gt;("expiresAt")</c>.</item>
 /// <item><c>DYNA243</c>: <c>SetIfNotNull</c> for <c>Set</c>.</item>
@@ -44,7 +49,12 @@ internal sealed class SuggestedEditCodeFix : CodeFixProvider
         Descriptors.KeyOfAnotherAttribute.Id,
         Descriptors.ValueWithoutFound.Id,
         Descriptors.AddWithoutNumberOrSet.Id,
+        Descriptors.ItemMethodOnRead.Id,
         Descriptors.IfVersionOnPut.Id,
+        Descriptors.VersionedBatchWrite.Id,
+        Descriptors.DateTimeWithoutKind.Id,
+        Descriptors.UnsettledVersionByKey.Id,
+        Descriptors.EntityLeftOutOfTable.Id,
         Descriptors.UpdateCreatesUnreadableItem.Id,
         Descriptors.AddOnTimeToLive.Id,
         Descriptors.SetOfMaybeNull.Id,

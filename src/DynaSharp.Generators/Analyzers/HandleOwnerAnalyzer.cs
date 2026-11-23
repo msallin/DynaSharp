@@ -17,8 +17,6 @@ namespace DynaSharp.Generators;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 internal sealed class HandleOwnerAnalyzer : DiagnosticAnalyzer
 {
-    private const string HandlesClass = "Attrs";
-
     private const string HandleType = "Attr";
 
     private const string NestedPathMethod = "At";
@@ -47,7 +45,7 @@ internal sealed class HandleOwnerAnalyzer : DiagnosticAnalyzer
     private static void Analyze(OperationAnalysisContext context)
     {
         var invocation = (IInvocationOperation)context.Operation;
-        if (!DynaSharpTypes.IsDeclaredByDynaSharp(invocation.TargetMethod.ContainingType) || !DynaSharpTypes.IsRefStruct(ReceiverOf(invocation)?.Type))
+        if (!DynaSharpCalls.IsOfTheLibrary(invocation) || !DynaSharpTypes.IsRefStruct(DynaSharpCalls.ReceiverOf(invocation)?.Type))
         {
             return;
         }
@@ -58,24 +56,20 @@ internal sealed class HandleOwnerAnalyzer : DiagnosticAnalyzer
             CollectHandles(argument.Value, handles);
         }
 
-        if (handles.Count > 0 && TypesOf(ReceiverOf(invocation)) is { Count: > 0 } types)
+        if (handles.Count > 0 && TypesOf(DynaSharpCalls.ReceiverOf(invocation)) is { Count: > 0 } types)
         {
             foreach (var handle in handles)
             {
                 var owner = handle.Property.ContainingType.ContainingType;
                 if (!types.Exists(type => AreRelated(owner, type)))
                 {
-                    var name = $"{owner.Name}.{HandlesClass}.{handle.Property.Name}";
+                    var name = $"{owner.Name}.{Names.HandlesClass}.{handle.Property.Name}";
                     var commandTypes = string.Join(", ", types.Select(static type => type.Name));
                     context.ReportDiagnostic(Diagnostic.Create(Descriptors.HandleOfAnotherType, handle.Syntax.GetLocation(), name, owner.Name, commandTypes));
                 }
             }
         }
     }
-
-    // A command is the instance, and for a method of an extension class the first argument, which is no value of the clause.
-    private static IOperation? ReceiverOf(IInvocationOperation invocation) =>
-        invocation.TargetMethod.IsExtensionMethod ? invocation.Arguments[0].Value : invocation.Instance;
 
     private static IEnumerable<IArgumentOperation> ArgumentsOf(IInvocationOperation invocation) =>
         invocation.TargetMethod.IsExtensionMethod ? invocation.Arguments.Skip(1) : invocation.Arguments;
@@ -87,9 +81,9 @@ internal sealed class HandleOwnerAnalyzer : DiagnosticAnalyzer
             case IPropertyReferenceOperation reference when IsHandle(reference.Property):
                 handles.Add(reference);
                 return;
-            case IInvocationOperation { TargetMethod.Name: ValueMethod } value when DynaSharpTypes.IsDeclaredByDynaSharp(value.TargetMethod.ContainingType):
+            case IInvocationOperation { TargetMethod.Name: ValueMethod } value when DynaSharpCalls.IsOfTheLibrary(value):
                 return;
-            case IInvocationOperation { TargetMethod.Name: NestedPathMethod } nested when DynaSharpTypes.IsDeclaredByDynaSharp(nested.TargetMethod.ContainingType):
+            case IInvocationOperation { TargetMethod.Name: NestedPathMethod } nested when DynaSharpCalls.IsOfTheLibrary(nested):
                 CollectHandles(nested.Arguments[0].Value, handles);
                 return;
         }
@@ -101,7 +95,8 @@ internal sealed class HandleOwnerAnalyzer : DiagnosticAnalyzer
     }
 
     private static bool IsHandle(IPropertySymbol property) =>
-        property is { IsStatic: true, Type.Name: HandleType, ContainingType: { Name: HandlesClass, ContainingType: { } owner } }
+        property is { IsStatic: true, Type.Name: HandleType }
+        && DynaSharpCalls.OwnerOfHandle(property) is { } owner
         && DynaSharpTypes.IsDeclaredByDynaSharp(property.Type)
         && IsMapped(owner);
 
@@ -112,7 +107,7 @@ internal sealed class HandleOwnerAnalyzer : DiagnosticAnalyzer
     private static List<INamedTypeSymbol>? TypesOf(IOperation? command) => command switch
     {
         { Type: INamedTypeSymbol { IsGenericType: true } type } => MappedArguments(type),
-        IInvocationOperation call => TypesOf(TableOf(call) ?? ReceiverOf(call)),
+        IInvocationOperation call => TypesOf(TableOf(call) ?? DynaSharpCalls.ReceiverOf(call)),
         _ => null,
     };
 

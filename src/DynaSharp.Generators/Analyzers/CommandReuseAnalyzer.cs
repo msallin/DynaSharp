@@ -3,7 +3,6 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.Operations;
 using Microsoft.CodeAnalysis.Text;
 
 namespace DynaSharp.Generators;
@@ -40,9 +39,9 @@ internal sealed class CommandReuseAnalyzer : DiagnosticAnalyzer
     {
         var reference = context.Operation;
         var model = reference.SemanticModel!;
-        if (DynaSharpTypes.IsCommand(reference.Type) && CommandFlow.IsCall(reference, model) && CommandFlow.IsUsedAgain(context.GetControlFlowGraph(), reference, VariableOf(reference), model))
+        if (DynaSharpTypes.IsCommand(reference.Type) && CommandFlow.IsCall(reference, model) && CommandFlow.IsUsedAgain(context.GetControlFlowGraph(), reference, DynaSharpCalls.VariableOf(reference), model))
         {
-            var edits = AssignBack(reference.Syntax, VariableOf(reference), reference.Type!, model, context.CancellationToken);
+            var edits = AssignBack(reference.Syntax, DynaSharpCalls.VariableOf(reference), reference.Type!, model, context.CancellationToken);
             context.ReportDiagnostic(SuggestedEdit.Create(Descriptors.CommandReused, reference.Syntax.GetLocation(), edits));
         }
     }
@@ -91,6 +90,4 @@ internal sealed class CommandReuseAnalyzer : DiagnosticAnalyzer
 
         return chain;
     }
-
-    private static ISymbol VariableOf(IOperation reference) => reference is ILocalReferenceOperation local ? local.Local : ((IParameterReferenceOperation)reference).Parameter;
 }

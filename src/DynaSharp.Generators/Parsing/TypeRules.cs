@@ -7,10 +7,6 @@ namespace DynaSharp.Generators;
 /// <summary>The rules about a type as a whole, before its members are looked at.</summary>
 internal static class TypeRules
 {
-    private const string KeysClass = "Keys";
-
-    private const string AttrsClass = "Attrs";
-
     private const string IndexesClass = "Indexes";
 
     private const string TableNameConstant = "TableName";
@@ -57,7 +53,7 @@ internal static class TypeRules
         // Both kinds get Attrs, because a nested document is addressed through the handles of its own type. Only an entity has keys.
         if (kind == MappedKind.Entity)
         {
-            CheckReservedMember(type, KeysClass, bag, spot);
+            CheckReservedMember(type, Names.KeysClass, bag, spot);
             CheckReservedMember(type, IndexesClass, bag, spot);
             if (TableNames.Of(type) is not null)
             {
@@ -65,7 +61,7 @@ internal static class TypeRules
             }
         }
 
-        CheckReservedMember(type, AttrsClass, bag, spot);
+        CheckReservedMember(type, Names.HandlesClass, bag, spot);
 
         // No member can show this: the class would be a member of a type with its own name, and that is CS0542 in the generated file.
         if (HasNameOfGeneratedClass(type, kind))
@@ -89,10 +85,10 @@ internal static class TypeRules
         AttributeReader.Find(type, WellKnownNames.UnionAttribute) is not null
         || type.AllInterfaces.Any(static candidate => candidate.ToDisplayString() == WellKnownNames.UnionInterface);
 
-    public static bool HidesKeys(INamedTypeSymbol type) => HidesInherited(type, KeysClass, WellKnownNames.EntityAttribute);
+    public static bool HidesKeys(INamedTypeSymbol type) => HidesInherited(type, Names.KeysClass, WellKnownNames.EntityAttribute);
 
     public static bool HidesAttrs(INamedTypeSymbol type) =>
-        HidesInherited(type, AttrsClass, WellKnownNames.EntityAttribute) || HidesInherited(type, AttrsClass, WellKnownNames.DocumentAttribute);
+        HidesInherited(type, Names.HandlesClass, WellKnownNames.EntityAttribute) || HidesInherited(type, Names.HandlesClass, WellKnownNames.DocumentAttribute);
 
     // A base entity has the constant only if it declares a table, on itself or through its assembly.
     public static bool HidesTableName(INamedTypeSymbol type)
@@ -128,8 +124,8 @@ internal static class TypeRules
     // Which classes a type gets decides this: a document named Keys has no Keys class, and neither has an entity without an index an Indexes class.
     private static bool HasNameOfGeneratedClass(INamedTypeSymbol type, MappedKind kind) => type.Name switch
     {
-        AttrsClass => true,
-        KeysClass => kind == MappedKind.Entity,
+        Names.HandlesClass => true,
+        Names.KeysClass => kind == MappedKind.Entity,
         IndexesClass => kind == MappedKind.Entity && DeclaresIndex(type),
         TableNameConstant => kind == MappedKind.Entity && TableNames.Of(type) is not null,
         _ => false,
@@ -206,13 +202,13 @@ internal static class TypeRules
     // The members generated into the type: Attrs into each, Keys into an entity, Indexes into an entity with an index of its own or of a base, and TableName into an entity that declares a table.
     private static List<string> GeneratedMembers(INamedTypeSymbol type, MappedKind kind)
     {
-        List<string> members = [AttrsClass];
+        List<string> members = [Names.HandlesClass];
         if (kind == MappedKind.Document)
         {
             return members;
         }
 
-        members.Add(KeysClass);
+        members.Add(Names.KeysClass);
         if (DeclaresIndex(type) || HidesIndexes(type))
         {
             members.Add(IndexesClass);

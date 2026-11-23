@@ -1,7 +1,10 @@
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
+using Microsoft.CodeAnalysis.Text;
 
 namespace DynaSharp.Generators;
 
@@ -14,17 +17,22 @@ namespace DynaSharp.Generators;
 /// Only a constructor without a <c>DateTimeKind</c> is reported, and only where it stands right there: a value in a variable, <c>default</c>, <c>DateTime.Parse</c>, a property with a converter of its
 /// own and a value given to a handle in <c>Set</c> or a condition are not followed. A <c>TryOf</c> of a key builder gives null for such a value instead of throwing, and a <c>DateTimeOffset</c> takes
 /// it for local time, so neither is reported.
+/// <para>
+/// The fix passes <c>DateTimeKind.Utc</c>: <c>new DateTime(2026, 1, 15)</c> becomes <c>new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc)</c>, and any other constructor takes the kind as its last
+/// argument, where <c>DateTime</c> has that constructor. It is not offered with named arguments, or with a <c>Calendar</c>, which has no such constructor for every length. The <c>DateOnly</c> of the
+/// message is no edit of the constructor: where the rule reports, a <c>DateTime</c> is wanted, so the property or the key would have to change its type, and with it what is stored.
+/// </para>
 /// </remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 internal sealed class DateTimeKindAnalyzer : DiagnosticAnalyzer
 {
     private const string Converter = CodeText.Serialization + "DateTimeConverter";
 
-    private const string KeysClass = "Keys";
-
     private const string TryPrefix = "Try";
 
     private const string KindType = "System.DateTimeKind";
+
+    private const string Utc = "DateTimeKind.Utc";
 
     /// <inheritdoc/>
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [Descriptors.DateTimeWithoutKind];
@@ -70,14 +78,35 @@ internal sealed class DateTimeKindAnalyzer : DiagnosticAnalyzer
         };
         if (consequence is not null)
         {
-            context.ReportDiagnostic(Diagnostic.Create(Descriptors.DateTimeWithoutKind, creation.Syntax.GetLocation(), creation.Syntax.ToString(), consequence));
+            context.ReportDiagnostic(SuggestedEdit.Create(Descriptors.DateTimeWithoutKind, creation.Syntax.GetLocation(), PassUtc(creation, constructor, kind), creation.Syntax.ToString(), consequence));
         }
+    }
+
+    // The reported constructor has arguments. What follows the last one: the kind, and for a date the time of midnight before it, as the constructor that takes a kind wants.
+    private static List<SuggestedEdit> PassUtc(IObjectCreationOperation creation, IMethodSymbol constructor, INamedTypeSymbol? kind)
+    {
+        var arguments = ((BaseObjectCreationExpressionSyntax)creation.Syntax).ArgumentList!.Arguments;
+        var integer = creation.SemanticModel!.Compilation.GetSpecialType(SpecialType.System_Int32);
+        var date = constructor.Parameters.Length == 3 && constructor.Parameters.All(parameter => SymbolEqualityComparer.Default.Equals(parameter.Type, integer));
+        ITypeSymbol[] midnight = date ? [integer, integer, integer] : [];
+        ITypeSymbol[] wanted = [.. constructor.Parameters.Select(static parameter => parameter.Type), .. midnight, kind!];
+        if (arguments.Any(static argument => argument.NameColon is not null)
+            || !constructor.ContainingType.InstanceConstructors.Any(candidate => candidate.Parameters.Select(static parameter => parameter.Type).SequenceEqual(wanted, SymbolEqualityComparer.Default)))
+        {
+            return [];
+        }
+
+        // DateTimeKind where the file can name it so, else in full.
+        var binds = creation.SemanticModel.GetSpeculativeSymbolInfo(creation.Syntax.SpanStart, SyntaxFactory.ParseExpression(Utc), SpeculativeBindingOption.BindAsExpression).Symbol is { } utc
+            && SymbolEqualityComparer.Default.Equals(utc.ContainingType, kind);
+        var text = (date ? ", 0, 0, 0, " : ", ") + (binds ? Utc : "global::System." + Utc);
+        return [new SuggestedEdit("Pass " + Utc, new TextSpan(arguments.Last().Span.End, 0), text)];
     }
 
     // Stored by DateTimeConverter, or held by a key template, where a property that takes a DateTime is a timestamp. A converter of one's own, or the default of an assembly, decides for itself.
     private static bool WritesAnInstant(TypeModel model, string property) =>
         model.Properties.Any(candidate => candidate.Name == property && candidate.Converter?.WriteConverter == Converter)
-        || (model.Entity is { } entity && entity.Keys().Any(key => EntityCommandAnalyzer.Holds(key, property)));
+        || (model.Entity is { } entity && entity.Keys().Any(key => key.Holds(property)));
 
     // A public method of the generated Keys of an entity, or of a builder nested in it: Of, Format, Between, Range, Eq and the others write the time with KeyWriter, which throws, and TryOf does not.
     private static bool IsKeyBuilder(IMethodSymbol method, ModelCatalog models)
@@ -90,7 +119,7 @@ internal sealed class DateTimeKindAnalyzer : DiagnosticAnalyzer
         // Keys is nested in the entity, and a builder in Keys.
         for (var type = method.ContainingType; type.ContainingType is { } outer; type = outer)
         {
-            if (type.Name == KeysClass)
+            if (type.Name == Names.KeysClass)
             {
                 return models.ModelOf(outer)?.Entity is not null;
             }

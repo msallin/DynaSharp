@@ -47,7 +47,7 @@ internal sealed class VersionClauseAnalyzer : DiagnosticAnalyzer
             || !FoundNothingOfTheConsumer(context.SemanticModel.GetSymbolInfo(invocation, context.CancellationToken))
             || context.SemanticModel.GetOperation(access.Expression, context.CancellationToken) is not { Type: INamedTypeSymbol type } receiver
             || !DynaSharpTypes.IsDeclaredByDynaSharp(type)
-            || EntityCommandAnalyzer.EntityOfCommand(receiver, PutVerb) is not { } entity
+            || DynaSharpCalls.EntityOfCommand(receiver, PutVerb) is not { } entity
             || models.ModelOf(entity)?.Entity is not { } model)
         {
             return;

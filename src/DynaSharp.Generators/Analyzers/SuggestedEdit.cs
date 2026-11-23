@@ -20,6 +20,12 @@ internal sealed record SuggestedEdit(string Title, TextSpan Span, string Text)
     /// <summary>The prefix of the property that holds the text of an edit, followed by its rank: <c>Fix0</c>. The span is the additional location of the same rank.</summary>
     internal const string TextProperty = "Fix";
 
+    /// <summary>An edit that makes a change of the text.</summary>
+    /// <param name="title">What the code action says it writes.</param>
+    /// <param name="change">The change.</param>
+    /// <returns>The edit.</returns>
+    public static SuggestedEdit Of(string title, TextChange change) => new(title, change.Span, change.NewText!);
+
     /// <summary>A diagnostic that carries these edits: their spans as its additional locations, their titles and texts as its properties.</summary>
     /// <param name="descriptor">The rule.</param>
     /// <param name="location">Where the diagnostic stands.</param>

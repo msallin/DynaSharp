@@ -40,7 +40,7 @@ internal sealed class ComputedFromCodeFix : TextEditCodeFix
             ? []
             : model.GetOperation(getter, token)!.DescendantsAndSelf()
                 .OfType<IPropertyReferenceOperation>()
-                .Where(static reference => ComputedGetterAnalyzer.IsOfThisInstance(reference) && !ComputedGetterAnalyzer.IsInNameOf(reference))
+                .Where(static reference => ComputedGetterAnalyzer.IsOfThisInstance(reference) && !DynaSharpCalls.IsInNameOf(reference))
                 .Select(static reference => reference.Property.Name)
                 .Where(nameable.Contains)
                 .Distinct()

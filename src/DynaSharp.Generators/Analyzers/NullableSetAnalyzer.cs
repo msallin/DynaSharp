@@ -39,12 +39,12 @@ internal sealed class NullableSetAnalyzer : DiagnosticAnalyzer
         var method = invocation.TargetMethod;
         if (method.Name != SetVerb
             || !DynaSharpTypes.IsDeclaredByDynaSharp(method.ContainingType)
-            || method.Parameters[0].Name != EntityCommandAnalyzer.HandleParameter)
+            || method.Parameters[0].Name != DynaSharpCalls.HandleParameter)
         {
             return;
         }
 
-        var handle = invocation.Arguments.First(static argument => argument.Parameter!.Name == EntityCommandAnalyzer.HandleParameter);
+        var handle = invocation.Arguments.First(static argument => argument.Parameter!.Name == DynaSharpCalls.HandleParameter);
         var value = invocation.Arguments.First(static argument => argument.Parameter!.Name == ValueParameter).Value;
         var written = (value is IConversionOperation { IsImplicit: true } conversion ? conversion.Operand : value).Syntax;
         var model = invocation.SemanticModel!;

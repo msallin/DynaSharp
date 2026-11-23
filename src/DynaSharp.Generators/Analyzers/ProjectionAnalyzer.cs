@@ -31,8 +31,6 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
 
     private const string SelectCommandSuffix = "SelectCommand";
 
-    private const string HandlesClass = "Attrs";
-
     private const string NestedPathMethod = "At";
 
     private const string NameMethod = "Attr";
@@ -67,7 +65,7 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
     private static void Analyze(OperationAnalysisContext context, ModelCatalog models)
     {
         var invocation = (IInvocationOperation)context.Operation;
-        if (!IsOfTheLibrary(invocation))
+        if (!DynaSharpCalls.IsOfTheLibrary(invocation))
         {
             return;
         }
@@ -83,12 +81,11 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static bool IsOfTheLibrary(IInvocationOperation invocation) => DynaSharpTypes.IsDeclaredByDynaSharp(invocation.TargetMethod.ContainingType);
-
     private static void AnalyzeSelect(OperationAnalysisContext context, IInvocationOperation select, ModelCatalog models)
     {
         var argument = select.Arguments[0].Value;
-        if (argument is IPropertyReferenceOperation { Property: { ContainingType: { Name: HandlesClass, ContainingType: { } owner } } handle }
+        if (argument is IPropertyReferenceOperation { Property: var handle }
+            && DynaSharpCalls.OwnerOfHandle(handle) is { } owner
             && models.ModelOf(owner) is { Entity: { } entity } model
             && WhySelectThrows(entity, model.Property(handle.Name)) is { } reason)
         {
@@ -192,17 +189,17 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
 
     // Order.Attrs.Status, as the code names it there. A member that a key restores has no attribute, so no handle reaches it.
     private static string? HandleOf(INamedTypeSymbol type, PropertyModel property, SemanticModel model, int position) =>
-        property.RestoredFromKey is null && type.GetTypeMembers(HandlesClass).Any(handles => !handles.GetMembers(property.Name).IsEmpty)
-            ? type.ToMinimalDisplayString(model, position) + "." + HandlesClass + "." + property.Name
+        property.RestoredFromKey is null && type.GetTypeMembers(Names.HandlesClass).Any(handles => !handles.GetMembers(property.Name).IsEmpty)
+            ? type.ToMinimalDisplayString(model, position) + "." + Names.HandlesClass + "." + property.Name
             : null;
 
     // Follows the chain from this call to its end. Another Project says more, and is the one to look at. What comes after Select is no entity.
     private static INamedTypeSymbol? CommandThatReads(IInvocationOperation project)
     {
         IOperation command = project;
-        while (NextCall(command) is { } next)
+        while (DynaSharpCalls.NextCall(command) is { } next)
         {
-            if (!IsOfTheLibrary(next) || next.TargetMethod.Name is ProjectVerb or SelectVerb || ReadNoItem.Contains(next.TargetMethod.Name))
+            if (!DynaSharpCalls.IsOfTheLibrary(next) || next.TargetMethod.Name is ProjectVerb or SelectVerb || ReadNoItem.Contains(next.TargetMethod.Name))
             {
                 return null;
             }
@@ -218,24 +215,15 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
         return command.Parent is IAwaitOperation or IExpressionStatementOperation ? (INamedTypeSymbol)command.Type! : null;
     }
 
-    private static IInvocationOperation? NextCall(IOperation command) => command.Parent switch
-    {
-        IInvocationOperation call when call.Instance == command => call,
-        IArgumentOperation { Parent: IInvocationOperation call } argument when call.TargetMethod.IsExtensionMethod && call.Arguments[0] == argument => call,
-        _ => null,
-    };
-
-    // A method of the library that a chain goes through is an instance or an extension method, so there is a receiver.
-    private static IOperation ReceiverOf(IInvocationOperation invocation) => invocation.Instance ?? invocation.Arguments[0].Value;
-
     // Everything the chain projects, or nothing if that is not known. The source is what the chain started from.
     private static HashSet<string>? Projected(IInvocationOperation last, ModelCatalog models, out IOperation source)
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
         source = last;
-        while (source is IInvocationOperation call && IsOfTheLibrary(call))
+        while (source is IInvocationOperation call && DynaSharpCalls.IsOfTheLibrary(call))
         {
-            source = ReceiverOf(call);
+            // A method of the library that a chain goes through is an instance or an extension method, so there is a receiver.
+            source = DynaSharpCalls.ReceiverOf(call)!;
             if (!DynaSharpTypes.IsCommand(source.Type))
             {
                 return names;
@@ -288,8 +276,8 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
     {
         { ConstantValue: { HasValue: true, Value: string path } } => PathSyntax.IsValid(path) ? PathSyntax.Root(path) : null,
         IConversionOperation conversion => RootOf(conversion.Operand, models),
-        IPropertyReferenceOperation { Property: { ContainingType: { Name: HandlesClass, ContainingType: { } owner } } handle } => models.ModelOf(owner)?.Property(handle.Name).AttributeName,
-        IInvocationOperation { TargetMethod.Name: NestedPathMethod or NameMethod } call when IsOfTheLibrary(call) => RootOf(call.Arguments[0].Value, models),
+        IPropertyReferenceOperation => DynaSharpCalls.PropertyOfHandle(value, models)?.AttributeName,
+        IInvocationOperation { TargetMethod.Name: NestedPathMethod or NameMethod } call when DynaSharpCalls.IsOfTheLibrary(call) => RootOf(call.Arguments[0].Value, models),
         IObjectCreationOperation { Type: { } type } creation when DynaSharpTypes.IsDeclaredByDynaSharp(type) => RootOf(creation.Arguments[0].Value, models),
         _ => null,
     };

@@ -8,7 +8,8 @@ namespace DynaSharp.Generators;
 
 /// <summary>
 /// DYNA240: <c>orders.CreateTable().Including&lt;Customer&gt;().SendAsync(ct)</c> where another entity declares the table of <c>Order</c> as well, in this compilation or in an assembly it references, and
-/// the chain leaves it out. The table is created without the indexes of that entity, and a local one cannot be added later. <see cref="FixProperty"/> holds the names the fix appends.
+/// the chain leaves it out. The table is created without the indexes of that entity, and a local one cannot be added later. The fix appends an <c>Including&lt;T&gt;()</c> for each, as the code names
+/// it there, in the order of their full names.
 /// </summary>
 /// <remarks>
 /// It checks the chain as written, from <c>CreateTable()</c> on a <c>Table&lt;T&gt;</c> of an entity that declares a table to the call that leaves the command: <c>SendAsync</c>, <c>ToRequest</c>,
@@ -19,12 +20,6 @@ namespace DynaSharp.Generators;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 internal sealed class LeftOutEntityAnalyzer : DiagnosticAnalyzer
 {
-    /// <summary>The property of the diagnostic with the entities to include, each as the code names it there, separated by <see cref="Separator"/>, in the order of their full names.</summary>
-    internal const string FixProperty = "Including";
-
-    /// <summary>What separates the names in <see cref="FixProperty"/>; no type name holds it.</summary>
-    internal const char Separator = ';';
-
     private const string CreateTableVerb = "CreateTable";
 
     private const string IncludingClause = "Including";
@@ -84,19 +79,19 @@ internal sealed class LeftOutEntityAnalyzer : DiagnosticAnalyzer
         var model = invocation.SemanticModel!;
         var position = invocation.Syntax.SpanStart;
         var names = missing.Select(entity => entity.ToMinimalDisplayString(model, position)).ToList();
-        var properties = ImmutableDictionary<string, string?>.Empty.Add(FixProperty, string.Join(Separator.ToString(), names));
         var listed = string.Join(", ", names.Select(static name => $"'{name}'"));
         var name = ((InvocationExpressionSyntax)invocation.Syntax).Expression switch
         {
             MemberAccessExpressionSyntax access => access.Name,
             var binding => ((MemberBindingExpressionSyntax)binding).Name,
         };
-        context.ReportDiagnostic(Diagnostic.Create(Descriptors.EntityLeftOutOfTable, name.GetLocation(), properties, owner.Name, table, listed));
+        var include = ChainSyntax.Append((ExpressionSyntax)invocation.Syntax, names.Select(static name => IncludingClause + "<" + name + ">()"));
+        context.ReportDiagnostic(SuggestedEdit.Create(Descriptors.EntityLeftOutOfTable, name.GetLocation(), [SuggestedEdit.Of("Include the entities of the table", include)], owner.Name, table, listed));
     }
 
     // client.Table<Order>("orders-test"): a name of its own may be another table than the declared one, such as one per test run.
     private static bool OpenedWithName(IOperation? table) =>
-        table is IInvocationOperation opened && DynaSharpTypes.IsDeclaredByDynaSharp(opened.TargetMethod.ContainingType)
+        table is IInvocationOperation opened && DynaSharpCalls.IsOfTheLibrary(opened)
         && opened.TargetMethod.Parameters.Any(static parameter => parameter.Type.SpecialType == SpecialType.System_String);
 
     // The entities the chain includes, up to the call that leaves the command. Null when the chain does not end in sight, or calls IncludingAll() or a method of its own on the way, which may include any entity.
@@ -107,7 +102,7 @@ internal sealed class LeftOutEntityAnalyzer : DiagnosticAnalyzer
         IOperation current = createTable;
         while (Next(current) is { } call)
         {
-            if (call.TargetMethod.Name == IncludingAllClause || !DynaSharpTypes.IsDeclaredByDynaSharp(call.TargetMethod.ContainingType))
+            if (call.TargetMethod.Name == IncludingAllClause || !DynaSharpCalls.IsOfTheLibrary(call))
             {
                 return null;
             }

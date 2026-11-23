@@ -9,8 +9,8 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
-/// <summary>The fix of DYNA240, applied in a real workspace, and compiled again to prove the result is what it should be.</summary>
-public sealed class IncludeEntitiesCodeFixTests
+/// <summary>The edit of DYNA240, applied in a real workspace, and compiled again to prove the result is what it should be.</summary>
+public sealed class SuggestedEditCodeFixIncludingTests
 {
     [Test]
     [Arguments("await orders.CreateTable().SendAsync(ct);", "await orders.CreateTable().Including<Customer>().Including<Product>().SendAsync(ct);")]
@@ -94,32 +94,6 @@ public sealed class IncludeEntitiesCodeFixTests
         await Assert.That((report, AnalyzerRun.CompilerErrors(fixedSource).Count)).IsEqualTo((string.Empty, 0));
     }
 
-    [Test]
-    public async Task FixableDiagnosticIds_IsTheRule()
-    {
-        // Arrange
-        var fix = new IncludeEntitiesCodeFix();
-
-        // Act
-        var ids = fix.FixableDiagnosticIds;
-
-        // Assert
-        await Assert.That(ids).IsEquivalentTo(["DYNA240"]);
-    }
-
-    [Test]
-    public async Task GetFixAllProvider_FixesAllInOneGo()
-    {
-        // Arrange
-        var fix = new IncludeEntitiesCodeFix();
-
-        // Act
-        var provider = fix.GetFixAllProvider();
-
-        // Assert
-        await Assert.That(provider).IsEqualTo(WellKnownFixAllProviders.BatchFixer);
-    }
-
     // A method that returns the chain, with these calls between CreateTable() and IfNotExists(), one per line.
     private static string Returned(string including) => AnalyzerRun.Member(
         "public static CreateTableCommand Command(DynamoDbClient client) =>\n    client.Table<Order>().CreateTable()\n" + including + "\n        .IfNotExists()\n        .WaitUntilActive();",
@@ -139,7 +113,7 @@ public sealed class IncludeEntitiesCodeFixTests
 
         var actions = new List<CodeAction>();
         var context = new CodeFixContext(document, diagnostic, (action, _) => actions.Add(action), CancellationToken.None);
-        await new IncludeEntitiesCodeFix().RegisterCodeFixesAsync(context);
+        await new SuggestedEditCodeFix().RegisterCodeFixesAsync(context);
 
         var operations = await actions.Single().GetOperationsAsync(CancellationToken.None);
         var solution = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;

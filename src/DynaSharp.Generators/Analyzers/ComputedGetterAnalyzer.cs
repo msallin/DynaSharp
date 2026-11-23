@@ -42,22 +42,6 @@ internal sealed class ComputedGetterAnalyzer : DiagnosticAnalyzer
     internal static bool IsOfThisInstance(IPropertyReferenceOperation reference) =>
         reference.Instance is IInstanceReferenceOperation { ReferenceKind: InstanceReferenceKind.ContainingTypeInstance };
 
-    /// <summary>Whether an operation stands inside a <c>nameof</c>, which reads nothing.</summary>
-    /// <param name="operation">The operation.</param>
-    /// <returns>True inside <c>nameof</c>.</returns>
-    internal static bool IsInNameOf(IOperation operation)
-    {
-        for (var parent = operation.Parent; parent is not null; parent = parent.Parent)
-        {
-            if (parent is INameOfOperation)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private static void Analyze(OperationBlockAnalysisContext context, ModelCatalog models)
     {
         if (context.OwningSymbol is not IMethodSymbol { MethodKind: MethodKind.PropertyGet } getter)
@@ -88,7 +72,7 @@ internal sealed class ComputedGetterAnalyzer : DiagnosticAnalyzer
             .Select(static property => property.Name)
             .ToList();
         var reported = new HashSet<string>();
-        foreach (var reference in operations.OfType<IPropertyReferenceOperation>().Where(static reference => IsOfThisInstance(reference) && !IsInNameOf(reference)))
+        foreach (var reference in operations.OfType<IPropertyReferenceOperation>().Where(static reference => IsOfThisInstance(reference) && !DynaSharpCalls.IsInNameOf(reference)))
         {
             var name = reference.Property.Name;
             if (nameable.Contains(name) && reported.Add(name))

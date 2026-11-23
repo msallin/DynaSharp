@@ -13,8 +13,6 @@ namespace DynaSharp.Generators;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 internal sealed class KeyValueAnalyzer : DiagnosticAnalyzer
 {
-    private const string KeysClass = "Keys";
-
     // A bound of these two is the last placeholder they take, once as the lower and once as the upper one: Between(leading..., from, to).
     private static readonly HashSet<string> Ranges = ["Between", "Range"];
 
@@ -67,8 +65,8 @@ internal sealed class KeyValueAnalyzer : DiagnosticAnalyzer
     private static Func<IParameterSymbol, IEnumerable<(KeyTemplate Template, PlaceholderSegment Placeholder)>>? PlaceholdersOf(IMethodSymbol method, ModelCatalog models)
     {
         var type = method.ContainingType;
-        var isBuilder = type.Name != KeysClass;
-        if ((isBuilder ? type.ContainingType : type) is not { Name: KeysClass, ContainingType: { } owner } || models.ModelOf(owner)?.Entity is not { } entity)
+        var isBuilder = type.Name != Names.KeysClass;
+        if ((isBuilder ? type.ContainingType : type) is not { Name: Names.KeysClass, ContainingType: { } owner } || models.ModelOf(owner)?.Entity is not { } entity)
         {
             return null;
         }

@@ -3,14 +3,14 @@ using Microsoft.CodeAnalysis.CodeFixes;
 
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
-/// <summary>The fixes of DYNA239 and DYNA236, applied in a real workspace to what <see cref="EntityCommandAnalyzer"/> reports there, and analyzed again.</summary>
-public sealed class SettleVersionCodeFixTests
+/// <summary>The edits of DYNA239 and DYNA236, applied in a real workspace to what <see cref="EntityCommandAnalyzer"/> reports there, and analyzed again.</summary>
+public sealed class SuggestedEditCodeFixVersionTests
 {
-    private const string Ignore = SettleVersionCodeFix.IgnoreKey;
+    private const string Ignore = "DYNA239.0";
 
-    private const string IfVersion = SettleVersionCodeFix.IfVersionKey;
+    private const string IfVersion = "DYNA239.1";
 
-    private const string Batch = SettleVersionCodeFix.BatchKey;
+    private const string Batch = "DYNA236.0";
 
     private const string Model = """
 
@@ -36,7 +36,7 @@ public sealed class SettleVersionCodeFixTests
 
         """;
 
-    private static readonly CodeFixRun Fixture = new(new SettleVersionCodeFix(), analyzer: new EntityCommandAnalyzer()) { Model = Model };
+    private static readonly CodeFixRun Fixture = new(new SuggestedEditCodeFix(), analyzer: new EntityCommandAnalyzer()) { Model = Model };
 
     [Test]
     [Arguments(Ignore, """_ = locks.Update(lockKey).Set(Locked.Attrs.Owner, "o").ToRequestJson();""", """_ = locks.Update(lockKey).IgnoreVersion().Set(Locked.Attrs.Owner, "o").ToRequestJson();""")]
@@ -176,32 +176,6 @@ public sealed class SettleVersionCodeFixTests
 
         // Assert
         await Assert.That(fixedSource).IsEqualTo(Run("_ = client.TransactWrite().Update(locks, lockKey).IgnoreVersion().Delete(locks, lockKey).IgnoreVersion().ToRequestJson(); _ = locks.Delete(lockKey).IgnoreVersion().ToRequestJson();"));
-    }
-
-    [Test]
-    public async Task FixableDiagnosticIds_AreTheRules()
-    {
-        // Arrange
-        var fix = new SettleVersionCodeFix();
-
-        // Act
-        var ids = fix.FixableDiagnosticIds;
-
-        // Assert
-        await Assert.That(ids).IsEquivalentTo(["DYNA239", "DYNA236"]);
-    }
-
-    [Test]
-    public async Task GetFixAllProvider_FixesAllInOneGo()
-    {
-        // Arrange
-        var fix = new SettleVersionCodeFix();
-
-        // Act
-        var provider = fix.GetFixAllProvider();
-
-        // Assert
-        await Assert.That(provider).IsEqualTo(WellKnownFixAllProviders.BatchFixer);
     }
 
     private static string Run(string statements) => AnalyzerRun.Member(Fields + "public static void Run()\n{\n" + statements + "\n}\n");

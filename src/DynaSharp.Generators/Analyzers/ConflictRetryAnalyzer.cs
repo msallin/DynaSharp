@@ -157,7 +157,7 @@ internal sealed class ConflictRetryAnalyzer : DiagnosticAnalyzer
         {
             if (VersionOf(call, models) is { } version
                 && OriginOf(version.Value, version.Property) is var origin and (ILocalReferenceOperation or IParameterReferenceOperation)
-                && VariableOf(origin) is var variable)
+                && DynaSharpCalls.VariableOf(origin) is var variable)
             {
                 flow ??= retry.SemanticModel!.AnalyzeDataFlow(RegionOf(run));
                 if (flow.Captured.Contains(variable, SymbolEqualityComparer.Default)
@@ -178,13 +178,11 @@ internal sealed class ConflictRetryAnalyzer : DiagnosticAnalyzer
     // Captured names a parameter of a lambda inside the delegate as well, when a lambda inside that uses it.
     private static bool IsDeclaredIn(IBlockOperation run, ISymbol variable) => run.Syntax.Span.Contains(variable.Locations[0].SourceSpan);
 
-    private static ISymbol VariableOf(IOperation reference) => reference is ILocalReferenceOperation local ? local.Local : ((IParameterReferenceOperation)reference).Parameter;
-
     // What a write takes its version from. A delete by entity cannot mean a new item, which version 0 would not delete, so it counts what a put does not, and IfVersion and IgnoreVersion
     // take the version of the entity out of a chain. A batch writes nothing with a version, and a delete in a transaction goes by key.
     private static WrittenVersion? VersionOf(IInvocationOperation call, ModelCatalog models)
     {
-        if (!DynaSharpTypes.IsDeclaredByDynaSharp(call.TargetMethod.ContainingType))
+        if (!DynaSharpCalls.IsOfTheLibrary(call))
         {
             return null;
         }
@@ -199,8 +197,8 @@ internal sealed class ConflictRetryAnalyzer : DiagnosticAnalyzer
             && call.Arguments.FirstOrDefault(static argument => argument.Parameter!.Name is "item" or "entity") is { } item
             && item.Parameter!.Type is INamedTypeSymbol type
             && models.ModelOf(type)?.Entity?.VersionProperty is { } property
-            && !EntityCommandAnalyzer.ChainCalls(call, IgnoreVersion)
-            && !EntityCommandAnalyzer.ChainCalls(call, IfVersion))
+            && !DynaSharpCalls.ChainCalls(call, IgnoreVersion)
+            && !DynaSharpCalls.ChainCalls(call, IfVersion))
         {
             return new WrittenVersion(item.Value, property, call.TargetMethod.Name == Delete);
         }
@@ -267,7 +265,7 @@ internal sealed class ConflictRetryAnalyzer : DiagnosticAnalyzer
         };
     }
 
-    private static bool IsLibrary(IInvocationOperation call) => DynaSharpTypes.IsDeclaredByDynaSharp(call.TargetMethod.ContainingType);
+    private static bool IsLibrary(IInvocationOperation call) => DynaSharpCalls.IsOfTheLibrary(call);
 
     // Whether what is in a variable is a version from before the retry, by what it was assigned. A local function or a lambda that assigns it may do so during a run. One more local is followed, which
     // is as far as `var version = order.Revision;` goes.

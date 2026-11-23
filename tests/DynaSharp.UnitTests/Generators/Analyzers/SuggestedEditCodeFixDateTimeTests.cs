@@ -3,10 +3,10 @@ using Microsoft.CodeAnalysis.CodeFixes;
 
 namespace DynaSharp.UnitTests.Generators.Analyzers;
 
-/// <summary>The fix of DYNA237, applied in a real workspace to what the analyzer reports there, and analyzed and compiled again.</summary>
-public sealed class DateTimeKindCodeFixTests
+/// <summary>The edit of DYNA237, applied in a real workspace to what the analyzer reports there, and analyzed and compiled again.</summary>
+public sealed class SuggestedEditCodeFixDateTimeTests
 {
-    private const string Key = DateTimeKindCodeFix.Key;
+    private const string Key = "DYNA237.0";
 
     private const string Header = "using DynaSharp.Mapping;\n\nnamespace Shop;\n\n";
 
@@ -24,7 +24,7 @@ public sealed class DateTimeKindCodeFixTests
             public static Shift Plan() => new Shift { Id = "a", Start =
         """;
 
-    private static readonly CodeFixRun Run = new(new DateTimeKindCodeFix(), "DYNA237", new DateTimeKindAnalyzer());
+    private static readonly CodeFixRun Run = new(new SuggestedEditCodeFix(), "DYNA237", new DateTimeKindAnalyzer());
 
     [Test]
     [Arguments("new DateTime(2026, 1, 15)", "new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc)")]
@@ -116,18 +116,5 @@ public sealed class DateTimeKindCodeFixTests
         await Assert.That(fixedFiles["Consumer0/Code.cs"]).IsEqualTo(source
             .Replace("(2026, 1, 15)", "(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc)", StringComparison.Ordinal)
             .Replace("(2026, 1, 15, 22, 0, 0)", "(2026, 1, 15, 22, 0, 0, DateTimeKind.Utc)", StringComparison.Ordinal));
-    }
-
-    [Test]
-    public async Task FixableDiagnosticIds_IsTheRule()
-    {
-        // Arrange
-        var fix = new DateTimeKindCodeFix();
-
-        // Act
-        var ids = fix.FixableDiagnosticIds;
-
-        // Assert
-        await Assert.That(ids).IsEquivalentTo(["DYNA237"]);
     }
 }

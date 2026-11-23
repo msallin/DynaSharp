@@ -780,7 +780,7 @@ internal sealed class EntityKeyBuilder(
     }
 
     private IEnumerable<KeyModel> KeysFedBy(PropertyFacts property) =>
-        _keys.Where(key => key.PlainProperty == property.Name || (key.Template?.Placeholders() ?? []).Any(placeholder => placeholder.Property == property.Name));
+        _keys.Where(key => key.Holds(property.Name));
 
     // A property that is a key has only the converter to go by. A read that took it for missing would give an entity with another key, which the next Put writes somewhere else.
     private void KeepKeysFromMissing()
