@@ -26,9 +26,6 @@ internal static class JsonBridge
     /// <summary>The settings for the text of a <see cref="JsonElement"/>, which its document may have parsed with comments or trailing commas.</summary>
     internal static readonly JsonReaderOptions ElementOptions = new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
 
-    /// <summary>The settings for a <see cref="JsonElement"/> made from a value, which has the levels of DynamoDB, or of a value built by hand that a write would refuse.</summary>
-    internal static readonly JsonDocumentOptions DocumentOptions = new() { MaxDepth = WireJson.ReaderOptions.MaxDepth };
-
     /// <summary>Writes one JSON value as one attribute value.</summary>
     /// <param name="writer">The writer, positioned where a value is expected.</param>
     /// <param name="utf8Json">The JSON.</param>

@@ -306,7 +306,7 @@ public readonly struct AttributeValue : IEquatable<AttributeValue>
             WriteJson(json);
         }
 
-        return JsonElement.Parse(buffer.WrittenSpan, JsonBridge.DocumentOptions);
+        return JsonElement.Parse(buffer.WrittenSpan, WireJson.DocumentOptions);
     }
 
     /// <summary>

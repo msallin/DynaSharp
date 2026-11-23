@@ -48,6 +48,6 @@ public readonly struct JsonElementConverter : IDynamoDbConverter<JsonElement>
             JsonBridge.Read(ref reader, type, json);
         }
 
-        return JsonElement.Parse(buffer.WrittenSpan, JsonBridge.DocumentOptions);
+        return JsonElement.Parse(buffer.WrittenSpan, WireJson.DocumentOptions);
     }
 }

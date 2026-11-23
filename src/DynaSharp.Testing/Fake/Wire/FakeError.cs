@@ -157,7 +157,7 @@ internal sealed class FakeError : Exception
     public byte[] RenderBody()
     {
         var buffer = new ArrayBufferWriter<byte>();
-        using (var json = new Utf8JsonWriter(buffer, WireJson.WriterOptions))
+        using (var json = WireJson.CreateWriter(buffer))
         {
             json.WriteStartObject();
             json.WriteString("__type", Type);
