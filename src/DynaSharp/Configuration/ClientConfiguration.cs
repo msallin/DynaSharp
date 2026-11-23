@@ -121,7 +121,7 @@ internal sealed record ClientConfiguration
 
         readFile ??= SharedConfigFiles.DiskReader;
         var loggerFactory = options.LoggerFactory ?? NullLoggerFactory.Instance;
-        var (region, regionSource) = ResolveRegion(options, getEnvironmentVariable, readFile);
+        var (region, regionSource) = options.Region is { } configured ? (configured, OptionsSource) : ResolveRegion(getEnvironmentVariable, readFile);
         var (endpoint, endpointSource) = ResolveEndpoint(options, region, getEnvironmentVariable, service);
         var clock = new ClockSkewCorrection(options.TimeProvider);
 
@@ -142,33 +142,42 @@ internal sealed record ClientConfiguration
         };
     }
 
-    /// <summary>Finds the region: the options, then <c>AWS_REGION</c>, <c>AWS_DEFAULT_REGION</c> and the selected profile.</summary>
-    /// <param name="options">The options.</param>
+    /// <summary>Finds the region of a client without one in its options: <c>AWS_REGION</c>, <c>AWS_DEFAULT_REGION</c> and the selected profile.</summary>
     /// <param name="getEnvironmentVariable">Reads an environment variable.</param>
     /// <param name="readFile">Reads the shared AWS files.</param>
     /// <returns>The region and where it came from.</returns>
     /// <exception cref="InvalidOperationException">No region is set, or the one that is set is invalid. The message says what was tried.</exception>
-    internal static (AwsRegion Region, string Source) ResolveRegion(DynamoDbClientOptions options, Func<string, string?> getEnvironmentVariable, ReadTextFile readFile)
+    internal static (AwsRegion Region, string Source) ResolveRegion(Func<string, string?> getEnvironmentVariable, ReadTextFile readFile)
     {
-        if (options.Region is not null)
-        {
-            return (options.Region, OptionsSource);
-        }
+        SelectedProfile selected = default;
+        var (region, source) = FindRegion(getEnvironmentVariable, () => (selected = SharedConfigFiles.SelectProfile(getEnvironmentVariable, readFile)).Profile);
+        return region is null
+            ? throw new InvalidOperationException(
+                $"No AWS region configured. Set {nameof(DynamoDbClientOptions)}.{nameof(DynamoDbClientOptions.Region)}, " +
+                $"the {RegionVariable} (or {DefaultRegionVariable}) environment variable, or 'region' in the profile '{selected.Name}' " +
+                $"of the shared AWS config file. That profile did not help: {selected.Problem ?? $"profile '{selected.Name}' has no region setting"}.")
+            : (region, source);
+    }
 
+    /// <summary>Finds the region that the environment and a profile give, as the AWS SDKs do: <c>AWS_REGION</c>, <c>AWS_DEFAULT_REGION</c>, then the <c>region</c> of the profile.</summary>
+    /// <param name="getEnvironmentVariable">Reads an environment variable.</param>
+    /// <param name="profile">Gives the profile whose region counts, or <see langword="null"/> for none. Asked only when both variables are unset or empty, so that the files are read only then.</param>
+    /// <returns>The region, or <see langword="null"/> if none is set, and where it came from: the variable, or <c>profile</c>.</returns>
+    /// <exception cref="InvalidOperationException">The value that is set is no valid region name. The message says where it came from.</exception>
+    internal static (AwsRegion? Region, string Source) FindRegion(Func<string, string?> getEnvironmentVariable, Func<SharedProfile?> profile)
+    {
         var (name, source) = ReadFirstSet(getEnvironmentVariable, RegionVariable, DefaultRegionVariable);
-        string? profileName = null;
+        var origin = $"The {source} environment variable";
         if (string.IsNullOrEmpty(name))
         {
-            var shared = SharedConfigFiles.FindRegion(getEnvironmentVariable, readFile);
-            if (shared.Name is null)
-            {
-                throw new InvalidOperationException(
-                    $"No AWS region configured. Set {nameof(DynamoDbClientOptions)}.{nameof(DynamoDbClientOptions.Region)}, " +
-                    $"the {RegionVariable} (or {DefaultRegionVariable}) environment variable, or 'region' in the profile '{shared.ProfileName}' " +
-                    $"of the shared AWS config file. That profile did not help: {shared.Problem}.");
-            }
+            var shared = profile();
+            name = shared?.GetText("region");
+            (source, origin) = (ProfileSource, $"The region setting of the profile '{shared?.Name}'");
+        }
 
-            (name, source, profileName) = (shared.Name, ProfileSource, shared.ProfileName);
+        if (name is null)
+        {
+            return (null, source);
         }
 
         try
@@ -177,7 +186,6 @@ internal sealed record ClientConfiguration
         }
         catch (ArgumentException exception)
         {
-            var origin = profileName is null ? $"The {source} environment variable" : $"The region setting of the profile '{profileName}'";
             throw new InvalidOperationException($"{origin} contains '{name}', which is not a valid AWS region name.", exception);
         }
     }

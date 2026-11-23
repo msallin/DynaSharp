@@ -30,8 +30,6 @@ internal sealed class ProfileChain
     private const string ProcessOption = "credential_process";
     private const string SsoSessionOption = "sso_session";
 
-    private static readonly string[] RegionVariables = ["AWS_REGION", "AWS_DEFAULT_REGION"];
-
     private readonly SharedConfigFiles _files;
     private readonly CredentialsDependencies _dependencies;
     private readonly AwsRegion? _clientRegion;
@@ -312,38 +310,16 @@ internal sealed class ProfileChain
         return _stsRegion;
     }
 
+    // The profile being resolved, not the one AWS_PROFILE selects: a role of a named profile asks STS in the region of that profile.
     private AwsRegion? FindRegion(SharedProfile profile)
     {
-        string? name = null;
-        var origin = string.Empty;
-        foreach (var variable in RegionVariables)
-        {
-            name = _dependencies.GetEnvironmentVariable(variable);
-            origin = $"The {variable} environment variable";
-            if (!string.IsNullOrEmpty(name))
-            {
-                break;
-            }
-        }
-
-        if (string.IsNullOrEmpty(name))
-        {
-            name = profile.GetText("region");
-            origin = $"The region setting of the profile '{profile.Name}'";
-        }
-
-        if (name is null)
-        {
-            return null;
-        }
-
         try
         {
-            return AwsRegion.FromName(name);
+            return ClientConfiguration.FindRegion(_dependencies.GetEnvironmentVariable, () => profile).Region;
         }
-        catch (ArgumentException exception)
+        catch (InvalidOperationException exception)
         {
-            throw new CredentialsUnavailableException($"{origin} contains '{name}', which is not a valid AWS region name.", exception);
+            throw new CredentialsUnavailableException(exception.Message, exception);
         }
     }
 
