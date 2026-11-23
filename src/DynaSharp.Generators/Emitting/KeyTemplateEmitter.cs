@@ -19,7 +19,7 @@ internal static class KeyTemplateEmitter
 
     public static List<string> Lines(TypeModel type, EntityModel entity)
     {
-        var tableKeys = TableKeys(entity);
+        var tableKeys = entity.TableKeys().ToList();
         var indexKeys = IndexKeys(entity);
         var readers = PlaceholdersOf(indexKeys);
         var stored = StoredInputs(type, tableKeys);
@@ -44,7 +44,7 @@ internal static class KeyTemplateEmitter
     /// <returns>The properties an index key repeats or an update can store, or nothing if the text of the key gives each of them back.</returns>
     public static List<string> HeldInputs(TypeModel type, EntityModel entity)
     {
-        var tableKeys = TableKeys(entity);
+        var tableKeys = entity.TableKeys().ToList();
         var readers = PlaceholdersOf(IndexKeys(entity));
         var stored = StoredInputs(type, tableKeys);
         return LostInputs(tableKeys, readers, stored).Count == 0
@@ -70,16 +70,14 @@ internal static class KeyTemplateEmitter
         return property is not null && placeholder.Encoding.HasTextOf(property.Converter!.WriteConverter) ? property.AttributeName : null;
     }
 
-    private static List<KeyModel> TableKeys(EntityModel entity) => [.. new[] { entity.PartitionKey, entity.SortKey }.OfType<KeyModel>()];
-
     // A local index has the partition key of the table, and an index key in an attribute of the table or of an index before it is that key.
     private static List<KeyModel> IndexKeys(EntityModel entity)
     {
-        var claimed = new HashSet<string>(TableKeys(entity).Select(static key => key.AttributeName));
-        return [.. entity.Indexes.SelectMany(static index => new[] { index.IsLocal ? null : index.PartitionKey, index.SortKey }).OfType<KeyModel>().Where(key => claimed.Add(key.AttributeName))];
+        var claimed = new HashSet<string>(entity.TableKeys().Select(static key => key.AttributeName));
+        return [.. entity.Indexes.SelectMany(static index => index.OwnKeys()).Where(key => claimed.Add(key.AttributeName))];
     }
 
-    private static IEnumerable<PlaceholderSegment> Placeholders(KeyModel key) => (key.Template?.Segments ?? default).OfType<PlaceholderSegment>();
+    private static IEnumerable<PlaceholderSegment> Placeholders(KeyModel key) => key.Template?.Placeholders() ?? [];
 
     private static List<PlaceholderSegment> PlaceholdersOf(List<KeyModel> keys) => [.. keys.SelectMany(Placeholders)];
 

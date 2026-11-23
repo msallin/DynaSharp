@@ -328,7 +328,7 @@ internal sealed class QueryKeyAnalyzer : DiagnosticAnalyzer
             return new Hold(attribute, Lossless: true, Plain: true);
         }
 
-        foreach (var placeholder in (key?.Template?.Segments ?? default).OfType<PlaceholderSegment>())
+        foreach (var placeholder in (key?.Template?.Placeholders() ?? []))
         {
             if (placeholder.Property == name)
             {

@@ -128,12 +128,12 @@ internal static class WriteEmitter
     }
 
     // A plain key is the attribute of its property, and a shared attribute is written by the key that claimed it first.
-    private static List<KeyModel> WithOwnAttribute(params KeyModel?[] keys) =>
-        [.. keys.OfType<KeyModel>().Where(static key => key is { PlainProperty: null, SharesAttribute: false })];
+    private static List<KeyModel> WithOwnAttribute(IEnumerable<KeyModel> keys) =>
+        [.. keys.Where(static key => key is { PlainProperty: null, SharesAttribute: false })];
 
     private static void EmitKeyAttributes(IndentedCode code, TypeModel type, EntityModel entity, VariableNames variables)
     {
-        foreach (var key in WithOwnAttribute(entity.PartitionKey, entity.SortKey))
+        foreach (var key in WithOwnAttribute(entity.TableKeys()))
         {
             EmitTemplateKey(code, key, []);
         }
@@ -153,7 +153,7 @@ internal static class WriteEmitter
     private static void EmitIndex(IndentedCode code, TypeModel type, IndexModel index, VariableNames variables)
     {
         // A local index shares the partition key of the table, which is written already.
-        var written = WithOwnAttribute(index.IsLocal ? null : index.PartitionKey, index.SortKey);
+        var written = WithOwnAttribute(index.OwnKeys());
         foreach (var key in written.Where(static key => key.Gates.Count > 0))
         {
             EmitSharedKey(code, type, key, variables);
@@ -183,8 +183,7 @@ internal static class WriteEmitter
     // if (entity.Nick is { } __v0 && ((entity.Age is not null) || (entity.City is not null)))
     private static void EmitSharedKey(IndentedCode code, TypeModel type, KeyModel key, VariableNames variables)
     {
-        var inputs = key.Template!.Segments
-            .OfType<PlaceholderSegment>()
+        var inputs = key.Template!.Placeholders()
             .Where(static placeholder => placeholder.InputCanBeAbsent)
             .ToDictionary(static placeholder => placeholder.Property, _ => variables.Next());
         var alternatives = key.Gates.Select(gate => gate.Where(input => !inputs.ContainsKey(input)).ToList()).ToList();
@@ -216,8 +215,7 @@ internal static class WriteEmitter
 
     private static void EmitTemplateKey(IndentedCode code, KeyModel key, Dictionary<string, string> inputs)
     {
-        var values = key.Template!.Segments
-            .OfType<PlaceholderSegment>()
+        var values = key.Template!.Placeholders()
             .Select(placeholder => inputs.TryGetValue(placeholder.Property, out var input) ? input : $"entity.{Names.Identifier(placeholder.Property)}");
         code.Line($"writer.WriteAttributeName({CodeText.Utf8(key.AttributeName)});");
         code.Line($"Keys.{key.BuilderName}.Write({string.Join(", ", values.Prepend("writer"))});");

@@ -30,7 +30,7 @@ internal static class KeysEmitter
         {
             if (key.Template is { } template)
             {
-                new KeyBuilderEmitter(code, key, template, isSortKey, PrimaryKeys(entity).Contains(key), type.Name, type.FullName).Emit();
+                new KeyBuilderEmitter(code, key, template, isSortKey, entity.TableKeys().Contains(key), type.Name, type.FullName).Emit();
             }
             else
             {
@@ -81,33 +81,25 @@ internal static class KeysEmitter
     private static List<(KeyModel Key, bool IsSortKey)> KeysWithBuilders(EntityModel entity)
     {
         var keys = new List<(KeyModel Key, bool IsSortKey)>();
-        foreach (var key in PrimaryKeys(entity))
+        foreach (var key in entity.TableKeys())
         {
             keys.Add((key, key == entity.SortKey));
         }
 
         foreach (var index in entity.Indexes)
         {
-            if (!index.IsLocal)
+            foreach (var key in index.OwnKeys())
             {
-                keys.Add((index.PartitionKey, false));
-            }
-
-            if (index.SortKey is { } sortKey)
-            {
-                keys.Add((sortKey, true));
+                keys.Add((key, key == index.SortKey));
             }
         }
 
         return keys;
     }
 
-    private static List<KeyModel> PrimaryKeys(EntityModel entity) =>
-        entity.SortKey is { } sortKey ? [entity.PartitionKey, sortKey] : [entity.PartitionKey];
-
     private static void EmitPrimaryKey(IndentedCode code, TypeModel type, EntityModel entity)
     {
-        var keys = PrimaryKeys(entity);
+        var keys = entity.TableKeys().ToList();
         var inputs = new List<KeyInput>();
         foreach (var input in keys.SelectMany(key => Inputs(type, key)))
         {
@@ -240,7 +232,7 @@ internal static class KeysEmitter
     {
         if (key.Template is { } template)
         {
-            return template.Segments.OfType<PlaceholderSegment>().Select(static placeholder => new KeyInput(placeholder.Property, placeholder.ParameterName, placeholder.ValueType));
+            return template.Placeholders().Select(static placeholder => new KeyInput(placeholder.Property, placeholder.ParameterName, placeholder.ValueType));
         }
 
         var property = type.Property(key.PlainProperty!);

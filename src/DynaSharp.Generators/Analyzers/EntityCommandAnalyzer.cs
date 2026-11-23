@@ -137,7 +137,7 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
     internal static IEnumerable<(string Input, string Index, KeyModel Key)> IndexKeysDerivedFrom(EntityModel entity, string property) =>
         from input in entity.ComputedInputs.Where(input => input.Property == property || input.Dependencies.Contains(property))
         from index in entity.Indexes
-        from key in new[] { index.PartitionKey, index.SortKey }.OfType<KeyModel>()
+        from key in index.Keys()
         where Holds(key, input.Property)
         select (input.Property, index.IndexName, key);
 
@@ -146,14 +146,14 @@ internal sealed class EntityCommandAnalyzer : DiagnosticAnalyzer
     /// <param name="property">The property.</param>
     /// <returns>Whether an update of it by handle throws, because DynamoDB cannot update a key.</returns>
     internal static bool FeedsTableKey(EntityModel entity, string property) =>
-        new[] { entity.PartitionKey, entity.SortKey }.OfType<KeyModel>().Any(key => Holds(key, property) || entity.ComputedInputs.Any(input => input.Dependencies.Contains(property) && Holds(key, input.Property)));
+        entity.TableKeys().Any(key => Holds(key, property) || entity.ComputedInputs.Any(input => input.Dependencies.Contains(property) && Holds(key, input.Property)));
 
     /// <summary>Whether a key holds a property, as its plain key or as a placeholder of its template.</summary>
     /// <param name="key">The key.</param>
     /// <param name="property">The property.</param>
     /// <returns>Whether the key is made of it.</returns>
     internal static bool Holds(KeyModel key, string property) =>
-        key.PlainProperty == property || (key.Template?.Segments ?? default).OfType<PlaceholderSegment>().Any(placeholder => placeholder.Property == property);
+        key.PlainProperty == property || (key.Template?.Placeholders() ?? []).Any(placeholder => placeholder.Property == property);
 
     /// <summary>The entity of a command or a step of a verb: the type argument of <c>PutCommand&lt;T&gt;</c>, or the table of the verb a <c>PutStep</c> came from.</summary>
     /// <param name="receiver">The command or the step.</param>

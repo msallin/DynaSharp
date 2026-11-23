@@ -75,10 +75,10 @@ internal sealed class KeyValueAnalyzer : DiagnosticAnalyzer
 
         if (!isBuilder)
         {
-            var tableKeys = new[] { entity.PartitionKey, entity.SortKey }.Select(static key => key?.Template).OfType<KeyTemplate>().ToList();
+            var tableKeys = entity.TableKeys().Select(static key => key.Template).OfType<KeyTemplate>().ToList();
             return parameter =>
                 from template in tableKeys
-                from placeholder in template.Segments.OfType<PlaceholderSegment>()
+                from placeholder in template.Placeholders()
                 where placeholder.ParameterName == Names.Identifier(parameter.Name)
                 select (template, placeholder);
         }
@@ -88,7 +88,7 @@ internal sealed class KeyValueAnalyzer : DiagnosticAnalyzer
             return null;
         }
 
-        var placeholders = own.Segments.OfType<PlaceholderSegment>().ToList();
+        var placeholders = own.Placeholders().ToList();
         return parameter =>
         {
             var index = Ranges.Contains(method.Name) && parameter.Ordinal == method.Parameters.Length - 1 ? parameter.Ordinal - 1 : parameter.Ordinal;

@@ -12,5 +12,9 @@ internal sealed record KeyTemplate(
     int StackBufferLength)
 {
     /// <summary>Gets a value indicating whether some value of a placeholder cannot be part of the key, so that <c>Format</c> can throw.</summary>
-    public bool CanReject => Segments.OfType<PlaceholderSegment>().Any(static placeholder => placeholder.Encoding.CanReject);
+    public bool CanReject => Placeholders().Any(static placeholder => placeholder.Encoding.CanReject);
+
+    /// <summary>Returns the placeholders, in order.</summary>
+    /// <returns>The placeholders.</returns>
+    public IEnumerable<PlaceholderSegment> Placeholders() => Segments.OfType<PlaceholderSegment>();
 }

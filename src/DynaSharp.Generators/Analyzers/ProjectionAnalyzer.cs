@@ -127,7 +127,7 @@ internal sealed class ProjectionAnalyzer : DiagnosticAnalyzer
     }
 
     // An update stores no input of a key of the table unless it asks, which is what leaves an item with the key alone. An input of an index is set like any other attribute, and its key follows.
-    private static bool IsKeyOfTheTable(EntityModel entity, string key) => key == entity.PartitionKey.AttributeName || key == entity.SortKey?.AttributeName;
+    private static bool IsKeyOfTheTable(EntityModel entity, string key) => entity.TableKeys().Any(tableKey => tableKey.AttributeName == key);
 
     private static void AnalyzeProject(OperationAnalysisContext context, IInvocationOperation project, ModelCatalog models)
     {

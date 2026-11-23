@@ -38,8 +38,6 @@ internal sealed class AttributeCatalog(ModelCatalog models)
     public List<string> CloseTo(INamedTypeSymbol command, string root) =>
         Spelling.Closest(root, DynaSharpTypes.TypesReadBy(command).SelectMany(type => NamesOf((INamedTypeSymbol)type)!), Spelling.TypoDistance(root));
 
-    private static void AddKey(HashSet<string> names, KeyModel key) => names.Add(key.AttributeName);
-
     private static HashSet<string> NamesIn(TypeModel model)
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
@@ -54,24 +52,13 @@ internal sealed class AttributeCatalog(ModelCatalog models)
         if (model.Entity is { } entity)
         {
             names.Add(entity.DiscriminatorAttribute);
-            AddKey(names, entity.PartitionKey);
-            AddKeyIfAny(names, entity.SortKey);
-            foreach (var index in entity.Indexes)
+            foreach (var key in entity.Keys())
             {
-                AddKey(names, index.PartitionKey);
-                AddKeyIfAny(names, index.SortKey);
+                names.Add(key.AttributeName);
             }
         }
 
         return names;
-    }
-
-    private static void AddKeyIfAny(HashSet<string> names, KeyModel? key)
-    {
-        if (key is not null)
-        {
-            AddKey(names, key);
-        }
     }
 
     private HashSet<string>? NamesOf(INamedTypeSymbol type) => _names.GetOrAdd(type, Read);

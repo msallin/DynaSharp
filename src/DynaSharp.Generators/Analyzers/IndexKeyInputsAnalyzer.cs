@@ -168,7 +168,7 @@ internal sealed class IndexKeyInputsAnalyzer : DiagnosticAnalyzer
     // What KeyInputChanges throws for first, for one index: a key of a template that only some of its inputs reached, then, on a sparse index, a key the update sets without the other.
     private static (KeyModel Key, List<string> Set, List<string> Missing, IOperation At)? Problem(Update update, IndexModel index)
     {
-        var keys = new[] { index.IsLocal ? null : index.PartitionKey, index.SortKey }.OfType<KeyModel>().Select(update.Owner).ToList();
+        var keys = index.OwnKeys().Select(update.Owner).ToList();
         if (keys.Exists(key => Inputs(key).Any(input => update.Has(input, Change.Removed) || update.Has(input, Change.Unknown))))
         {
             return null;
@@ -199,7 +199,7 @@ internal sealed class IndexKeyInputsAnalyzer : DiagnosticAnalyzer
     }
 
     private static IEnumerable<string> Inputs(KeyModel key) =>
-        key.Template is null ? [key.PlainProperty!] : key.Template.Segments.OfType<PlaceholderSegment>().Select(static placeholder => placeholder.Property).Distinct();
+        key.Template is null ? [key.PlainProperty!] : key.Template.Placeholders().Select(static placeholder => placeholder.Property).Distinct();
 
     private static List<string> SetOf(Update update, KeyModel key) => [.. Inputs(key).Where(input => update.Has(input, Change.Set))];
 
@@ -226,14 +226,13 @@ internal sealed class IndexKeyInputsAnalyzer : DiagnosticAnalyzer
     {
         public bool Has(string property, Change change) => Actions.Exists(action => action.Property == property && action.Change == change);
 
-        public bool IsTableKey(string attribute) => attribute == Entity.PartitionKey.AttributeName || attribute == Entity.SortKey?.AttributeName;
+        public bool IsTableKey(string attribute) => Entity.TableKeys().Any(key => key.AttributeName == attribute);
 
-        public bool IsTableKeyInput(string property) => new[] { Entity.PartitionKey, Entity.SortKey }.OfType<KeyModel>().Any(key => Inputs(key).Contains(property));
+        public bool IsTableKeyInput(string property) => Entity.TableKeys().Any(key => Inputs(key).Contains(property));
 
         public IOperation LatestOf(List<string> properties) => Actions.First(action => action.Change == Change.Set && properties.Contains(action.Property)).Handle;
 
         // The key that writes an attribute: a key of the table, or the first index key that claims it, as the metadata of an update holds it.
-        public KeyModel Owner(KeyModel key) => new[] { Entity.PartitionKey, Entity.SortKey }.Concat(Entity.Indexes.SelectMany(static index => new[] { index.PartitionKey, index.SortKey }))
-            .OfType<KeyModel>().First(candidate => candidate.AttributeName == key.AttributeName);
+        public KeyModel Owner(KeyModel key) => Entity.Keys().First(candidate => candidate.AttributeName == key.AttributeName);
     }
 }
