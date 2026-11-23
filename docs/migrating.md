@@ -170,7 +170,7 @@ DynaSharp shares EfficientDynamoDb's aim: UTF-8 on the wire, little allocation, 
 | `Condition<Order>.On(x => x.Status).EqualTo("Placed")` | `Order.Attrs.Status.Eq(OrderStatus.Placed)`, see [Expressions](expressions.md). |
 | `UpdateItem<Order>().WithPrimaryKey(pk, sk).On(x => x.Total).Assign(10m).ExecuteAsync()` | `orders.Update(Order.Keys.Of(id, number)).Set(Order.Attrs.Total, 10m).SendAsync(ct)`. |
 | `TransactWrite().WithItems(Transact.PutItem(order), ...)` | `client.TransactWrite().Put(orders, order)`, one step per action, see [Transactions and batches](transactions.md). |
-| `context.LowLevel` with a `Document` | The request API of `DynaSharp.Requests`, or a `Table<Item>`, see [API levels](api-levels.md). |
+| `context.LowLevel` with a `Document` | The request API of `DynaSharp.Requests`, or a `Table<Item>`, see [API levels](design.md#api-levels). |
 | `DynamoDbContextConfig` with a `RegionEndpoint` and `AwsCredentials` | `DynamoDbClientOptions` with `Region` and `Credentials`, or nothing and the environment, see [Getting started](getting-started.md#configure-the-client). |
 
 The stored formats differ in places: compare items as for the AWS SDK above. A converter covers each difference, and the [rules for a table that exists](adopting.md) cover items without `_type` or a version.

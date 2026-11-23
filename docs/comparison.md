@@ -48,6 +48,6 @@ What the other two have, or what you may look for, and DynaSharp does not do:
 - **Interfaces to mock.** The client and the tables are sealed classes. A test fakes the wire with `DynaSharp.Testing` instead, see [Testing](testing.md).
 - **MFA in a profile.** A profile with `mfa_serial` fails, because the code of the device would be needed at every refresh. See [Assume a role](credentials.md#assume-a-role).
 - **PartiQL, DAX and vector search.** The AWS SDK has PartiQL on its low-level client and `SearchVectorsAsync` on the context.
-- **Every control-plane operation as a type.** The request API covers 17 operations, the item operations and table administration such as `CreateTable`, `UpdateTable` and time to live. Backups, exports, tags and global tables go through `SendRawAsync` with the JSON of the operation, see [API levels](api-levels.md).
+- **Every control-plane operation as a type.** The request API covers 17 operations, the item operations and table administration such as `CreateTable`, `UpdateTable` and time to live. Backups, exports, tags and global tables go through `SendRawAsync` with the JSON of the operation, see [API levels](design.md#api-levels).
 - **A non-throwing mode.** A failure is an exception, except a condition that did not hold for `TrySendAsync`, which is an answer, see [Conditions](commands.md#conditions); EfficientDynamoDb can return a result with any error instead.
 - **Change tracking.** There is no `SaveChanges`: a command writes what it names, see [Migrating](migrating.md).

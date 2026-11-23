@@ -319,7 +319,7 @@ What spans tables and what does not:
 
 ## Other table operations
 
-Table administration beyond `CreateTable()`, such as `UpdateTable` above, lives in the request API, `DynaSharp.Requests`, which mirrors the service. [API levels](api-levels.md) says how the levels share a client.
+Table administration beyond `CreateTable()`, such as `UpdateTable` above, lives in the request API, `DynaSharp.Requests`, which mirrors the service. [API levels](design.md#api-levels) says how the levels share a client.
 
 An on-demand table can have a maximum throughput, above which DynamoDB throttles, and a KMS key of your account instead of the one DynamoDB owns:
 

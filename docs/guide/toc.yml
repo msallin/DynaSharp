@@ -56,10 +56,6 @@
     href: ../diagnostics.md
   - name: Observability
     href: ../observability.md
-  - name: API levels
-    href: ../api-levels.md
-  - name: Design principles
-    href: ../design-principles.md
   - name: How it is built
     href: ../design.md
   - name: Compatibility
