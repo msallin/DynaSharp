@@ -18,6 +18,7 @@
 
     <MinVerTagPrefix>v</MinVerTagPrefix>
     <MinVerDefaultPreReleaseIdentifiers>alpha.0</MinVerDefaultPreReleaseIdentifiers>
+    <DefineConstants>$(DefineConstants);DYNASHARP_TESTING</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -34,6 +35,8 @@
 
   <ItemGroup>
     <ProjectReference Include="../DynaSharp/DynaSharp.csproj" />
+    <!-- The reserved words of DynamoDB, one list for the analyzer and the fake. -->
+    <Compile Include="../DynaSharp.Generators/Analyzers/ReservedWords.cs" Link="Fake/Expressions/ReservedWords.cs" />
   </ItemGroup>
 
   <!--

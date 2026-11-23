@@ -1,4 +1,9 @@
+// DynaSharp.Testing compiles this file too, for the parser of its fake, in a namespace of its own: the unit tests see the internals of both assemblies.
+#if DYNASHARP_TESTING
+namespace DynaSharp.Testing.Fake;
+#else
 namespace DynaSharp.Generators;
+#endif
 
 /// <summary>
 /// The reserved words of DynamoDB, which it rejects as a bare name in an expression, in any case: <c>status = :v</c> fails, <c>#n0 = :v</c> with <c>#n0</c> standing for <c>status</c> does not (DYNA220).
