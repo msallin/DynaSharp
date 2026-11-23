@@ -1,10 +1,9 @@
 using System.Globalization;
-using System.Text.Json;
 using DynaSharp.Mapping;
 using DynaSharp.Operations;
 using DynaSharp.Requests;
-using DynaSharp.Serialization;
 using DynaSharp.Streams;
+using DynaSharp.Testing.Fake;
 
 namespace DynaSharp.Testing;
 
@@ -47,7 +46,7 @@ public sealed partial class StubResponse
         ArgumentNullException.ThrowIfNull(tableName);
         return StreamDescription(new StreamDescription
         {
-            StreamArn = ArnPrefix + tableName + "/stream/" + StreamLabel,
+            StreamArn = FakeTable.ArnPrefix + tableName + "/stream/" + StreamLabel,
             StreamLabel = StreamLabel,
             StreamStatus = status,
             StreamViewType = StreamViewType.NewAndOldImages,
@@ -68,26 +67,7 @@ public sealed partial class StubResponse
     public static StubResponse StreamDescription(StreamDescription description)
     {
         ArgumentNullException.ThrowIfNull(description);
-        return Answer(For.DescribeStream, Render(json =>
-        {
-            json.WriteStartObject("StreamDescription");
-            OperationJson.WriteStringIfSet(json, "StreamArn"u8, description.StreamArn);
-            OperationJson.WriteStringIfSet(json, "StreamLabel"u8, description.StreamLabel);
-            WireNames.StreamStatuses.WriteIfSet(json, "StreamStatus"u8, description.StreamStatus);
-            WireNames.StreamViewTypes.WriteIfSet(json, "StreamViewType"u8, description.StreamViewType);
-            WriteEpochSecondsIfSet(json, "CreationRequestDateTime", description.CreationRequestDateTime);
-            OperationJson.WriteStringIfSet(json, "TableName"u8, description.TableName);
-            TableJson.WriteKeySchema(json, description.KeySchema);
-            json.WriteStartArray("Shards");
-            foreach (var shard in description.Shards)
-            {
-                WriteShard(json, shard);
-            }
-
-            json.WriteEndArray();
-            OperationJson.WriteStringIfSet(json, "LastEvaluatedShardId"u8, description.LastEvaluatedShardId);
-            json.WriteEndObject();
-        }));
+        return Answer(For.DescribeStream, Render(json => ResponseJson.WriteStreamDescription(json, description)));
     }
 
     /// <summary>Creates a shard for <see cref="StreamDescription(string, ReadOnlySpan{Shard})"/>. A shard without an end is open: DynamoDB still writes to it.</summary>
@@ -132,7 +112,7 @@ public sealed partial class StubResponse
             json.WriteStartArray("Records");
             for (var i = 0; i < all.Length; i++)
             {
-                WriteChangeRecord(json, all[i], i + 1);
+                ResponseJson.WriteChangeRecord(json, Numbered(all[i], i + 1));
             }
 
             json.WriteEndArray();
@@ -188,8 +168,8 @@ public sealed partial class StubResponse
         return new ChangeRecord
         {
             EventName = eventName,
-            EventVersion = "1.1",
-            EventSource = "aws:dynamodb",
+            EventVersion = ResponseJson.RecordEventVersion,
+            EventSource = ResponseJson.RecordEventSource,
             Region = StubClient.RegionName,
             DynamoDb = new StreamRecord
             {
@@ -204,66 +184,12 @@ public sealed partial class StubResponse
         };
     }
 
-    // The service model types these as timestamps, which this protocol sends as seconds since the epoch, with a fraction when there is one: 1767225600 or 1767225600.125.
-    private static void WriteEpochSecondsIfSet(Utf8JsonWriter json, string member, DateTimeOffset? value)
+    // A record without an event id or a sequence number gets them from its position in the page, so that the records of a page differ.
+    private static ChangeRecord Numbered(ChangeRecord record, int position) => record with
     {
-        if (value is { } time)
-        {
-            json.WriteNumber(member, time.ToUnixTimeMilliseconds() / 1000m);
-        }
-    }
-
-    private static void WriteShard(Utf8JsonWriter json, Shard shard)
-    {
-        json.WriteStartObject();
-        OperationJson.WriteStringIfSet(json, "ShardId"u8, shard.ShardId);
-        if (shard.SequenceNumberRange is { } range)
-        {
-            json.WriteStartObject("SequenceNumberRange");
-            OperationJson.WriteStringIfSet(json, "StartingSequenceNumber"u8, range.StartingSequenceNumber);
-            OperationJson.WriteStringIfSet(json, "EndingSequenceNumber"u8, range.EndingSequenceNumber);
-            json.WriteEndObject();
-        }
-
-        OperationJson.WriteStringIfSet(json, "ParentShardId"u8, shard.ParentShardId);
-        json.WriteEndObject();
-    }
-
-    // {"eventID":"1","eventName":"INSERT",...,"dynamodb":{...}}: this one structure of the service model spells its members in lower case.
-    private static void WriteChangeRecord(Utf8JsonWriter json, ChangeRecord record, int position)
-    {
-        json.WriteStartObject();
-        json.WriteString("eventID", record.EventId ?? position.ToString(CultureInfo.InvariantCulture));
-        WireNames.OperationTypes.WriteIfSet(json, "eventName"u8, record.EventName);
-        OperationJson.WriteStringIfSet(json, "eventVersion"u8, record.EventVersion);
-        OperationJson.WriteStringIfSet(json, "eventSource"u8, record.EventSource);
-        OperationJson.WriteStringIfSet(json, "awsRegion"u8, record.Region);
-        if (record.DynamoDb is { } change)
-        {
-            json.WriteStartObject("dynamodb");
-            WriteEpochSecondsIfSet(json, "ApproximateCreationDateTime", change.ApproximateCreationDateTime);
-            var writer = new DynamoDbWriter(json);
-            OperationJson.WriteItemIfSet(writer, "Keys"u8, change.Keys);
-            OperationJson.WriteItemIfSet(writer, "NewImage"u8, change.NewImage);
-            OperationJson.WriteItemIfSet(writer, "OldImage"u8, change.OldImage);
-            json.WriteString("SequenceNumber", change.SequenceNumber ?? SequenceNumberPrefix + position.ToString(PositionFormat, CultureInfo.InvariantCulture));
-            if (change.SizeBytes is { } size)
-            {
-                json.WriteNumber("SizeBytes", size);
-            }
-
-            WireNames.StreamViewTypes.WriteIfSet(json, "StreamViewType"u8, change.StreamViewType);
-            json.WriteEndObject();
-        }
-
-        if (record.UserIdentity is { } identity)
-        {
-            json.WriteStartObject("userIdentity");
-            OperationJson.WriteStringIfSet(json, "PrincipalId"u8, identity.PrincipalId);
-            OperationJson.WriteStringIfSet(json, "Type"u8, identity.Type);
-            json.WriteEndObject();
-        }
-
-        json.WriteEndObject();
-    }
+        EventId = record.EventId ?? position.ToString(CultureInfo.InvariantCulture),
+        DynamoDb = record.DynamoDb is { } change
+            ? change with { SequenceNumber = change.SequenceNumber ?? SequenceNumberPrefix + position.ToString(PositionFormat, CultureInfo.InvariantCulture) }
+            : null,
+    };
 }
