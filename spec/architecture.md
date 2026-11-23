@@ -690,8 +690,8 @@ recursive descent: `ConditionNode` for conditions, filters and key conditions, `
 request's `PlaceholderScope`, which the operation asks once, after the last expression, for unused entries (DynamoDB checks per request, not per expression), and raises what
 DynamoDB raises before it reads an item: syntax, reserved words, function operands, constant operand types, `BETWEEN` bounds, overlapping paths. `ConditionEvaluator` evaluates a
 condition on an item, `UpdateApplier` makes the new item and, through `Projection`, the paths `UPDATED_OLD` and `UPDATED_NEW` return, and `KeyConditionCompiler` turns a key
-condition into the `KeyRange` a read walks. The keywords, functions and reserved words are copies, which `ExpressionTokenizerTests` and `ReservedWordsTests` keep equal to the
-client's and the generator's.
+condition into the `KeyRange` a read walks. The keywords and functions are copies, which `ExpressionTokenizerTests` keeps equal to the
+client's and the generator's; the reserved words are the generator's `ReservedWords.cs`, which `DynaSharp.Testing` compiles too (`DYNASHARP_TESTING` gives it the namespace of the fake).
 
 ### How the fake is checked
 
