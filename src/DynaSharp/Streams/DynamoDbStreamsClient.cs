@@ -6,6 +6,7 @@ using DynaSharp.Credentials;
 using DynaSharp.Http;
 using DynaSharp.Operations;
 using DynaSharp.Requests;
+using DynaSharp.Telemetry;
 
 namespace DynaSharp.Streams;
 
@@ -530,7 +531,7 @@ public sealed class DynamoDbStreamsClient : IDisposable
 
     /// <summary>Counts a change that a typed read of a table skipped because its type could not read it, under the call that brought the record.</summary>
     /// <param name="tableName">The table.</param>
-    internal void CountSkippedItem(string tableName) => _core.CountSkippedItem(GetRecordsOperation.Name, tableName);
+    internal void CountSkippedItem(string tableName) => _core.Telemetry.CountSkippedItem(GetRecordsOperation.Name, tableName);
 
     /// <summary>
     /// Waits as a reader waits on an idle stream: <paramref name="delay"/> on <see cref="DynamoDbClientOptions.TimeProvider"/>, or, on a server that tells, until
@@ -575,7 +576,8 @@ public sealed class DynamoDbStreamsClient : IDisposable
                 if (last is null && request.ShardIteratorType == ShardIteratorType.Latest)
                 {
                     // Latest again is the only position left, since DynamoDB Streams has no position by time, and it passes over what was written while the iterator was expired.
-                    _core.ReportStreamGap(request.ShardId);
+                    _core.Telemetry.CountStreamGap();
+                    ClientLog.StreamGap(_core.Logger, request.ShardId);
                     request.OnGap?.Invoke(request.ShardId);
                 }
 

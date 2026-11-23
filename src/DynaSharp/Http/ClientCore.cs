@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using DynaSharp.Configuration;
 using DynaSharp.Fluent;
+using DynaSharp.Retries;
 using DynaSharp.Telemetry;
 using Microsoft.Extensions.Logging;
 
@@ -17,19 +18,20 @@ internal sealed class ClientCore : IDisposable
 {
     private static readonly SearchValues<char> OperationNameCharacters = SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
 
+    private readonly HttpClient _http;
     private readonly DynamoDbPipeline _pipeline;
     private readonly Type _clientType;
     private readonly string _targetPrefix;
     private readonly string _serviceName;
     private bool _disposed;
 
-    private ClientCore(HttpClient http, HttpMessageHandler handler, DynamoDbPipeline pipeline, ArrayPool<byte> pool, Type clientType, AwsService service, TimeProvider timeProvider, DynamoDbClientOptions options, ILogger logger)
+    private ClientCore(HttpClient http, DynamoDbPipeline pipeline, RetryPolicy retries, ArrayPool<byte> pool, Type clientType, AwsService service, TimeProvider timeProvider, DynamoDbClientOptions options, ILogger logger)
     {
         TimeProvider = timeProvider;
         Logger = logger;
         Options = options;
-        Http = http;
-        Handler = handler;
+        Retries = retries;
+        _http = http;
         _pipeline = pipeline;
         Commands = new CommandPool(this, pool);
         _clientType = clientType;
@@ -43,11 +45,8 @@ internal sealed class ClientCore : IDisposable
     /// <summary>Gets the clock of the client, for what waits outside the pipeline.</summary>
     public TimeProvider TimeProvider { get; }
 
-    /// <summary>Gets the HTTP client that sends the requests, whose set-up is the contract of the core.</summary>
-    public HttpClient Http { get; }
-
-    /// <summary>Gets the handler that <see cref="Http"/> sends through: that of <see cref="DynamoDbClientOptions.HttpHandler"/>, or the one the core created and disposes.</summary>
-    public HttpMessageHandler Handler { get; }
+    /// <summary>Gets the retry policy of the client, whose backoffs the waits outside a call use too (batches, conflict retries, shards of a stream).</summary>
+    public RetryPolicy Retries { get; }
 
     /// <summary>Gets the logger of the client, for the events outside a single request that the layers above the pipeline report.</summary>
     public ILogger Logger { get; }
@@ -97,9 +96,10 @@ internal sealed class ClientCore : IDisposable
         var handler = options.HttpHandler ?? CreateOwnedHandler();
         var http = new HttpClient(handler, disposeHandler: owned) { Timeout = Timeout.InfiniteTimeSpan };
         var buffers = pool ?? ArrayPool<byte>.Shared;
-        var pipeline = new DynamoDbPipeline(configuration, http, buffers, activitySource ?? DynaSharpTelemetry.ActivitySource, logger, random ?? Random.Shared, maxResponseLength);
+        var retries = new RetryPolicy(configuration.MaxAttempts, random ?? Random.Shared, new RetryQuota());
+        var pipeline = new DynamoDbPipeline(configuration, http, buffers, activitySource ?? DynaSharpTelemetry.ActivitySource, logger, retries, maxResponseLength);
         var resolved = options with { Region = configuration.Region, ServiceUrl = configuration.ChosenEndpoint, Credentials = configuration.Credentials };
-        return new ClientCore(http, handler, pipeline, buffers, typeof(TClient), service, configuration.TimeProvider, resolved, logger);
+        return new ClientCore(http, pipeline, retries, buffers, typeof(TClient), service, configuration.TimeProvider, resolved, logger);
     }
 
     /// <summary>
@@ -125,72 +125,11 @@ internal sealed class ClientCore : IDisposable
         return _pipeline.SendAsync<TCall, TResponse>(call, cancellationToken);
     }
 
-    /// <summary>Waits before a batch sends what DynamoDB left unprocessed, see <see cref="DynamoDbPipeline.BackoffAsync"/>.</summary>
-    /// <param name="attempt">The number of the round that came back without progress, starting at 1.</param>
+    /// <summary>Waits on the clock of the client, as the pipeline waits between two attempts, for the layers that wait outside a call: a cancellation throws an <see cref="OperationCanceledException"/> with the caller's token.</summary>
+    /// <param name="delay">How long, usually a backoff of <see cref="Retries"/>.</param>
     /// <param name="cancellationToken">Cancels the wait.</param>
     /// <returns>A task that completes when the wait is over.</returns>
-    public Task BackoffAsync(int attempt, CancellationToken cancellationToken) => _pipeline.BackoffAsync(attempt, cancellationToken);
-
-    /// <summary>Logs that a batch gave up, see <see cref="DynamoDbPipeline.LogBatchIncomplete"/>.</summary>
-    /// <param name="operationName">The operation of the batch.</param>
-    /// <param name="tableName">The table of the batch, if it has a single one.</param>
-    /// <param name="unprocessed">How many actions are left.</param>
-    /// <param name="requests">How many requests were sent.</param>
-    public void LogBatchIncomplete(string operationName, string? tableName, int unprocessed, int requests) =>
-        _pipeline.LogBatchIncomplete(operationName, tableName, unprocessed, requests);
-
-    /// <summary>Waits between two runs of a conflict retry, see <see cref="DynamoDbPipeline.ConflictBackoffAsync"/>.</summary>
-    /// <param name="run">The number of the run that failed, starting at 1.</param>
-    /// <param name="cancellationToken">Cancels the wait.</param>
-    /// <returns>A task that completes when the wait is over.</returns>
-    public Task ConflictBackoffAsync(int run, CancellationToken cancellationToken) => _pipeline.ConflictBackoffAsync(run, cancellationToken);
-
-    /// <summary>Counts a run of a conflict retry that lost and is repeated, see <see cref="DynamoDbPipeline.CountConflictRetry"/>.</summary>
-    /// <param name="conflict">The failure of the run.</param>
-    public void CountConflictRetry(DynamoDbException conflict) => _pipeline.CountConflictRetry(conflict);
-
-    /// <summary>Counts an item that a read skipped because its type could not read it, see <see cref="DynamoDbPipeline.CountSkippedItem"/>.</summary>
-    /// <param name="operationName">The operation of the read.</param>
-    /// <param name="tableName">The table of the read.</param>
-    public void CountSkippedItem(string operationName, string tableName) => _pipeline.CountSkippedItem(operationName, tableName);
-
-    /// <summary>Logs that a shard of a stream was read to its end, see <see cref="DynamoDbPipeline.LogShardFinished"/>.</summary>
-    /// <param name="shardId">The shard.</param>
-    /// <param name="children">How many child shards are read next.</param>
-    public void LogShardFinished(string shardId, int children) => _pipeline.LogShardFinished(shardId, children);
-
-    /// <summary>Logs that DynamoDB listed a child of a shard late, see <see cref="DynamoDbPipeline.LogChildListedLate"/>.</summary>
-    /// <param name="childShardId">The child.</param>
-    /// <param name="shardId">The shard it continues.</param>
-    /// <param name="elapsed">The time since the first look for the children of the shard.</param>
-    public void LogChildListedLate(string childShardId, string shardId, TimeSpan elapsed) => _pipeline.LogChildListedLate(childShardId, shardId, elapsed);
-
-    /// <summary>Waits before a shard is read again after a transient failure, see <see cref="DynamoDbPipeline.ShardRetryBackoffAsync"/>.</summary>
-    /// <param name="retry">The number of the retry of this outage of the shard, starting at 1.</param>
-    /// <param name="cancellationToken">Cancels the wait.</param>
-    /// <returns>A task that completes when the wait is over.</returns>
-    public Task ShardRetryBackoffAsync(int retry, CancellationToken cancellationToken) => _pipeline.ShardRetryBackoffAsync(retry, cancellationToken);
-
-    /// <summary>Logs that a shard failed transiently and is tried again, see <see cref="DynamoDbPipeline.LogShardRetrying"/>.</summary>
-    /// <param name="shardId">The shard.</param>
-    /// <param name="failure">The failure that started the outage.</param>
-    /// <param name="window">How long the reader tries before the failure surfaces.</param>
-    public void LogShardRetrying(string shardId, Exception failure, TimeSpan window) => _pipeline.LogShardRetrying(shardId, failure, window);
-
-    /// <summary>Logs that a shard is read again after an outage, see <see cref="DynamoDbPipeline.LogShardRecovered"/>.</summary>
-    /// <param name="shardId">The shard.</param>
-    /// <param name="elapsed">The time since the failure that started the outage.</param>
-    /// <param name="retries">How many times the shard was tried again.</param>
-    public void LogShardRecovered(string shardId, TimeSpan elapsed, int retries) => _pipeline.LogShardRecovered(shardId, elapsed, retries);
-
-    /// <summary>Reports that a shard read from <c>Latest</c> is read from <c>Latest</c> again, which skips records, see <see cref="DynamoDbPipeline.ReportStreamGap"/>.</summary>
-    /// <param name="shardId">The shard.</param>
-    public void ReportStreamGap(string shardId) => _pipeline.ReportStreamGap(shardId);
-
-    /// <summary>Reports that a conflict retry gave up, see <see cref="DynamoDbPipeline.ReportConflictsExhausted"/>.</summary>
-    /// <param name="conflict">The failure of the last run.</param>
-    /// <param name="runs">How many runs there were.</param>
-    public void ReportConflictsExhausted(DynamoDbException conflict, int runs) => _pipeline.ReportConflictsExhausted(conflict, runs);
+    public Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken) => DynamoDbPipeline.DelayAsync(delay, TimeProvider, cancellationToken);
 
     /// <summary>Sends an operation by name with a request the caller wrote, and returns the response as JSON. See <see cref="DynamoDbClient.SendRawAsync"/>.</summary>
     /// <param name="operation">The operation name.</param>
@@ -219,7 +158,7 @@ internal sealed class ClientCore : IDisposable
         _disposed = true;
         Commands.Close();
         _pipeline.Dispose();
-        Http.Dispose();
+        _http.Dispose();
     }
 
     // Connections are recycled so that DNS changes are noticed; DynamoDB endpoints change addresses regularly.

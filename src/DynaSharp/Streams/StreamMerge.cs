@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using DynaSharp.Http;
+using DynaSharp.Telemetry;
 
 namespace DynaSharp.Streams;
 
@@ -378,7 +379,7 @@ internal sealed class StreamMerge
                 {
                     if (look > 0)
                     {
-                        _core.LogChildListedLate(shard.ShardId!, shardId, time.GetElapsedTime(ended));
+                        ClientLog.ChildListedLate(_core.Logger, shard.ShardId!, shardId, time.GetElapsedTime(ended));
                     }
 
                     LaunchChild(shard, span);
@@ -390,7 +391,7 @@ internal sealed class StreamMerge
             {
                 if (read)
                 {
-                    _core.LogShardFinished(shardId, started.Count);
+                    ClientLog.ShardFinished(_core.Logger, shardId, started.Count);
                 }
 
                 return;

@@ -9,6 +9,9 @@ namespace DynaSharp.Telemetry;
 /// </summary>
 internal static partial class ClientLog
 {
+    /// <summary>What the messages say for the table of a call that addresses several tables, or none, as most of DynamoDB Streams.</summary>
+    public const string NoSingleTable = "(no single table)";
+
     [LoggerMessage(EventId = 1, Level = LogLevel.Debug, Message = "DynamoDB client uses region {Region} (source: {Source}).")]
     public static partial void RegionResolved(ILogger logger, string region, string source);
 

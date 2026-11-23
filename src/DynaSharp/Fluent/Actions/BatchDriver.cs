@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using DynaSharp.Retries;
 using DynaSharp.Serialization;
+using DynaSharp.Telemetry;
 
 namespace DynaSharp.Fluent;
 
@@ -81,7 +82,7 @@ internal static class BatchDriver
                         throw GiveUp<TOperation, TResult>(state, totals, null);
                     }
 
-                    await state.Table.Core.BackoffAsync(stalled + 1, cancellationToken).ConfigureAwait(false);
+                    await state.Table.Core.DelayAsync(state.Table.Core.Retries.GetDelay(FailureKind.Throttling, stalled + 1), cancellationToken).ConfigureAwait(false);
                 }
             }
 
@@ -145,13 +146,13 @@ internal static class BatchDriver
     // been applied in part, a timeout or a lost connection, or says that DynamoDB took none of it, a throttle: the whole batch is then unprocessed and safe to send again.
     // A caller who cancels has stopped listening, and a cancellation stays one.
     private static bool EndsIncomplete(Exception exception, int answered) =>
-        exception is not OperationCanceledException && (answered > 0 || FailureClassifier.Classify(exception) != FailureKind.Permanent);
+        exception is not OperationCanceledException && (answered > 0 || FailureClassifier.IsTransient(exception));
 
     private static Exception GiveUp<TOperation, TResult>(CommandState state, BatchTotals totals, Exception? cause)
         where TOperation : IBatchOperation<TResult>
     {
         var actions = state.Actions;
-        state.Table.Core.LogBatchIncomplete(TOperation.Name, actions.OnlyTableName, actions.Count - totals.Processed, totals.Requests);
+        ClientLog.BatchIncomplete(state.Table.Core.Logger, TOperation.Name, actions.OnlyTableName ?? ClientLog.NoSingleTable, actions.Count - totals.Processed, totals.Requests);
         return TOperation.CreateIncomplete(state, totals, actions.Carry.WrittenCount > 0 ? actions.End : actions.First, cause);
     }
 }
