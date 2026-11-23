@@ -499,7 +499,7 @@ public sealed class FakeDynamoDbTests
         fake.Put(patron);
 
         // Assert
-        await Assert.That((fake.Get<Patron>(new Item { ["pk"] = "p-1" }), fake.Items<Patron>().Single(), fake.Items("patrons").Count)).IsEqualTo((patron, patron, 1));
+        await Assert.That((fake.Get(Patron.Keys.Of("p-1")), fake.Items<Patron>().Single(), fake.Items("patrons").Count)).IsEqualTo((patron, patron, 1));
     }
 
     [Test]
@@ -515,7 +515,6 @@ public sealed class FakeDynamoDbTests
         [
             () => fake.CreateTable<Subscriber>(),
             () => fake.Put(subscriber),
-            () => fake.Get<Subscriber>(new Item { ["pk"] = "s-1" }),
             () => fake.Items<Subscriber>(),
             () => fake.TableItems<Subscriber>(),
             () => fake.DescribeTable<Subscriber>(),
