@@ -11,7 +11,7 @@ public readonly struct GuidSetElement : IDynamoDbSetElementConverter<Guid>
     {
         Span<byte> text = stackalloc byte[GuidConverter.TextLength];
         GuidConverter.Format(value, text);
-        writer.Json.WriteStringValue(text);
+        writer.WriteStringSetElement(text);
     }
 
     /// <inheritdoc/>
