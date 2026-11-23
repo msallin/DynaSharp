@@ -5,7 +5,10 @@ namespace DynaSharp.Generators;
 /// <summary>A diagnostic of a template, whose location the caller knows.</summary>
 /// <param name="Descriptor">The diagnostic.</param>
 /// <param name="Arguments">The message arguments.</param>
-/// <param name="KeepsModel">Whether the placeholder took the default encoding of its type instead, so the error leaves the model whole.</param>
+/// <param name="KeepsModel">
+/// Whether the error leaves the model whole: the placeholder took the default encoding of its type instead (<c>DYNA104</c>, <c>DYNA105</c>), or keeps its own, which builds a key for every value
+/// the error is not about (<c>DYNA125</c>, <c>DYNA126</c>).
+/// </param>
 /// <param name="Fix">What a code fix writes, see <see cref="DiagnosticInfo.Fix"/>; null for none.</param>
 internal sealed record KeyProblem(DiagnosticDescriptor Descriptor, string[] Arguments, bool KeepsModel = false, string? Fix = null)
 {
