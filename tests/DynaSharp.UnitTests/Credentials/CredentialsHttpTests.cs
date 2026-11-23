@@ -21,12 +21,12 @@ public sealed class CredentialsHttpTests
     }
 
     [Test]
-    public async Task GetProxiedClient_NoHandler_UsesTheDefaultProxyAndNeitherRedirectsNorKeepsCookies()
+    public async Task GetClientFor_RemoteHostWithoutHandler_UsesTheDefaultProxyAndNeitherRedirectsNorKeepsCookies()
     {
         // Arrange (STS is often reached through an egress proxy, and a redirect would send the web identity token to another host)
 
         // Act
-        var client = CredentialsHttp.GetProxiedClient(null);
+        var client = CredentialsHttp.GetClientFor(new Uri("https://sts.eu-west-1.amazonaws.com/"), null);
 
         // Assert
         var handler = (SocketsHttpHandler)CredentialsHttp.HandlerOf(client);
@@ -63,7 +63,7 @@ public sealed class CredentialsHttpTests
         var client = CredentialsHttp.GetClientFor(new Uri(endpoint), null);
 
         // Assert
-        await Assert.That(client).IsSameReferenceAs(CredentialsHttp.GetProxiedClient(null));
+        await Assert.That(((SocketsHttpHandler)CredentialsHttp.HandlerOf(client)).UseProxy).IsTrue();
     }
 
     [Test]
@@ -76,19 +76,6 @@ public sealed class CredentialsHttpTests
 
         // Act
         var client = CredentialsHttp.GetClientFor(new Uri(endpoint), handler);
-
-        // Assert
-        await Assert.That(CredentialsHttp.HandlerOf(client)).IsSameReferenceAs(handler);
-    }
-
-    [Test]
-    public async Task GetProxiedClient_Handler_SendsThroughIt()
-    {
-        // Arrange
-        using var handler = new DisposalTrackingHandler();
-
-        // Act
-        var client = CredentialsHttp.GetProxiedClient(handler);
 
         // Assert
         await Assert.That(CredentialsHttp.HandlerOf(client)).IsSameReferenceAs(handler);
