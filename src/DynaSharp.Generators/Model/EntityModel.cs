@@ -21,8 +21,11 @@ internal sealed record EntityModel(
     string? TimeToLiveAttribute,
     string? TableName)
 {
+    /// <summary>Returns the keys of the table, the partition key first.</summary>
+    /// <returns>The keys.</returns>
+    public IEnumerable<KeyModel> TableKeys() => SortKey is null ? [PartitionKey] : [PartitionKey, SortKey];
+
     /// <summary>Returns every key of the table and its indexes.</summary>
     /// <returns>The keys.</returns>
-    public IEnumerable<KeyModel> Keys() =>
-        new[] { PartitionKey, SortKey }.Concat(Indexes.SelectMany(static index => new[] { index.PartitionKey, index.SortKey })).OfType<KeyModel>();
+    public IEnumerable<KeyModel> Keys() => TableKeys().Concat(Indexes.SelectMany(static index => index.Keys()));
 }

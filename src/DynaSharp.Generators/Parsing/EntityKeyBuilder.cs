@@ -180,8 +180,7 @@ internal sealed class EntityKeyBuilder(
     private static EquatableArray<string> NullableInputs(params KeyTemplate?[] templates)
     {
         var names = templates
-            .SelectMany(static template => template?.Segments ?? default)
-            .OfType<PlaceholderSegment>()
+            .SelectMany(static template => template?.Placeholders() ?? [])
             .Where(static placeholder => placeholder.InputCanBeAbsent)
             .Select(static placeholder => placeholder.Property)
             .Distinct();
@@ -192,7 +191,7 @@ internal sealed class EntityKeyBuilder(
     // period, which is the design of a counter or a summary; s, ms and us stand for a moment, and there the cut is what loses an item.
     private void ReportTruncatedEnd(KeyModel? lastKey, KeySlot slot)
     {
-        var last = (lastKey?.Template?.Segments ?? default).OfType<PlaceholderSegment>().LastOrDefault();
+        var last = (lastKey?.Template?.Placeholders() ?? []).LastOrDefault();
         if (last?.Encoding is TimestampEncoding { IsLossless: false, IsBucket: false })
         {
             bag.Report(
@@ -205,7 +204,7 @@ internal sealed class EntityKeyBuilder(
 
     private void ReportEmptyDefaults()
     {
-        var inputs = _keys.SelectMany(static key => (key.Template?.Segments ?? default).OfType<PlaceholderSegment>().Select(static placeholder => placeholder.Property)).ToList();
+        var inputs = _keys.SelectMany(static key => (key.Template?.Placeholders() ?? []).Select(static placeholder => placeholder.Property)).ToList();
         inputs.AddRange(_keys.Select(static key => key.PlainProperty).OfType<string>());
         foreach (var property in properties.Where(property => inputs.Contains(property.Name) && !property.OmitsEmpty && EmptyDefault.IsForgettable(property, type)))
         {
@@ -218,7 +217,7 @@ internal sealed class EntityKeyBuilder(
     private void ReportRawBesideStrict()
     {
         var placeholders = _templates
-            .SelectMany(static entry => entry.Template.Segments.OfType<PlaceholderSegment>().Select(placeholder => (entry.Template, entry.Spot, entry.Fallbacks, Placeholder: placeholder)))
+            .SelectMany(static entry => entry.Template.Placeholders().Select(placeholder => (entry.Template, entry.Spot, entry.Fallbacks, Placeholder: placeholder)))
             .ToList();
         foreach (var strict in placeholders.Where(static entry =>
             entry.Template.Delimiters.Length > 0 && entry.Placeholder.Encoding is StringEncoding { IsRaw: false } && !entry.Fallbacks.Contains(entry.Placeholder.Property)))
@@ -238,7 +237,7 @@ internal sealed class EntityKeyBuilder(
         var reported = new HashSet<string>();
         foreach (var key in new[] { partition, sort })
         {
-            foreach (var placeholder in (key?.Template?.Segments ?? default).OfType<PlaceholderSegment>())
+            foreach (var placeholder in key?.Template?.Placeholders() ?? [])
             {
                 if (placeholder.Encoding is StringEncoding { IsRaw: true }
                     && _stored.TryGetValue(placeholder.Property, out var property)
@@ -781,7 +780,7 @@ internal sealed class EntityKeyBuilder(
     }
 
     private IEnumerable<KeyModel> KeysFedBy(PropertyFacts property) =>
-        _keys.Where(key => key.PlainProperty == property.Name || (key.Template?.Segments ?? default).OfType<PlaceholderSegment>().Any(placeholder => placeholder.Property == property.Name));
+        _keys.Where(key => key.PlainProperty == property.Name || (key.Template?.Placeholders() ?? []).Any(placeholder => placeholder.Property == property.Name));
 
     // A property that is a key has only the converter to go by. A read that took it for missing would give an entity with another key, which the next Put writes somewhere else.
     private void KeepKeysFromMissing()
@@ -857,7 +856,7 @@ internal sealed class EntityKeyBuilder(
     private List<(KeyModel Key, PlaceholderSegment Placeholder)> HoldersOf(PropertyFacts property) =>
     [
         .. _keys
-            .SelectMany(static key => (key.Template?.Segments ?? default).OfType<PlaceholderSegment>().Select(placeholder => (key, placeholder)))
+            .SelectMany(static key => (key.Template?.Placeholders() ?? []).Select(placeholder => (key, placeholder)))
             .Where(holder => holder.placeholder.Property == property.Name),
     ];
 }

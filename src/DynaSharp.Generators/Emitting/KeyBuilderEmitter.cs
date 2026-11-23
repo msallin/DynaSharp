@@ -35,7 +35,7 @@ internal sealed class KeyBuilderEmitter(IndentedCode code, KeyModel key, KeyTemp
     // The UTF-8 bytes of U+10FFFF that KeyWriter.WriteUpperBound appends.
     private const int UpperBoundLength = 4;
 
-    private readonly List<PlaceholderSegment> _placeholders = [.. template.Segments.OfType<PlaceholderSegment>()];
+    private readonly List<PlaceholderSegment> _placeholders = [.. template.Placeholders()];
 
     private readonly string _delimiters = CodeText.Utf8(template.Delimiters);
 

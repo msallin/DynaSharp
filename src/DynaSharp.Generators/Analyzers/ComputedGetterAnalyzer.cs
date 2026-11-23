@@ -122,7 +122,7 @@ internal sealed class ComputedGetterAnalyzer : DiagnosticAnalyzer
     }
 
     private static bool Holds(KeyTemplate template, string property, bool isRaw) =>
-        template.Segments.OfType<PlaceholderSegment>().Any(placeholder => placeholder.Property == property && placeholder.Encoding is StringEncoding encoding && encoding.IsRaw == isRaw);
+        template.Placeholders().Any(placeholder => placeholder.Property == property && placeholder.Encoding is StringEncoding encoding && encoding.IsRaw == isRaw);
 
     // The properties that every return of the getter hands on with every character, or null when one return does anything else. A return inside a lambda of the getter counts as one of its own.
     private static List<string>? PassedOn(List<IOperation> operations)

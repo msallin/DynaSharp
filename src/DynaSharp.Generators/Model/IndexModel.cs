@@ -15,4 +15,13 @@ internal sealed record IndexModel(
     bool Sparse,
     bool IsLocal,
     EquatableArray<string> NullableInputs,
-    EquatableArray<string>? Include);
+    EquatableArray<string>? Include)
+{
+    /// <summary>Returns the keys of the index, the partition key first.</summary>
+    /// <returns>The keys.</returns>
+    public IEnumerable<KeyModel> Keys() => SortKey is null ? [PartitionKey] : [PartitionKey, SortKey];
+
+    /// <summary>Returns the keys the index writes itself: those of <see cref="Keys"/> but the partition key of a local index, which is the table's.</summary>
+    /// <returns>The keys.</returns>
+    public IEnumerable<KeyModel> OwnKeys() => IsLocal ? Keys().Skip(1) : Keys();
+}
