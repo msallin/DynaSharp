@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
+using DynaSharp.Operations;
 
 namespace DynaSharp;
 
@@ -36,8 +37,6 @@ namespace DynaSharp;
 public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryCommand<T>>, IRetryable<FanOutQueryCommand<T>>, IReadCommand
     where T : IDynamoDbDocument<T>
 {
-    private const string Operation = "Query";
-
     private readonly CommandState? _state;
     private readonly int _version;
     private readonly TableModel? _table;
@@ -51,12 +50,12 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
         _plan = plan;
     }
 
-    internal string DebuggerText => CommandDebugger.Describe(Operation, _state, _version, _table);
+    internal string DebuggerText => CommandDebugger.Describe(QueryOperation.Name, _state, _version, _table);
 
     /// <summary>Converts a command for the compiler, which passes it to the handler of an interpolated filter.</summary>
     /// <param name="command">The command.</param>
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public static implicit operator CommandHandle(FanOutQueryCommand<T> command) => new(command._state, command._version, Operation, command._table);
+    public static implicit operator CommandHandle(FanOutQueryCommand<T> command) => new(command._state, command._version, QueryOperation.Name, command._table);
 
     /// <inheritdoc cref="QueryCommand{T}.Filter(ExpressionHandler)"/>
     public FanOutQueryCommand<T> Filter([InterpolatedStringHandlerArgument("")] ExpressionHandler condition)
@@ -357,7 +356,7 @@ public readonly ref struct FanOutQueryCommand<T> : IFilterable<FanOutQueryComman
         return new(read.BeginFanOut(sortKey), read, plan);
     }
 
-    private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+    private CommandState Enter() => CommandState.Enter(_state, _version, QueryOperation.Name, _table);
 
     private CommandState Prepare()
     {

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
+using DynaSharp.Operations;
 
 namespace DynaSharp;
 
@@ -15,8 +16,6 @@ namespace DynaSharp;
 public readonly ref struct ParallelScanCommand<T> : IReadCommand
     where T : IDynamoDbDocument<T>
 {
-    private const string Operation = "Scan";
-
     private readonly CommandState? _state;
     private readonly int _version;
     private readonly TableModel? _table;
@@ -28,7 +27,7 @@ public readonly ref struct ParallelScanCommand<T> : IReadCommand
         _table = table;
     }
 
-    internal string DebuggerText => CommandDebugger.Describe(Operation, _state, _version, _table);
+    internal string DebuggerText => CommandDebugger.Describe(ScanOperation.Name, _state, _version, _table);
 
     /// <summary>
     /// Reads all items of all segments as they come. The order is unspecified: items of one page stay together and in the order of the page, and pages of
@@ -51,7 +50,7 @@ public readonly ref struct ParallelScanCommand<T> : IReadCommand
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public IAsyncEnumerable<T> ItemsAsync(CancellationToken cancellationToken = default)
     {
-        var state = CommandState.Enter(_state, _version, Operation, _table);
+        var state = CommandState.Enter(_state, _version, ScanOperation.Name, _table);
         state.Table.AddRequiredNames(state);
         return ParallelScan<T>.Items(state, cancellationToken);
     }

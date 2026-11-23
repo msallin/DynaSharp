@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
+using DynaSharp.Operations;
 
 namespace DynaSharp;
 
@@ -22,8 +23,6 @@ namespace DynaSharp;
 [DebuggerDisplay("{DebuggerText,nq}")]
 public readonly ref struct TransactGetCommand : IRetryable<TransactGetCommand>
 {
-    private const string Operation = "TransactGetItems";
-
     private readonly CommandState? _state;
     private readonly int _version;
     private readonly TableModel? _table;
@@ -35,9 +34,9 @@ public readonly ref struct TransactGetCommand : IRetryable<TransactGetCommand>
         _table = state.Table;
     }
 
-    internal string DebuggerText => CommandDebugger.Describe(Operation, _state, _version, _table);
+    internal string DebuggerText => CommandDebugger.Describe(TransactGetItemsOperation.Name, _state, _version, _table);
 
-    internal CommandHandle Handle => new(_state, _version, Operation, _table);
+    internal CommandHandle Handle => new(_state, _version, TransactGetItemsOperation.Name, _table);
 
     /// <summary>Adds a get on a table without a schema, by the values of the key. A table of an entity takes a generated key instead.</summary>
     /// <param name="table">The table.</param>
@@ -145,5 +144,5 @@ public readonly ref struct TransactGetCommand : IRetryable<TransactGetCommand>
         return state.RenderJson();
     }
 
-    private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+    private CommandState Enter() => CommandState.Enter(_state, _version, TransactGetItemsOperation.Name, _table);
 }

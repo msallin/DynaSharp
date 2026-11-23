@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
+using DynaSharp.Operations;
 using DynaSharp.Serialization;
 
 namespace DynaSharp;
@@ -44,8 +45,6 @@ namespace DynaSharp;
 public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetryable<QueryCommand<T>>, IReadCommand
     where T : IDynamoDbDocument<T>
 {
-    private const string Operation = "Query";
-
     private readonly CommandState? _state;
     private readonly int _version;
     private readonly TableModel? _table;
@@ -57,9 +56,9 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
         _table = table;
     }
 
-    internal string DebuggerText => CommandDebugger.Describe(Operation, _state, _version, _table);
+    internal string DebuggerText => CommandDebugger.Describe(QueryOperation.Name, _state, _version, _table);
 
-    internal CommandHandle Handle => new(_state, _version, Operation, _table);
+    internal CommandHandle Handle => new(_state, _version, QueryOperation.Name, _table);
 
     /// <summary>Converts a command for the compiler, which passes it to the handler of an interpolated filter.</summary>
     /// <param name="command">The command.</param>
@@ -427,7 +426,7 @@ public readonly ref struct QueryCommand<T> : IFilterable<QueryCommand<T>>, IRetr
         return state;
     }
 
-    private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+    private CommandState Enter() => CommandState.Enter(_state, _version, QueryOperation.Name, _table);
 
     private CommandState Prepare()
     {

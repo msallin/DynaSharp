@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using DynaSharp.Fluent;
+using DynaSharp.Operations;
 using DynaSharp.Serialization;
 
 namespace DynaSharp;
@@ -25,8 +26,6 @@ public readonly ref struct ScanSelectCommand<T1, TConverter1, T2, TConverter2, T
     where TConverter3 : IDynamoDbConverter<T3>
     where TConverter4 : IDynamoDbConverter<T4>
 {
-    private const string Operation = "Scan";
-
     private readonly CommandState? _state;
     private readonly int _version;
     private readonly TableModel? _table;
@@ -38,7 +37,7 @@ public readonly ref struct ScanSelectCommand<T1, TConverter1, T2, TConverter2, T
         _table = state.Table;
     }
 
-    internal string DebuggerText => CommandDebugger.Describe(Operation, _state, _version, _table);
+    internal string DebuggerText => CommandDebugger.Describe(ScanOperation.Name, _state, _version, _table);
 
     /// <summary>Reads the attributes of all items of all pages as they come, as <see cref="ScanSelectCommand{TValue, TConverter}.ValuesAsync"/> reads one.</summary>
     /// <param name="cancellationToken">Cancels the read, as does <c>WithCancellation</c> on the result. It is looked at per page.</param>
@@ -86,5 +85,5 @@ public readonly ref struct ScanSelectCommand<T1, TConverter1, T2, TConverter2, T
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
     public string ToRequestJson() => Enter().RenderJson();
 
-    private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+    private CommandState Enter() => CommandState.Enter(_state, _version, ScanOperation.Name, _table);
 }

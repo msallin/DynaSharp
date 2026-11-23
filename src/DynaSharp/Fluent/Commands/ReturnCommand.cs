@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
+using DynaSharp.Operations;
 using DynaSharp.Serialization;
 
 namespace DynaSharp;
@@ -19,8 +20,6 @@ namespace DynaSharp;
 public readonly ref struct ReturnCommand<TValue, TConverter>
     where TConverter : IDynamoDbConverter<TValue>
 {
-    private const string Operation = "UpdateItem";
-
     private readonly CommandState? _state;
     private readonly int _version;
     private readonly TableModel? _table;
@@ -32,9 +31,9 @@ public readonly ref struct ReturnCommand<TValue, TConverter>
         _table = table;
     }
 
-    internal string DebuggerText => CommandDebugger.Describe(Operation, _state, _version, _table);
+    internal string DebuggerText => CommandDebugger.Describe(UpdateItemOperation.Name, _state, _version, _table);
 
-    internal CommandHandle Handle => new(_state, _version, Operation, _table);
+    internal CommandHandle Handle => new(_state, _version, UpdateItemOperation.Name, _table);
 
     /// <summary>Sends the command.</summary>
     /// <param name="cancellationToken">Cancels the call.</param>
@@ -102,5 +101,5 @@ public readonly ref struct ReturnCommand<TValue, TConverter>
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public string ToRequestJson() => Enter().Settle().RenderJson();
 
-    private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+    private CommandState Enter() => CommandState.Enter(_state, _version, UpdateItemOperation.Name, _table);
 }

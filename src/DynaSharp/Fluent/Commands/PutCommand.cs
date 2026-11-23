@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
+using DynaSharp.Operations;
 
 namespace DynaSharp;
 
@@ -26,8 +27,6 @@ namespace DynaSharp;
 public readonly ref struct PutCommand<T> : IConditional<PutCommand<T>>, IRetryable<PutCommand<T>>
     where T : IDynamoDbDocument<T>
 {
-    private const string Operation = "PutItem";
-
     private readonly CommandState? _state;
     private readonly int _version;
     private readonly TableModel? _table;
@@ -39,12 +38,12 @@ public readonly ref struct PutCommand<T> : IConditional<PutCommand<T>>, IRetryab
         _table = table;
     }
 
-    internal string DebuggerText => CommandDebugger.Describe(Operation, _state, _version, _table);
+    internal string DebuggerText => CommandDebugger.Describe(PutItemOperation.Name, _state, _version, _table);
 
     /// <summary>Converts a command for the compiler, which passes it to the handler of an interpolated condition.</summary>
     /// <param name="command">The command.</param>
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public static implicit operator CommandHandle(PutCommand<T> command) => new(command._state, command._version, Operation, command._table);
+    public static implicit operator CommandHandle(PutCommand<T> command) => new(command._state, command._version, PutItemOperation.Name, command._table);
 
     /// <summary>
     /// Adds a condition in the grammar of DynamoDB, for what the conditions of handles do not cover:
@@ -243,5 +242,5 @@ public readonly ref struct PutCommand<T> : IConditional<PutCommand<T>>, IRetryab
 
     /// <summary>Uses up this handle for a method outside the type, which adds to the state and makes the next handle.</summary>
     /// <returns>The state.</returns>
-    internal CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+    internal CommandState Enter() => CommandState.Enter(_state, _version, PutItemOperation.Name, _table);
 }

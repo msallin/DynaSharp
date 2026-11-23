@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using DynaSharp.Expressions;
 using DynaSharp.Fluent;
+using DynaSharp.Operations;
 using DynaSharp.Serialization;
 
 namespace DynaSharp;
@@ -19,8 +20,6 @@ namespace DynaSharp;
 public readonly ref struct QuerySelectCommand<TValue, TConverter> : IReadCommand
     where TConverter : IDynamoDbConverter<TValue>
 {
-    private const string Operation = "Query";
-
     private readonly CommandState? _state;
     private readonly int _version;
     private readonly TableModel? _table;
@@ -32,9 +31,9 @@ public readonly ref struct QuerySelectCommand<TValue, TConverter> : IReadCommand
         _table = state.Table;
     }
 
-    internal string DebuggerText => CommandDebugger.Describe(Operation, _state, _version, _table);
+    internal string DebuggerText => CommandDebugger.Describe(QueryOperation.Name, _state, _version, _table);
 
-    internal CommandHandle Handle => new(_state, _version, Operation, _table);
+    internal CommandHandle Handle => new(_state, _version, QueryOperation.Name, _table);
 
     /// <summary>Reads one more attribute in the same request, so that the read gives a tuple. See <see cref="GetSelectCommand{TValue, TConverter}.And{TNext, TNextConverter}(Attr{TNext, TNextConverter})"/>.</summary>
     /// <remarks><inheritdoc cref="GetSelectCommand{TValue, TConverter}.And{TNext, TNextConverter}(Attr{TNext, TNextConverter})" path="/remarks"/></remarks>
@@ -45,7 +44,7 @@ public readonly ref struct QuerySelectCommand<TValue, TConverter> : IReadCommand
     /// <exception cref="ArgumentException">The handle is a default value, its path has a list index, or the read gives that attribute already.</exception>
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
     public QuerySelectCommand<TValue, TConverter, TNext, TNextConverter> And<TNext, TNextConverter>(Attr<TNext, TNextConverter> attribute)
-        where TNextConverter : IDynamoDbConverter<TNext> => new(Selection.Another(_state, _version, Operation, _table, attribute.Path));
+        where TNextConverter : IDynamoDbConverter<TNext> => new(Selection.Another(_state, _version, QueryOperation.Name, _table, attribute.Path));
 
     /// <summary>Reads one more nullable attribute in the same request, which gives null for an item without it. See <see cref="GetSelectCommand{TValue, TConverter}.And{TNext, TNextConverter}(Attr{TNext, TNextConverter})"/>.</summary>
     /// <typeparam name="TNext">The type of the attribute.</typeparam>
@@ -56,7 +55,7 @@ public readonly ref struct QuerySelectCommand<TValue, TConverter> : IReadCommand
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
     public QuerySelectCommand<TValue, TConverter, TNext?, NullableConverter<TNext, TNextConverter>> And<TNext, TNextConverter>(Attr<TNext, NullableHandleConverter<TNext, TNextConverter>> attribute)
         where TNext : struct
-        where TNextConverter : IDynamoDbConverter<TNext> => new(Selection.Another(_state, _version, Operation, _table, attribute.Path));
+        where TNextConverter : IDynamoDbConverter<TNext> => new(Selection.Another(_state, _version, QueryOperation.Name, _table, attribute.Path));
 
     /// <summary>Reads one more nullable attribute in the same request, which gives null for an item without it. See <see cref="GetSelectCommand{TValue, TConverter}.And{TNext, TNextConverter}(Attr{TNext, TNextConverter})"/>.</summary>
     /// <typeparam name="TNext">The type of the attribute.</typeparam>
@@ -67,7 +66,7 @@ public readonly ref struct QuerySelectCommand<TValue, TConverter> : IReadCommand
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
     public QuerySelectCommand<TValue, TConverter, TNext?, NullableReferenceConverter<TNext, TNextConverter>> And<TNext, TNextConverter>(Attr<TNext, NullableReferenceHandleConverter<TNext, TNextConverter>> attribute)
         where TNext : class
-        where TNextConverter : IDynamoDbConverter<TNext> => new(Selection.Another(_state, _version, Operation, _table, attribute.Path));
+        where TNextConverter : IDynamoDbConverter<TNext> => new(Selection.Another(_state, _version, QueryOperation.Name, _table, attribute.Path));
 
     /// <summary>Reads the attribute of all items of all pages as they come, as <see cref="QueryCommand{T}.ItemsAsync"/> reads the items.</summary>
     /// <param name="cancellationToken">Cancels the read, as does <c>WithCancellation</c> on the result. It is looked at per page.</param>
@@ -130,5 +129,5 @@ public readonly ref struct QuerySelectCommand<TValue, TConverter> : IReadCommand
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
     public string ToRequestJson() => Enter().RenderJson();
 
-    private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+    private CommandState Enter() => CommandState.Enter(_state, _version, QueryOperation.Name, _table);
 }

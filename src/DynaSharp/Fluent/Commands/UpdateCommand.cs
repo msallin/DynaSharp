@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
+using DynaSharp.Operations;
 using DynaSharp.Serialization;
 
 namespace DynaSharp;
@@ -46,8 +47,6 @@ namespace DynaSharp;
 public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IUpdatable<UpdateCommand<T>>, IRetryable<UpdateCommand<T>>
     where T : IDynamoDbDocument<T>
 {
-    private const string Operation = "UpdateItem";
-
     private readonly CommandState? _state;
     private readonly int _version;
     private readonly TableModel? _table;
@@ -59,12 +58,12 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
         _table = table;
     }
 
-    internal string DebuggerText => CommandDebugger.Describe(Operation, _state, _version, _table);
+    internal string DebuggerText => CommandDebugger.Describe(UpdateItemOperation.Name, _state, _version, _table);
 
     /// <summary>Converts a command for the compiler, which passes it to the handler of an interpolated expression.</summary>
     /// <param name="command">The command.</param>
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public static implicit operator CommandHandle(UpdateCommand<T> command) => new(command._state, command._version, Operation, command._table);
+    public static implicit operator CommandHandle(UpdateCommand<T> command) => new(command._state, command._version, UpdateItemOperation.Name, command._table);
 
     /// <inheritdoc/>
     public UpdateCommand<T> Set(string path, AttributeValue value)
@@ -441,7 +440,7 @@ public readonly ref struct UpdateCommand<T> : IConditional<UpdateCommand<T>>, IU
 
     /// <summary>Uses up this handle for a method outside the type, which adds to the state and makes the next handle.</summary>
     /// <returns>The state.</returns>
-    internal CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+    internal CommandState Enter() => CommandState.Enter(_state, _version, UpdateItemOperation.Name, _table);
 
     private UpdateCommand<T> Adding<TValue, TConverter>(string path, TValue value)
         where TConverter : IDynamoDbConverter<TValue>
