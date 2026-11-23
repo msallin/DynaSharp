@@ -32,7 +32,7 @@ public sealed class WebIdentityEndToEndTests
     public async Task GetCredentialsAsync_StsOnLoopback_ReturnsWhatBotocoreParsed()
     {
         // Arrange
-        using var sts = new LoopbackHttpServer(Sample.Text("body"));
+        using var sts = new QueuedLoopbackServer(Sample.Text("body"));
         var provider = Provider(sts.Endpoint, new ManualTimeProvider(Now));
 
         // Act
@@ -47,7 +47,7 @@ public sealed class WebIdentityEndToEndTests
     public async Task GetCredentialsAsync_StsOnLoopback_SendsWhatBotocoreSends()
     {
         // Arrange
-        using var sts = new LoopbackHttpServer(Sample.Text("body"));
+        using var sts = new QueuedLoopbackServer(Sample.Text("body"));
         var provider = Provider(sts.Endpoint, new ManualTimeProvider(Now));
 
         // Act
@@ -62,7 +62,7 @@ public sealed class WebIdentityEndToEndTests
     public async Task GetCredentialsAsync_CredentialsAboutToExpire_FetchesTheNextOnes()
     {
         // Arrange (ten minutes before the expiration a caller waits for the fetch, so nothing runs in the background here)
-        using var sts = new LoopbackHttpServer(Sample.Text("body"), Refreshed.Text("body"));
+        using var sts = new QueuedLoopbackServer(Sample.Text("body"), Refreshed.Text("body"));
         var time = new ManualTimeProvider(Now);
         var provider = Provider(sts.Endpoint, time);
         await provider.GetCredentialsAsync(CancellationToken.None);
@@ -81,7 +81,7 @@ public sealed class WebIdentityEndToEndTests
     public async Task SendAsync_EnvironmentSelectsWebIdentity_SignsWithTheSessionTokenOfEachFetch()
     {
         // Arrange (the variables of the process, the default chain and a file on disk, as a pod has them. The legacy mode would pick the global endpoint if the variable did not come first)
-        using var sts = new LoopbackHttpServer(Sample.Text("body"), Refreshed.Text("body"));
+        using var sts = new QueuedLoopbackServer(Sample.Text("body"), Refreshed.Text("body"));
         using var directory = new TempDirectory();
         directory.Write("token", Request.Text("token"));
         using var environment = new ScopedEnvironmentVariables(
@@ -114,8 +114,8 @@ public sealed class WebIdentityEndToEndTests
     public async Task GetCredentialsAsync_DefaultProxyOfTheProcess_IsNotUsedForLoopback()
     {
         // Arrange (a client reads the default proxy at its first request, and HTTP_PROXY answers for loopback too, so what stands here is what that variable leaves)
-        using var proxy = new LoopbackHttpServer();
-        using var sts = new LoopbackHttpServer(Sample.Text("body"));
+        using var proxy = new QueuedLoopbackServer();
+        using var sts = new QueuedLoopbackServer(Sample.Text("body"));
         var provider = Provider(sts.Endpoint, new ManualTimeProvider(Now));
         var previous = HttpClient.DefaultProxy;
         HttpClient.DefaultProxy = new EveryRequestProxy(proxy.Endpoint);

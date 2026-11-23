@@ -86,7 +86,7 @@ internal sealed class LoopbackHttpServer : IDisposable
     {
         var end = request.AsSpan().IndexOf(EndOfHeaders);
         var lines = Encoding.ASCII.GetString(request, 0, end).Split("\r\n");
-        return new ReceivedRequest(lines[1..], Encoding.UTF8.GetString(request.AsSpan(end + EndOfHeaders.Length)));
+        return new ReceivedRequest(lines[0], lines[1..], Encoding.UTF8.GetString(request.AsSpan(end + EndOfHeaders.Length)));
     }
 
     // Without a reason phrase, which HTTP/1.1 allows and no client reads.

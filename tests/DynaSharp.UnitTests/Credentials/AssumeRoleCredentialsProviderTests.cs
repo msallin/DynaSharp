@@ -835,7 +835,7 @@ public sealed class AssumeRoleCredentialsProviderTests
     public async Task GetCredentialsAsync_OverASocket_SendsTheSignedFormToTheLoopbackServer()
     {
         // Arrange (what a real HttpClient puts on the wire: the Host header must be the authority that was signed)
-        using var server = new LoopbackHttpServer(StsSuccess(AccessKeyId, DateTimeOffset.UtcNow.AddHours(1)));
+        using var server = new QueuedLoopbackServer(StsSuccess(AccessKeyId, DateTimeOffset.UtcNow.AddHours(1)));
         var settings = Settings("s") with { Endpoint = server.Endpoint };
         var dependencies = new CredentialsDependencies(Env(), NoFiles, NoWrites, CredentialProcess.Runner, null, TimeProvider.System, NullLoggerFactory.Instance);
         var provider = new AssumeRoleCredentialsProvider(new StaticCredentialsProvider(Source), settings, dependencies);
@@ -884,7 +884,7 @@ public sealed class AssumeRoleCredentialsProviderTests
     public async Task GetCredentialsAsync_InternationalizedEndpoint_SignsTheHostThatIsSent()
     {
         // Arrange (the name does not resolve, so the connection goes to the loopback server)
-        using var server = new LoopbackHttpServer(StsSuccess(AccessKeyId, DateTimeOffset.UtcNow.AddHours(1)));
+        using var server = new QueuedLoopbackServer(StsSuccess(AccessKeyId, DateTimeOffset.UtcNow.AddHours(1)));
         var port = server.Endpoint.Port;
         using var connecting = new SocketsHttpHandler
         {
