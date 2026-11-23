@@ -14,7 +14,7 @@ The gate is a mutation score of at least 90 % per shard (`stryker-config.json`: 
 
 ## Work the survivors
 
-1. Record the run (shard, commit) and its survivors in `spec/tasks.md` under a section of the shard.
+1. Record the run (shard, commit, score) in `spec/tasks.md` (Stryker verdicts), and once worked, the equivalent survivors with the reason no behaviour tells them apart; kills and simplifications stay in git history.
 2. For each survivor, one of:
    - **Kill it** with a test that fails under the mutant. Prove it by hand: apply the mutation, run the test classes that cover it (`dotnet test --project tests/DynaSharp.UnitTests -c Release --no-build --treenode-filter "/*/*/<Class>/*"` after a Release build), revert.
    - **Simplify it away** (`refactor:`) when no outcome depends on the mutated code.
