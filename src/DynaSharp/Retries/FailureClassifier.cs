@@ -85,27 +85,23 @@ internal static class FailureClassifier
     };
 
     /// <summary>
-    /// Tells whether the same call can pass later without any change, which <see cref="DynamoDbException.IsTransient"/> answers. Everything that <see cref="Classify"/> repeats
-    /// is, so the two cannot disagree, and so are the conflicts of a transaction, which the pipeline leaves to the caller: the other transaction ends without anything changing on this side.
+    /// Tells whether the same call can pass later without any change, which <see cref="DynamoDbException.IsTransient"/> answers for an error of DynamoDB. Everything that
+    /// <see cref="Classify"/> repeats is, so the two cannot disagree, and so are the conflicts of a transaction, which the pipeline leaves to the caller: the other transaction
+    /// ends without anything changing on this side.
     /// </summary>
     /// <param name="exception">The failure.</param>
     /// <returns>
-    /// <see langword="true"/> for what the pipeline repeats, for <see cref="TransactionConflictException"/>, for a cancelled transaction whose every failed action is a conflict or
-    /// throttled, and for a batch that gave up on its rounds or on a transient failure.
+    /// <see langword="true"/> for what the pipeline repeats, a network failure and a timeout of an attempt included, for <see cref="TransactionConflictException"/>, for a
+    /// cancelled transaction whose every failed action is a conflict or throttled, and for a batch that gave up on its rounds or on a transient failure.
     /// </returns>
-    public static bool IsTransient(DynamoDbException exception) => exception switch
+    public static bool IsTransient(Exception exception) => exception switch
     {
         TransactionConflictException => true,
         TransactionCanceledException canceled => HasOnlyPassingReasons(canceled.Failures),
 
         // BatchIncompleteException and BatchGetIncompleteException<T> share the code. Without a cause the rounds ran out on what DynamoDB left unprocessed, which is throttling.
-        { ErrorCode: BatchIncompleteException.Code } => exception.InnerException switch
-        {
-            null => true,
-            DynamoDbException cause => IsTransient(cause),
-            var cause => Classify(cause) != FailureKind.Permanent,
-        },
-        _ => ClassifyResponse(exception.ErrorCode, exception.StatusCode) != FailureKind.Permanent,
+        DynamoDbException { ErrorCode: BatchIncompleteException.Code } => exception.InnerException is not { } cause || IsTransient(cause),
+        _ => Classify(exception) != FailureKind.Permanent,
     };
 
     private static FailureKind ClassifyResponse(string errorCode, HttpStatusCode statusCode)
