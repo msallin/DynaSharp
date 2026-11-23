@@ -70,7 +70,7 @@ public sealed class ProfileCredentialsProvider : IRefreshableCredentialsProvider
     /// <c>AWS_PROFILE</c> environment variable, or <c>default</c>.
     /// </summary>
     public ProfileCredentialsProvider()
-        : this(CredentialsDependencies.Default, null)
+        : this(CredentialsDependencies.CreateDefault(), null)
     {
     }
 
@@ -80,12 +80,12 @@ public sealed class ProfileCredentialsProvider : IRefreshableCredentialsProvider
     /// <param name="profileName">The profile, for example <c>dev</c>. <c>AWS_PROFILE</c> is ignored.</param>
     /// <exception cref="ArgumentException"><paramref name="profileName"/> is null or empty.</exception>
     public ProfileCredentialsProvider(string profileName)
-        : this(CredentialsDependencies.Default, NotEmpty(profileName))
+        : this(CredentialsDependencies.CreateDefault(), NotEmpty(profileName))
     {
     }
 
     internal ProfileCredentialsProvider(Func<string, string?> getEnvironmentVariable, ReadTextFile readFile, string? profileName)
-        : this(CredentialsDependencies.Default with { GetEnvironmentVariable = getEnvironmentVariable, ReadFile = readFile }, profileName)
+        : this(CredentialsDependencies.CreateDefault() with { GetEnvironmentVariable = getEnvironmentVariable, ReadFile = readFile }, profileName)
     {
     }
 

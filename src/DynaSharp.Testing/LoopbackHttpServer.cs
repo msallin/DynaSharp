@@ -95,7 +95,7 @@ internal sealed class LoopbackHttpServer : IDisposable
         var body = Encoding.UTF8.GetBytes(answer.Body);
         var head = string.Create(
             CultureInfo.InvariantCulture,
-            $"HTTP/1.1 {(int)answer.StatusCode} \r\nContent-Type: text/xml\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n");
+            $"HTTP/1.1 {(int)answer.StatusCode} \r\n{answer.Headers}Content-Type: text/xml\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n");
         return [.. Encoding.ASCII.GetBytes(head), .. body];
     }
 

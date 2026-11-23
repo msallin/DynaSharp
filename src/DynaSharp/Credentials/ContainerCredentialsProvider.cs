@@ -1,5 +1,6 @@
 using System.Net;
 using DynaSharp.Configuration;
+using DynaSharp.Retries;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -68,7 +69,7 @@ public sealed class ContainerCredentialsProvider : IRefreshableCredentialsProvid
     /// current process and uses the system clock.
     /// </summary>
     public ContainerCredentialsProvider()
-        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, TimeProvider.System, NullLogger.Instance)
+        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, new ClockSkewCorrection(TimeProvider.System), NullLogger.Instance)
     {
     }
 

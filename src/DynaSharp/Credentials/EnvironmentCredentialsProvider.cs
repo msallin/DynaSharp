@@ -1,5 +1,6 @@
 using System.Globalization;
 using DynaSharp.Configuration;
+using DynaSharp.Retries;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -49,7 +50,7 @@ public sealed class EnvironmentCredentialsProvider : IRefreshableCredentialsProv
     }
 
     internal EnvironmentCredentialsProvider(Func<string, string?> getEnvironmentVariable)
-        : this(getEnvironmentVariable, TimeProvider.System, NullLogger.Instance)
+        : this(getEnvironmentVariable, new ClockSkewCorrection(TimeProvider.System), NullLogger.Instance)
     {
     }
 

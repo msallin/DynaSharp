@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text;
 using DynaSharp.Configuration;
+using DynaSharp.Retries;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -79,7 +80,7 @@ public sealed class InstanceMetadataCredentialsProvider : IRefreshableCredential
     /// current process and uses the system clock.
     /// </summary>
     public InstanceMetadataCredentialsProvider()
-        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, TimeProvider.System, NullLogger.Instance, null)
+        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, new ClockSkewCorrection(TimeProvider.System), NullLogger.Instance, null)
     {
     }
 

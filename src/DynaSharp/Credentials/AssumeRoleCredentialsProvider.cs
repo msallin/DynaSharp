@@ -72,7 +72,7 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">The duration is shorter than 15 minutes or longer than 12 hours.</exception>
     public AssumeRoleCredentialsProvider(ICredentialsProvider sourceCredentials, string roleArn, string? roleSessionName = null, AssumeRoleOptions? options = null)
-        : this(sourceCredentials ?? throw new ArgumentNullException(nameof(sourceCredentials)), Validate(roleArn, roleSessionName, options ?? new AssumeRoleOptions()), CredentialsDependencies.Default)
+        : this(sourceCredentials ?? throw new ArgumentNullException(nameof(sourceCredentials)), Validate(roleArn, roleSessionName, options ?? new AssumeRoleOptions()), CredentialsDependencies.CreateDefault())
     {
     }
 

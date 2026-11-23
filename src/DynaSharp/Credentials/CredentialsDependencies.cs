@@ -25,8 +25,12 @@ internal sealed record CredentialsDependencies(
     TimeProvider TimeProvider,
     ILoggerFactory LoggerFactory)
 {
-    /// <summary>Gets the dependencies of a provider that an application creates: this process, the disk, the network, the system clock and no logging.</summary>
-    public static CredentialsDependencies Default { get; } = new(
+    /// <summary>
+    /// Creates the dependencies of a provider that an application creates: this process, the disk, the network, the system clock and no logging.
+    /// Each call has a clock of its own, which an STS answer may correct, as each client has one.
+    /// </summary>
+    /// <returns>The dependencies.</returns>
+    public static CredentialsDependencies CreateDefault() => new(
         ProcessEnvironment.GetVariable,
         SharedConfigFiles.DiskReader,
         TextFiles.DiskWriter,
