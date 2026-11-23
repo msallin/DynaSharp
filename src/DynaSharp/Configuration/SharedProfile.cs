@@ -49,7 +49,7 @@ internal sealed class SharedProfile
     /// <param name="option">The lower-case option name.</param>
     /// <returns>The text.</returns>
     public static string? GetText(IReadOnlyDictionary<string, IniValue> values, string option) =>
-        values.TryGetValue(option, out var value) && value.Block is null && value.Text.Length > 0 ? value.Text : null;
+        values.TryGetValue(option, out var value) && !value.IsBlock && value.Text.Length > 0 ? value.Text : null;
 
     /// <summary>Gets the text of an option of the merged view, or <see langword="null"/> if it is not set, empty or a block.</summary>
     /// <param name="option">The lower-case option name.</param>

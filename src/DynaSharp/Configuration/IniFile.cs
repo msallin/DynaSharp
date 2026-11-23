@@ -147,7 +147,7 @@ internal static class IniFile
                 var text = string.Join('\n', lines).TrimEnd();
                 values[name] = text is ['\n', ..]
                     ? ParseBlock(text, fileName, builder.OptionLines[name])
-                    : new IniValue(text, null);
+                    : new IniValue(text, false);
             }
         }
 
@@ -155,28 +155,19 @@ internal static class IniFile
     }
 
     // Input:  "\nmax_concurrent_requests = 20\naddressing_style = path"
-    // Result: { "max_concurrent_requests": "20", "addressing_style": "path" }
+    // A block whose lines are all "name = value", as botocore requires; their values are not kept, because no setting that is read is a block.
     private static IniValue ParseBlock(string text, string fileName, int optionLine)
     {
-        var block = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var rawLine in text.Split('\n'))
         {
-            var line = rawLine.Trim();
-            if (line.Length == 0)
-            {
-                continue;
-            }
-
-            var equals = line.IndexOf('=', StringComparison.Ordinal);
-            if (equals < 0)
+            var line = rawLine.AsSpan().Trim();
+            if (line.Length > 0 && !line.Contains('='))
             {
                 throw Malformed(fileName, optionLine, "a nested block contains a line that is not 'name = value'");
             }
-
-            block[line[..equals].Trim()] = line[(equals + 1)..].Trim();
         }
 
-        return new IniValue(text, block);
+        return new IniValue(text, true);
     }
 
     // Input:  "[profile dev] # comment"
