@@ -15,6 +15,7 @@ partial class InternalEntity : __Map.IDynamoDbDiscriminated<global::KeyShapes.In
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "INTERNAL",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: null,
@@ -23,10 +24,9 @@ partial class InternalEntity : __Map.IDynamoDbDiscriminated<global::KeyShapes.In
             {
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "I#{Kind}", true, new[] { new __Map.DynamoDbKeyInput("Kind", "Kind", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::KeyShapes.InternalKind, KeyShapes_InternalKindConverter>((global::KeyShapes.InternalKind)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Kind } : null },
+                new __Map.DynamoDbKeyTemplate("pk", "I#{Kind}", true, new[] { new __Map.DynamoDbKeyInput("Kind", "Kind", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::KeyShapes.InternalKind, KeyShapes_InternalKindConverter>((global::KeyShapes.InternalKind)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Kind } : null },
             });
     }
 

@@ -15,6 +15,7 @@ partial class Roster : __Map.IDynamoDbDiscriminated<global::Shapes.Omitted.Roste
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "ROSTER",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "Id",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
             sortKeyName: null,
@@ -22,8 +23,7 @@ partial class Roster : __Map.IDynamoDbDiscriminated<global::Shapes.Omitted.Roste
             indexes: new __Map.DynamoDbIndexInfo[]
             {
             },
-            versionAttributeName: null,
-            discriminatorAttributeName: "_type");
+            versionAttributeName: null);
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]

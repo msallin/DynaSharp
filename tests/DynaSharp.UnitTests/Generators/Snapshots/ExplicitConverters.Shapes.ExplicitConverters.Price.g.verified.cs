@@ -15,6 +15,7 @@ partial class Price : __Map.IDynamoDbDiscriminated<global::Shapes.ExplicitConver
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "PRICE",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "Id",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
             sortKeyName: "Net",
@@ -22,8 +23,7 @@ partial class Price : __Map.IDynamoDbDiscriminated<global::Shapes.ExplicitConver
             indexes: new __Map.DynamoDbIndexInfo[]
             {
             },
-            versionAttributeName: null,
-            discriminatorAttributeName: "_type");
+            versionAttributeName: null);
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]

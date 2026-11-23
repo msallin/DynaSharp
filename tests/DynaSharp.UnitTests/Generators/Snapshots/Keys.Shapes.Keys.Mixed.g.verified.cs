@@ -15,19 +15,19 @@ partial class Mixed : __Map.IDynamoDbDiscriminated<global::Shapes.Keys.Mixed>
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "MIXED",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "Code",
             sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             indexes: new __Map.DynamoDbIndexInfo[]
             {
-                new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Gsi1Pk" },
-                new __Map.DynamoDbIndexInfo("GSI2", "gsi2pk", "gsi2sk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Gsi2Pk" },
-                new __Map.DynamoDbIndexInfo("GSI3", "gsi2pk", null, true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "Gsi3Pk" },
-                new __Map.DynamoDbIndexInfo("LSI1", "pk", "lsi1sk", false, true, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Pk" },
+                new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "Gsi1Pk"),
+                new __Map.DynamoDbIndexInfo("GSI2", "gsi2pk", "gsi2sk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "Gsi2Pk"),
+                new __Map.DynamoDbIndexInfo("GSI3", "gsi2pk", null, true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown, "Gsi3Pk"),
+                new __Map.DynamoDbIndexInfo("LSI1", "pk", "lsi1sk", false, true, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "Pk"),
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
                 new __Map.DynamoDbKeyTemplate("pk", "USER#{User}", true, new[] { new __Map.DynamoDbKeyInput("User", null) }),

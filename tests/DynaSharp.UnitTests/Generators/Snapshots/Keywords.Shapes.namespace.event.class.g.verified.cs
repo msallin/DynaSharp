@@ -15,6 +15,7 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "say \"hi\"\\",
+            discriminatorAttributeName: "the \"type\"",
             partitionKeyName: "the\tkey",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: null,
@@ -22,8 +23,7 @@ partial class @class : __Map.IDynamoDbDiscriminated<global::Shapes.@namespace.@e
             indexes: new __Map.DynamoDbIndexInfo[]
             {
             },
-            versionAttributeName: null,
-            discriminatorAttributeName: "the \"type\"");
+            versionAttributeName: null);
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]

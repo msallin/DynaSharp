@@ -15,21 +15,21 @@ partial record LogLine : __Map.IDynamoDbDiscriminated<global::KeyShapes.LogLine>
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "LOGLINE",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "sk",
             sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             indexes: new __Map.DynamoDbIndexInfo[]
             {
-                new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", "byownersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByOwnerPk" },
-                new __Map.DynamoDbIndexInfo("ByWhen", "bywhenpk", "bywhensk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByWhenPk" },
+                new __Map.DynamoDbIndexInfo("ByOwner", "byownerpk", "byownersk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "ByOwnerPk"),
+                new __Map.DynamoDbIndexInfo("ByWhen", "bywhenpk", "bywhensk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "ByWhenPk"),
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "LOG#{Stream}", true, new[] { new __Map.DynamoDbKeyInput("Stream", "Stream", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Stream } : null },
-                new __Map.DynamoDbKeyTemplate("sk", "AT#{Day}#{At:ms}#{Sequence:d4}", true, new[] { new __Map.DynamoDbKeyInput("Day", "Day", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateOnly, global::DynaSharp.Serialization.DateOnlyConverter>((global::System.DateOnly)__value)), new __Map.DynamoDbKeyInput("At", "At", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value), IsCutOff: true), new __Map.DynamoDbKeyInput("Sequence", "Sequence", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<int, global::DynaSharp.Serialization.NumberConverter<int>>((int)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Day, null, __parts.Sequence } : null, LosesValues = true },
+                new __Map.DynamoDbKeyTemplate("pk", "LOG#{Stream}", true, new[] { new __Map.DynamoDbKeyInput("Stream", "Stream", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Stream } : null },
+                new __Map.DynamoDbKeyTemplate("sk", "AT#{Day}#{At:ms}#{Sequence:d4}", true, new[] { new __Map.DynamoDbKeyInput("Day", "Day", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateOnly, global::DynaSharp.Serialization.DateOnlyConverter>((global::System.DateOnly)__value)), new __Map.DynamoDbKeyInput("At", "At", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value), isCutOff: true), new __Map.DynamoDbKeyInput("Sequence", "Sequence", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<int, global::DynaSharp.Serialization.NumberConverter<int>>((int)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Day, null, __parts.Sequence } : null, LosesValues = true },
                 new __Map.DynamoDbKeyTemplate("byownerpk", "OWNER#{Owner}", false, new[] { new __Map.DynamoDbKeyInput("Owner", "Owner") }, static __values => Keys.ByOwnerPk.Format((string)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("byownersk", "TAG#{Tag}", false, new[] { new __Map.DynamoDbKeyInput("Tag", "Tag") }, static __values => Keys.ByOwnerSk.Format((string)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("bywhenpk", "W#{When}", false, new[] { new __Map.DynamoDbKeyInput("When", "When") }, static __values => Keys.ByWhenPk.Format((global::System.DateTime)__values[0]!)),

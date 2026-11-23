@@ -15,22 +15,22 @@ partial record KeyedOrder : __Map.IDynamoDbDiscriminated<global::KeyShapes.Keyed
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "ORDER",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "sk",
             sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             indexes: new __Map.DynamoDbIndexInfo[]
             {
-                new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Gsi1Pk" },
-                new __Map.DynamoDbIndexInfo("GSI2", "gsi2pk", "gsi2sk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Gsi2Pk" },
-                new __Map.DynamoDbIndexInfo("LSI1", "pk", "lsi1sk", false, true, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Pk" },
+                new __Map.DynamoDbIndexInfo("GSI1", "gsi1pk", "gsi1sk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "Gsi1Pk"),
+                new __Map.DynamoDbIndexInfo("GSI2", "gsi2pk", "gsi2sk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "Gsi2Pk"),
+                new __Map.DynamoDbIndexInfo("LSI1", "pk", "lsi1sk", false, true, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "Pk"),
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "USER#{UserId}", true, new[] { new __Map.DynamoDbKeyInput("UserId", "UserId", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>((global::System.Guid)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.UserId } : null },
-                new __Map.DynamoDbKeyTemplate("sk", "ORDER#{CreatedAt}#{OrderId}", true, new[] { new __Map.DynamoDbKeyInput("CreatedAt", "CreatedAt", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value)), new __Map.DynamoDbKeyInput("OrderId", "OrderId", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>((global::System.Guid)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.CreatedAt, __parts.OrderId } : null },
+                new __Map.DynamoDbKeyTemplate("pk", "USER#{UserId}", true, new[] { new __Map.DynamoDbKeyInput("UserId", "UserId", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>((global::System.Guid)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.UserId } : null },
+                new __Map.DynamoDbKeyTemplate("sk", "ORDER#{CreatedAt}#{OrderId}", true, new[] { new __Map.DynamoDbKeyInput("CreatedAt", "CreatedAt", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.DateTimeOffset, global::DynaSharp.Serialization.DateTimeOffsetConverter>((global::System.DateTimeOffset)__value)), new __Map.DynamoDbKeyInput("OrderId", "OrderId", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<global::System.Guid, global::DynaSharp.Serialization.GuidConverter>((global::System.Guid)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.CreatedAt, __parts.OrderId } : null },
                 new __Map.DynamoDbKeyTemplate("gsi1pk", "STATUS#{Status}", false, new[] { new __Map.DynamoDbKeyInput("Status", "Status") }, static __values => Keys.Gsi1Pk.Format((global::KeyShapes.Plan)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("gsi1sk", "{Total:n10.2}", false, new[] { new __Map.DynamoDbKeyInput("Total", "Total") }, static __values => Keys.Gsi1Sk.Format((decimal)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("gsi2pk", "TRACK#{TrackingId}", false, new[] { new __Map.DynamoDbKeyInput("TrackingId", "TrackingId") }, static __values => Keys.Gsi2Pk.Format((global::System.Guid)__values[0]!)),

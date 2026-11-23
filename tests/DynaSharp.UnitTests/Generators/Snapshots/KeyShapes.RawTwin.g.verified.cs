@@ -15,19 +15,19 @@ partial record RawTwin : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawTwin>
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "RAWTWIN",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: null,
             sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
             indexes: new __Map.DynamoDbIndexInfo[]
             {
-                new __Map.DynamoDbIndexInfo("Strict", "strictpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "StrictPk" },
+                new __Map.DynamoDbIndexInfo("Strict", "strictpk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown, "StrictPk"),
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "A#{Key:raw}", true, new[] { new __Map.DynamoDbKeyInput("Key", "Key", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Key } : null },
+                new __Map.DynamoDbKeyTemplate("pk", "A#{Key:raw}", true, new[] { new __Map.DynamoDbKeyInput("Key", "Key", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Key } : null },
                 new __Map.DynamoDbKeyTemplate("strictpk", "A#{Key}", false, new[] { new __Map.DynamoDbKeyInput("Key", "Key") }, static __values => Keys.StrictPk.Format((string)__values[0]!)),
             });
     }

@@ -1,4 +1,5 @@
 using DynaSharp.Mapping;
+using DynaSharp.Requests;
 using DynaSharp.Serialization;
 
 namespace DynaSharp.UnitTests.Fluent.Mix;
@@ -6,7 +7,7 @@ namespace DynaSharp.UnitTests.Fluent.Mix;
 /// <summary>A type written by hand that claims the interface and has no discriminator, which only a person can get wrong.</summary>
 internal sealed record Undeclared(string Id) : IDynamoDbDiscriminated<Undeclared>
 {
-    static DynamoDbEntityInfo IDynamoDbEntity<Undeclared>.Info { get; } = new(null, "pk", null, []);
+    static DynamoDbEntityInfo IDynamoDbEntity<Undeclared>.Info { get; } = new(null, "_type", "pk", ScalarAttributeType.Unknown, null, ScalarAttributeType.Unknown, [], null);
 
     static void IDynamoDbEntity<Undeclared>.WriteKey(DynamoDbWriter writer, Undeclared entity) => writer.WriteAttributeName("pk"u8);
 

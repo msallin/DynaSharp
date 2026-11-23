@@ -15,20 +15,20 @@ partial record FeaturedPost : __Map.IDynamoDbDiscriminated<global::KeyShapes.Fea
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "POST",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: null,
             sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
             indexes: new __Map.DynamoDbIndexInfo[]
             {
-                new __Map.DynamoDbIndexInfo("Featured", "featuredpk", "featuredsk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "FeaturedPk" },
-                new __Map.DynamoDbIndexInfo("Everything", "everythingpk", "everythingsk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "EverythingPk" },
+                new __Map.DynamoDbIndexInfo("Featured", "featuredpk", "featuredsk", true, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "FeaturedPk"),
+                new __Map.DynamoDbIndexInfo("Everything", "everythingpk", "everythingsk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "EverythingPk"),
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "POST#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
+                new __Map.DynamoDbKeyTemplate("pk", "POST#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
                 new __Map.DynamoDbKeyTemplate("featuredpk", "FEATURED", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.FeaturedPk.Format()),
                 new __Map.DynamoDbKeyTemplate("featuredsk", "ON#{FeaturedOn}", false, new[] { new __Map.DynamoDbKeyInput("FeaturedOn", "FeaturedOn") }, static __values => Keys.FeaturedSk.Format((global::System.DateOnly)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("everythingpk", "ALL", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.EverythingPk.Format()),

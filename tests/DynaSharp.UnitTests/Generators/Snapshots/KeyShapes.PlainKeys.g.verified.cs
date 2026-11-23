@@ -15,17 +15,17 @@ partial record PlainKeys : __Map.IDynamoDbDiscriminated<global::KeyShapes.PlainK
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "PLAINKEYS",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "Id",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "Sort",
             sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             indexes: new __Map.DynamoDbIndexInfo[]
             {
-                new __Map.DynamoDbIndexInfo("ByCode", "Code", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "ByCodePk" },
-                new __Map.DynamoDbIndexInfo("ByTag", "Id", "bytagsk", false, true, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "Pk" },
+                new __Map.DynamoDbIndexInfo("ByCode", "Code", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown, "ByCodePk"),
+                new __Map.DynamoDbIndexInfo("ByTag", "Id", "bytagsk", false, true, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "Pk"),
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
                 new __Map.DynamoDbKeyTemplate("Code", "{Code}", false, new[] { new __Map.DynamoDbKeyInput("Code", "Code") }),

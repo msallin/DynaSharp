@@ -15,6 +15,7 @@ partial class Log : __Map.IDynamoDbDiscriminated<global::Shapes.Lenient.Log>
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "LOG",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "Id",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: null,
@@ -22,8 +23,7 @@ partial class Log : __Map.IDynamoDbDiscriminated<global::Shapes.Lenient.Log>
             indexes: new __Map.DynamoDbIndexInfo[]
             {
             },
-            versionAttributeName: null,
-            discriminatorAttributeName: "_type");
+            versionAttributeName: null);
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]

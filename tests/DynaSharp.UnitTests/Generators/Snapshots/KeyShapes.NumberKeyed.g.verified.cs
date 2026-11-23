@@ -15,6 +15,7 @@ partial record NumberKeyed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Numb
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "NUMBERED",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "Id",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.Number,
             sortKeyName: "Sequence",
@@ -22,8 +23,7 @@ partial record NumberKeyed : __Map.IDynamoDbDiscriminated<global::KeyShapes.Numb
             indexes: new __Map.DynamoDbIndexInfo[]
             {
             },
-            versionAttributeName: null,
-            discriminatorAttributeName: "_type");
+            versionAttributeName: null);
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]

@@ -15,20 +15,20 @@ partial class Letter : __Map.IDynamoDbDiscriminated<global::KeyShapes.Letter>
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "LETTER",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: null,
             sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
             indexes: new __Map.DynamoDbIndexInfo[]
             {
-                new __Map.DynamoDbIndexInfo("ByDay", "bydaypk", "bydaysk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByDayPk" },
+                new __Map.DynamoDbIndexInfo("ByDay", "bydaypk", "bydaysk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "ByDayPk"),
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "LETTER#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
-                new __Map.DynamoDbKeyTemplate("bydaypk", "DAY#{Day}", false, new[] { new __Map.DynamoDbKeyInput("Day", null, ComputedFromAttributes: new[] { "at" }) }, static __values => Keys.ByDayPk.Format((global::System.DateOnly)__values[0]!)),
+                new __Map.DynamoDbKeyTemplate("pk", "LETTER#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
+                new __Map.DynamoDbKeyTemplate("bydaypk", "DAY#{Day}", false, new[] { new __Map.DynamoDbKeyInput("Day", null, computedFromAttributes: new[] { "at" }) }, static __values => Keys.ByDayPk.Format((global::System.DateOnly)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("bydaysk", "{Received:ticks}", false, new[] { new __Map.DynamoDbKeyInput("Received", "at") }, static __values => Keys.ByDaySk.Format((global::System.DateTimeOffset)__values[0]!)) { CopyOf = "at" },
             });
     }

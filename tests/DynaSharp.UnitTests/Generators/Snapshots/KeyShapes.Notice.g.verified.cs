@@ -15,21 +15,21 @@ partial record Notice : __Map.IDynamoDbDiscriminated<global::KeyShapes.Notice>
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "NOTICE",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: null,
             sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.Unknown,
             indexes: new __Map.DynamoDbIndexInfo[]
             {
-                new __Map.DynamoDbIndexInfo("Board", "boardpk", "boardsk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "BoardPk" },
-                new __Map.DynamoDbIndexInfo("Everyone", "everyonepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "EveryonePk" },
-                new __Map.DynamoDbIndexInfo("ByText", "bytextpk", "bytextsk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByTextPk" },
+                new __Map.DynamoDbIndexInfo("Board", "boardpk", "boardsk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "BoardPk"),
+                new __Map.DynamoDbIndexInfo("Everyone", "everyonepk", null, false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown, "EveryonePk"),
+                new __Map.DynamoDbIndexInfo("ByText", "bytextpk", "bytextsk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "ByTextPk"),
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "NOTICE#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
+                new __Map.DynamoDbKeyTemplate("pk", "NOTICE#{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
                 new __Map.DynamoDbKeyTemplate("boardpk", "NOTICES", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.BoardPk.Format()),
                 new __Map.DynamoDbKeyTemplate("boardsk", "ANY", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.BoardSk.Format()),
                 new __Map.DynamoDbKeyTemplate("everyonepk", "EVERYONE", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.EveryonePk.Format()),

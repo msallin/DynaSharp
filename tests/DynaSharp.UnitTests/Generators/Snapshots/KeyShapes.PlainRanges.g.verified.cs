@@ -15,19 +15,19 @@ partial record PlainRanges : __Map.IDynamoDbDiscriminated<global::KeyShapes.Plai
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "PLAINRANGES",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "Id",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "Ref",
             sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             indexes: new __Map.DynamoDbIndexInfo[]
             {
-                new __Map.DynamoDbIndexInfo("ByDigest", "bydigestpk", "Digest", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Binary) { PartitionKeyBuilder = "ByDigestPk" },
-                new __Map.DynamoDbIndexInfo("ByWait", "bywaitpk", "Wait", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByWaitPk" },
-                new __Map.DynamoDbIndexInfo("ByPlan", "byplanpk", "Plan", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByPlanPk" },
-                new __Map.DynamoDbIndexInfo("ByNote", "bynotepk", "Note", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown) { PartitionKeyBuilder = "ByNotePk" },
+                new __Map.DynamoDbIndexInfo("ByDigest", "bydigestpk", "Digest", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Binary, "ByDigestPk"),
+                new __Map.DynamoDbIndexInfo("ByWait", "bywaitpk", "Wait", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "ByWaitPk"),
+                new __Map.DynamoDbIndexInfo("ByPlan", "byplanpk", "Plan", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "ByPlanPk"),
+                new __Map.DynamoDbIndexInfo("ByNote", "bynotepk", "Note", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.Unknown, "ByNotePk"),
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
                 new __Map.DynamoDbKeyTemplate("bydigestpk", "D", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.ByDigestPk.Format()),

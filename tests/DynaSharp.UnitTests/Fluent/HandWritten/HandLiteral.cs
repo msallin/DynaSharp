@@ -1,4 +1,5 @@
 using DynaSharp.Mapping;
+using DynaSharp.Requests;
 using DynaSharp.Serialization;
 
 namespace DynaSharp.UnitTests.Fluent;
@@ -11,9 +12,13 @@ internal sealed record HandLiteral(string Id) : IDynamoDbEntity<HandLiteral>
 {
     private static readonly DynamoDbEntityInfo EntityInfo = new(
         null,
+        "_type",
         "pk",
+        ScalarAttributeType.Unknown,
         null,
-        [new DynamoDbIndexInfo("Unformatted", "plain", null, Sparse: false), new DynamoDbIndexInfo("Halfway", "written", "plain", Sparse: false), new DynamoDbIndexInfo("Written", "written", null, Sparse: false)],
+        ScalarAttributeType.Unknown,
+        [new DynamoDbIndexInfo("Unformatted", "plain", null, false, false, ScalarAttributeType.Unknown, ScalarAttributeType.Unknown, null), new DynamoDbIndexInfo("Halfway", "written", "plain", false, false, ScalarAttributeType.Unknown, ScalarAttributeType.Unknown, null), new DynamoDbIndexInfo("Written", "written", null, false, false, ScalarAttributeType.Unknown, ScalarAttributeType.Unknown, null)],
+        null,
         keyTemplates:
         [
             new DynamoDbKeyTemplate("plain", "P", false, []),

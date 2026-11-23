@@ -15,6 +15,7 @@ partial record RawKeyOnly : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKe
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "RAWONLY",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "sk",
@@ -23,10 +24,9 @@ partial record RawKeyOnly : __Map.IDynamoDbDiscriminated<global::KeyShapes.RawKe
             {
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "T#{Tenant}", true, new[] { new __Map.DynamoDbKeyInput("Tenant", "Tenant", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Tenant } : null },
+                new __Map.DynamoDbKeyTemplate("pk", "T#{Tenant}", true, new[] { new __Map.DynamoDbKeyInput("Tenant", "Tenant", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Tenant } : null },
                 new __Map.DynamoDbKeyTemplate("sk", "P#{Path:raw}", true, new[] { new __Map.DynamoDbKeyInput("Path", null) }),
             });
     }

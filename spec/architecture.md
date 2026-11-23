@@ -386,7 +386,7 @@ called. The same step reports `DYNA040` (`RegistryBuilder.KeyConflicts`); the mo
 metadata name of its entity and `DiagnosticReporter` finds its `[DynamoDbEntity]` when it reports, the only symbol lookup after the transform.
 
 The declared table is read in the transform (`TableNames.OnType`, else `ProjectDefaults.Table`) and checked by `ResourceNames.Problem` (`DYNA039`), DynamoDB's naming rule, which
-`EntityKeyBuilder` applies to index names too. `EntityEmitter` writes it as `{ TableName = "..." }` on `DynamoDbEntityInfo`, and `KeysEmitter` as `public const string TableName`,
+`EntityKeyBuilder` applies to index names too. `EntityEmitter` passes it as `tableName:` to `DynamoDbEntityInfo`, and `KeysEmitter` as `public const string TableName`,
 with `new` where `TypeRules.HidesTableName` finds an inherited one. `DeclaredTableAnalyzer` (`DYNA238`) reads the same attributes from the symbol at a call of one of
 `DeclaredTableAnalyzer.Members`, which `AnalyzerListTests` holds against the members of `DynamoDbClient` and `FakeDynamoDb` that open an entity's table without a name. At run
 time `DeclaredTable.Of<T>()` gives the name or throws, and `DynamoDbClient.Table<T>()` applies `TableNaming` through `ResolveTableName`, keeping the declared name where the

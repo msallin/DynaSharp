@@ -8,34 +8,33 @@ namespace DynaSharp.Mapping;
 /// The value of the discriminator attribute, for example <c>ORDER</c>. <see langword="null"/> for a type that opted out, as a type must
 /// for a table written by other tools; a typed query then adds no filter.
 /// </param>
+/// <param name="discriminatorAttributeName">The attribute that holds the discriminator.</param>
 /// <param name="partitionKeyName">The attribute name of the partition key.</param>
+/// <param name="partitionKeyType">How the partition key is stored. <see cref="ScalarAttributeType.Unknown"/> says nothing, which creating a table reads as a string unless another entity knows better.</param>
 /// <param name="sortKeyName">The attribute name of the sort key, or <see langword="null"/> if the table has none.</param>
+/// <param name="sortKeyType">How the sort key is stored, with <see cref="ScalarAttributeType.Unknown"/> if there is none or it does not say.</param>
 /// <param name="indexes">The indexes the type declares.</param>
 /// <param name="versionAttributeName">The attribute that holds the optimistic lock version, or <see langword="null"/> if the type has none.</param>
-/// <param name="discriminatorAttributeName">The attribute that holds the discriminator.</param>
-/// <param name="keyTemplates">The keys that are made of properties and the keys of literals of an index, which an update keeps consistent. <see langword="null"/> if there are none.</param>
-/// <param name="partitionKeyType">How the partition key is stored. <see cref="ScalarAttributeType.Unknown"/> says nothing, which creating a table reads as a string unless another entity knows better.</param>
-/// <param name="sortKeyType">How the sort key is stored, with <see cref="ScalarAttributeType.Unknown"/> if there is none or it does not say.</param>
 /// <param name="versionMissing">What an item without the version attribute means, see <see cref="VersionAttribute.Missing"/>.</param>
+/// <param name="keyTemplates">The keys that are made of properties and the keys of literals of an index, which an update keeps consistent. <see langword="null"/> if there are none.</param>
 /// <param name="timeToLiveAttributeName">The attribute of time to live, which <see cref="TimeToLiveAttribute"/> marks, or <see langword="null"/> if the type has none.</param>
+/// <param name="tableName">The table the entity declares, or <see langword="null"/> if it declares none.</param>
 /// <remarks>Infrastructure: compatible only within a package version, because generated code comes from the generator of the same package. A type written by hand that makes one has to follow the package.</remarks>
 [EditorBrowsable(EditorBrowsableState.Never)]
 public sealed class DynamoDbEntityInfo(
     string? discriminator,
+    string discriminatorAttributeName,
     string partitionKeyName,
+    ScalarAttributeType partitionKeyType,
     string? sortKeyName,
+    ScalarAttributeType sortKeyType,
     IReadOnlyList<DynamoDbIndexInfo> indexes,
-    string? versionAttributeName = null,
-    string discriminatorAttributeName = DynamoDbEntityInfo.DefaultDiscriminatorAttributeName,
-    IReadOnlyList<DynamoDbKeyTemplate>? keyTemplates = null,
-    ScalarAttributeType partitionKeyType = ScalarAttributeType.Unknown,
-    ScalarAttributeType sortKeyType = ScalarAttributeType.Unknown,
+    string? versionAttributeName,
     VersionMissing versionMissing = VersionMissing.Reject,
-    string? timeToLiveAttributeName = null)
+    IReadOnlyList<DynamoDbKeyTemplate>? keyTemplates = null,
+    string? timeToLiveAttributeName = null,
+    string? tableName = null)
 {
-    /// <summary>The attribute that holds the discriminator unless a type names another one.</summary>
-    public const string DefaultDiscriminatorAttributeName = "_type";
-
     /// <summary>Gets the value of the discriminator attribute, or <see langword="null"/> if the type has none.</summary>
     public string? Discriminator { get; } = discriminator;
 
@@ -76,5 +75,5 @@ public sealed class DynamoDbEntityInfo(
     /// <remarks>
     /// <para><b>As declared.</b> <see cref="DynamoDbClient.Table{T}()"/> passes it through <see cref="DynamoDbClientOptions.TableNaming"/> before it opens the table.</para>
     /// </remarks>
-    public string? TableName { get; init; }
+    public string? TableName { get; } = tableName;
 }

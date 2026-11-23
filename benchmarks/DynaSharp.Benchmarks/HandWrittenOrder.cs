@@ -1,4 +1,5 @@
 using DynaSharp.Mapping;
+using DynaSharp.Requests;
 using DynaSharp.Serialization;
 
 namespace DynaSharp.Benchmarks;
@@ -6,7 +7,7 @@ namespace DynaSharp.Benchmarks;
 /// <summary>The order mapped by hand, the way generated code does (generator design, section 4): dispatch on the name length, unknown attributes skipped. It is what the generated types are measured against.</summary>
 internal sealed class HandWrittenOrder : IDynamoDbEntity<HandWrittenOrder>
 {
-    public static DynamoDbEntityInfo Info { get; } = new("ORDER", "pk", "sk", []);
+    public static DynamoDbEntityInfo Info { get; } = new("ORDER", "_type", "pk", ScalarAttributeType.Unknown, "sk", ScalarAttributeType.Unknown, [], null);
 
     public required string Pk { get; init; }
 

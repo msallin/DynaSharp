@@ -1,4 +1,5 @@
 using DynaSharp.Mapping;
+using DynaSharp.Requests;
 using DynaSharp.Serialization;
 
 namespace DynaSharp.AotSmoke;
@@ -6,7 +7,7 @@ namespace DynaSharp.AotSmoke;
 /// <summary>An entity written by hand the way the generator will write it, so that the typed commands run in the Native AOT binary.</summary>
 internal sealed record Visitor(string Id, int Visits) : IDynamoDbDiscriminated<Visitor>
 {
-    private static readonly DynamoDbEntityInfo EntityInfo = new("VISITOR", "pk", null, []);
+    private static readonly DynamoDbEntityInfo EntityInfo = new("VISITOR", "_type", "pk", ScalarAttributeType.Unknown, null, ScalarAttributeType.Unknown, [], null);
 
     static DynamoDbEntityInfo IDynamoDbEntity<Visitor>.Info => EntityInfo;
 

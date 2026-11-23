@@ -170,9 +170,9 @@ public sealed class DeclaredTableTests
     }
 
     [Test]
-    [Arguments(Order, "Shop.Order.g.cs", "}) { TableName = \"orders\" };")]
-    [Arguments(Plain, "Shop.Plain.g.cs", "discriminatorAttributeName: \"_type\") { TableName = \"plain\" };")]
-    public async Task Run_DeclaredTable_IsATablePropertyOfTheInfo(string entity, string file, string line)
+    [Arguments(Order, "Shop.Order.g.cs", "tableName: \"orders\");")]
+    [Arguments(Plain, "Shop.Plain.g.cs", "tableName: \"plain\");")]
+    public async Task Run_DeclaredTable_IsTheTableNameOfTheInfo(string entity, string file, string line)
     {
         // Arrange
         var source = "using DynaSharp.Mapping;\nnamespace Shop;\n" + entity;

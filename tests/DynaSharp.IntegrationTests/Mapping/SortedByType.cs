@@ -1,4 +1,5 @@
 using DynaSharp.Mapping;
+using DynaSharp.Requests;
 using DynaSharp.Serialization;
 
 namespace DynaSharp.IntegrationTests.Mapping;
@@ -8,7 +9,7 @@ internal sealed record SortedByType(string Id) : IDynamoDbEntity<SortedByType>
 {
     public const string Discriminator = "NOTE";
 
-    private static readonly DynamoDbEntityInfo EntityInfo = new(Discriminator, "pk", "sk", [], discriminatorAttributeName: "sk");
+    private static readonly DynamoDbEntityInfo EntityInfo = new(Discriminator, "sk", "pk", ScalarAttributeType.Unknown, "sk", ScalarAttributeType.Unknown, [], null);
 
     static DynamoDbEntityInfo IDynamoDbEntity<SortedByType>.Info => EntityInfo;
 

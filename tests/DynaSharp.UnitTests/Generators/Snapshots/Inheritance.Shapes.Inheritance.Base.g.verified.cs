@@ -15,6 +15,7 @@ partial class Base : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.Bas
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "BASE",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "Id",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: null,
@@ -23,7 +24,7 @@ partial class Base : __Map.IDynamoDbDiscriminated<global::Shapes.Inheritance.Bas
             {
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type") { TableName = "audited" };
+            tableName: "audited");
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]

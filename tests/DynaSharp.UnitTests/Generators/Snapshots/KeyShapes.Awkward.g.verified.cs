@@ -15,6 +15,7 @@ partial class Awkward : __Map.IDynamoDbDiscriminated<global::KeyShapes.Awkward>
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "AWKWARD",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "sk",
@@ -23,10 +24,9 @@ partial class Awkward : __Map.IDynamoDbDiscriminated<global::KeyShapes.Awkward>
             {
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "Q\"\\<&{{{Id}}}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
+                new __Map.DynamoDbKeyTemplate("pk", "Q\"\\<&{{{Id}}}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
             });
     }
 

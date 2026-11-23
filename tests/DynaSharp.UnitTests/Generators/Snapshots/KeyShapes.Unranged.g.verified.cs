@@ -15,22 +15,22 @@ partial record Unranged : __Map.IDynamoDbDiscriminated<global::KeyShapes.Unrange
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "UNRANGED",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "sk",
             sortKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             indexes: new __Map.DynamoDbIndexInfo[]
             {
-                new __Map.DynamoDbIndexInfo("ByMoney", "bymoneypk", "bymoneysk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByMoneyPk" },
-                new __Map.DynamoDbIndexInfo("ByPlan", "byplanpk", "byplansk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByPlanPk" },
-                new __Map.DynamoDbIndexInfo("ByAddress", "byaddresspk", "byaddresssk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String) { PartitionKeyBuilder = "ByAddressPk" },
+                new __Map.DynamoDbIndexInfo("ByMoney", "bymoneypk", "bymoneysk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "ByMoneyPk"),
+                new __Map.DynamoDbIndexInfo("ByPlan", "byplanpk", "byplansk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "ByPlanPk"),
+                new __Map.DynamoDbIndexInfo("ByAddress", "byaddresspk", "byaddresssk", false, false, global::DynaSharp.Requests.ScalarAttributeType.String, global::DynaSharp.Requests.ScalarAttributeType.String, "ByAddressPk"),
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
-                new __Map.DynamoDbKeyTemplate("sk", "COUNT#{Count:plain}", true, new[] { new __Map.DynamoDbKeyInput("Count", "Count", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<int, global::DynaSharp.Serialization.NumberConverter<int>>((int)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Count } : null },
+                new __Map.DynamoDbKeyTemplate("pk", "{Id}", true, new[] { new __Map.DynamoDbKeyInput("Id", "Id", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Id } : null },
+                new __Map.DynamoDbKeyTemplate("sk", "COUNT#{Count:plain}", true, new[] { new __Map.DynamoDbKeyInput("Count", "Count", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<int, global::DynaSharp.Serialization.NumberConverter<int>>((int)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Count } : null },
                 new __Map.DynamoDbKeyTemplate("bymoneypk", "M", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.ByMoneyPk.Format()),
                 new __Map.DynamoDbKeyTemplate("bymoneysk", "MONEY#{Money:plain}", false, new[] { new __Map.DynamoDbKeyInput("Money", "Money") }, static __values => Keys.ByMoneySk.Format((decimal)__values[0]!)),
                 new __Map.DynamoDbKeyTemplate("byplanpk", "P", false, global::System.Array.Empty<__Map.DynamoDbKeyInput>(), static __values => Keys.ByPlanPk.Format()),

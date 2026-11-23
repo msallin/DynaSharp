@@ -269,7 +269,8 @@ public sealed class EntityWriteTests
         var index = Info<Purchase>().Indexes.Single();
 
         // Assert
-        await Assert.That(index).IsEqualTo(new DynamoDbIndexInfo("ByStatus", "Status", null, Sparse: false, PartitionKeyType: ScalarAttributeType.String) { PartitionKeyBuilder = "ByStatusPk" });
+        await Assert.That((index.IndexName, index.PartitionKeyName, index.SortKeyName, index.Sparse, index.IsLocal, index.PartitionKeyType, index.SortKeyType, index.PartitionKeyBuilder, index.Include))
+            .IsEqualTo(("ByStatus", "Status", (string?)null, false, false, ScalarAttributeType.String, ScalarAttributeType.Unknown, (string?)"ByStatusPk", (IReadOnlyList<string>?)null));
     }
 
     [Test]

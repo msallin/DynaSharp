@@ -15,6 +15,7 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "GRID",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "pk",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: "sk",
@@ -23,11 +24,10 @@ partial record GridCell : __Map.IDynamoDbDiscriminated<global::KeyShapes.GridCel
             {
             },
             versionAttributeName: null,
-            discriminatorAttributeName: "_type",
             keyTemplates: new __Map.DynamoDbKeyTemplate[]
             {
-                new __Map.DynamoDbKeyTemplate("pk", "GRID#{Name}", true, new[] { new __Map.DynamoDbKeyInput("Name", "Name", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Name } : null },
-                new __Map.DynamoDbKeyTemplate("sk", "CELL#{Column}#{Row:d3}", true, new[] { new __Map.DynamoDbKeyInput("Column", "Column", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)), new __Map.DynamoDbKeyInput("Row", "Row", ToAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<int, global::DynaSharp.Serialization.NumberConverter<int>>((int)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Column, __parts.Row } : null },
+                new __Map.DynamoDbKeyTemplate("pk", "GRID#{Name}", true, new[] { new __Map.DynamoDbKeyInput("Name", "Name", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Pk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Name } : null },
+                new __Map.DynamoDbKeyTemplate("sk", "CELL#{Column}#{Row:d3}", true, new[] { new __Map.DynamoDbKeyInput("Column", "Column", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<string, global::DynaSharp.Serialization.StringConverter>((string)__value)), new __Map.DynamoDbKeyInput("Row", "Row", toAttributeValue: static __value => __Ser.ConverterChecks.ToAttributeValue<int, global::DynaSharp.Serialization.NumberConverter<int>>((int)__value)) }) { Parse = static __key => __key.Type == global::DynaSharp.AttributeType.String && Keys.Sk.TryParse(__key.AsString(), out var __parts) ? new object?[] { __parts.Column, __parts.Row } : null },
             });
     }
 

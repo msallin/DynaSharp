@@ -1,4 +1,5 @@
 using DynaSharp.Mapping;
+using DynaSharp.Requests;
 using DynaSharp.Serialization;
 
 namespace DynaSharp.UnitTests.Fluent;
@@ -10,9 +11,13 @@ internal sealed record HandTemplated(string Id) : IDynamoDbEntity<HandTemplated>
 
     private static readonly DynamoDbEntityInfo EntityInfo = new(
         "HAND",
+        "_type",
         "pk",
+        ScalarAttributeType.Unknown,
         null,
+        ScalarAttributeType.Unknown,
         [],
+        null,
         keyTemplates: [new DynamoDbKeyTemplate("derived", "T#{Tag}", false, [new DynamoDbKeyInput("Tag", "tag")], static values => "T#" + values[0])]);
 
     static DynamoDbEntityInfo IDynamoDbEntity<HandTemplated>.Info => EntityInfo;

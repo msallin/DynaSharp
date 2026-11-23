@@ -15,6 +15,7 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::Shapes.Positional.M
     {
         internal static readonly __Map.DynamoDbEntityInfo Info = new(
             discriminator: "MEMBER",
+            discriminatorAttributeName: "_type",
             partitionKeyName: "Id",
             partitionKeyType: global::DynaSharp.Requests.ScalarAttributeType.String,
             sortKeyName: null,
@@ -22,8 +23,7 @@ partial record Member : __Map.IDynamoDbDiscriminated<global::Shapes.Positional.M
             indexes: new __Map.DynamoDbIndexInfo[]
             {
             },
-            versionAttributeName: null,
-            discriminatorAttributeName: "_type");
+            versionAttributeName: null);
     }
 
     [global::System.CodeDom.Compiler.GeneratedCode("DynaSharp.Generators", "0.1.0")]
