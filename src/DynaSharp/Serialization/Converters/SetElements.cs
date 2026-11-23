@@ -8,22 +8,35 @@ internal static class SetElements<T, TElement>
 {
     internal static void WriteStart(DynamoDbWriter writer)
     {
-        var setType = TElement.SetType;
-        switch (setType)
+        switch (ScalarType())
         {
-            case AttributeType.StringSet:
+            case AttributeType.String:
                 writer.WriteStartStringSet();
                 break;
-            case AttributeType.NumberSet:
+            case AttributeType.Number:
                 writer.WriteStartNumberSet();
                 break;
-            case AttributeType.BinarySet:
+            default:
                 writer.WriteStartBinarySet();
                 break;
-            default:
-                // An implementation of the public interface can return anything; failing here beats writing a set of the wrong kind.
-                throw new InvalidOperationException($"{setType} is not a set type: a set element converter must return StringSet, NumberSet or BinarySet.");
         }
+    }
+
+    /// <summary>Gets the type of one element standing alone: a string for a string set, a number for a number set, a binary value for a binary set.</summary>
+    /// <returns>The scalar type.</returns>
+    /// <exception cref="InvalidOperationException"><typeparamref name="TElement"/> returns no set type.</exception>
+    internal static AttributeType ScalarType()
+    {
+        var setType = TElement.SetType;
+        return setType switch
+        {
+            AttributeType.StringSet => AttributeType.String,
+            AttributeType.NumberSet => AttributeType.Number,
+            AttributeType.BinarySet => AttributeType.Binary,
+
+            // An implementation of the public interface can return anything; failing here beats writing a set or a value of the wrong kind.
+            _ => throw new InvalidOperationException($"{setType} is not a set type: a set element converter must return StringSet, NumberSet or BinarySet."),
+        };
     }
 
     // The caller checks the type of the set, creates the builder and disposes it.
