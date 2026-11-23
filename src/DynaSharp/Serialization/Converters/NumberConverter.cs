@@ -40,6 +40,7 @@ public readonly struct NumberConverter<T> : IDynamoDbConverter<T>, IAddableConve
 
     /// <inheritdoc/>
     /// <exception cref="JsonException"><paramref name="type"/> is not <see cref="AttributeType.Number"/>.</exception>
+    /// <exception cref="FormatException">The text is not a number. The message does not quote the text.</exception>
     /// <exception cref="OverflowException">
     /// The number does not fit <typeparamref name="T"/>: it is out of range, has a fractional part and <typeparamref name="T"/> is an integer
     /// type, or <typeparamref name="T"/> is <see cref="decimal"/> and cannot hold its exact value. A floating-point type counts a number that rounds to infinity, and <c>NaN</c>, as out of range. The message does not quote the number.
@@ -52,20 +53,7 @@ public readonly struct NumberConverter<T> : IDynamoDbConverter<T>, IAddableConve
         }
 
         ConverterChecks.Expect(type, AttributeType.Number);
-        return ReadNumber(ref reader);
-    }
-
-    /// <summary>Reads the number at the reader's position, for the converters of number sets, which have no type descriptor.</summary>
-    /// <param name="reader">The reader, positioned on a number.</param>
-    /// <returns>The number.</returns>
-    internal static T ReadNumber(ref DynamoDbReader reader)
-    {
-        if (!reader.TryGetNumber<T>(out var value))
-        {
-            throw new OverflowException("The number is malformed or does not fit the target type.");
-        }
-
-        return value;
+        return reader.GetNumber<T>();
     }
 
     private static T ReadCharacter(ref DynamoDbReader reader, AttributeType type)

@@ -19,6 +19,7 @@ public readonly struct NumberSetElement<T> : IDynamoDbSetElementConverter<T>
     public static void WriteElement(DynamoDbWriter writer, T value) => writer.WriteNumberSetElement(value);
 
     /// <inheritdoc/>
+    /// <exception cref="FormatException">The text is not a number. The message does not quote the text.</exception>
     /// <exception cref="OverflowException">The number does not fit <typeparamref name="T"/>, see <see cref="NumberConverter{T}.Read"/>.</exception>
-    public static T ReadElement(ref DynamoDbReader reader) => NumberConverter<T>.ReadNumber(ref reader);
+    public static T ReadElement(ref DynamoDbReader reader) => reader.GetNumber<T>();
 }

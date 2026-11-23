@@ -44,10 +44,8 @@ public sealed class BoolAsNumberConverterTests
     }
 
     [Test]
-    [Arguments("""{"N":"abc"}""")]
     [Arguments("""{"N":"1E+999"}""")]
-    [Arguments("""{"N":""}""")]
-    public async Task Read_TextThatIsNoNumberOfTheRange_ThrowsOverflowExceptionWithoutTheText(string json)
+    public async Task Read_NumberBeyondTheRangeOfDouble_ThrowsOverflowExceptionWithoutTheNumber(string json)
     {
         // Arrange
         // Act
@@ -55,7 +53,21 @@ public sealed class BoolAsNumberConverterTests
 
         // Assert
         await Assert.That(act).ThrowsExactly<OverflowException>()
-            .WithMessage("The number is malformed or does not fit the target type.", StringComparison.Ordinal);
+            .WithMessage("The number does not fit the target type.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    [Arguments("""{"N":"abc"}""")]
+    [Arguments("""{"N":""}""")]
+    public async Task Read_TextThatIsNoNumber_ThrowsFormatExceptionWithoutTheText(string json)
+    {
+        // Arrange
+        // Act
+        var act = () => ConverterRun.Read<bool, BoolAsNumberConverter>(json);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<FormatException>()
+            .WithMessage("The text is not a number.", StringComparison.Ordinal);
     }
 
     [Test]

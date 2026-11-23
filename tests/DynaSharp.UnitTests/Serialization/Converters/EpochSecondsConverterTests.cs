@@ -97,7 +97,6 @@ public sealed class EpochSecondsConverterTests
     [Test]
     [Arguments("""{"N":"1.5"}""")]
     [Arguments("""{"N":"9223372036854775808"}""")]
-    [Arguments("""{"N":"abc"}""")]
     public async Task Read_NumberThatIsNotWholeSeconds_ThrowsOverflowException(string json)
     {
         // Arrange
@@ -106,7 +105,20 @@ public sealed class EpochSecondsConverterTests
 
         // Assert
         await Assert.That(act).ThrowsExactly<OverflowException>()
-            .WithMessage("The number is malformed or does not fit the target type.", StringComparison.Ordinal);
+            .WithMessage("The number does not fit the target type.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    [Arguments("""{"N":"abc"}""")]
+    public async Task Read_TextThatIsNoNumber_ThrowsFormatExceptionWithoutTheText(string json)
+    {
+        // Arrange
+        // Act
+        var act = () => ConverterRun.Read<DateTimeOffset, EpochSecondsConverter>(json);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<FormatException>()
+            .WithMessage("The text is not a number.", StringComparison.Ordinal);
     }
 
     [Test]

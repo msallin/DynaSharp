@@ -520,6 +520,19 @@ public sealed class AttributeValueTests
     }
 
     [Test]
+    public async Task AsNumber_TextThatIsNoNumber_ThrowsFormatExceptionWithoutTheText()
+    {
+        // Arrange
+        var value = AttributeValue.FromNumber("secret");
+
+        // Act
+        var act = () => value.AsNumber<int>();
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<FormatException>().WithMessage("The text is not a number.", StringComparison.Ordinal);
+    }
+
+    [Test]
     public async Task AsNumber_FractionForInteger_ThrowsOverflowException()
     {
         // Arrange

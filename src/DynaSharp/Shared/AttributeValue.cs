@@ -355,11 +355,12 @@ public readonly struct AttributeValue : IEquatable<AttributeValue>
     /// <typeparam name="T">The target number type.</typeparam>
     /// <returns>The parsed number. Exponent notation such as <c>1E+2</c> is accepted, also for integer types.</returns>
     /// <exception cref="InvalidOperationException">The value has another type.</exception>
-    /// <exception cref="FormatException">The text cannot be represented as <typeparamref name="T"/>.</exception>
+    /// <exception cref="FormatException">The text is not a number. The message does not quote the text.</exception>
     /// <exception cref="OverflowException">
     /// The number is outside the range of <typeparamref name="T"/>, has a fractional part and <typeparamref name="T"/> is an integer type, or <typeparamref name="T"/> is
     /// <see cref="decimal"/> and cannot hold its exact value, which takes 28 to 29 significant digits at most, where DynamoDB has 38. A binary floating-point type counts a number
     /// that rounds to infinity, and <c>NaN</c>, as out of range; it rounds any other number to the nearest value it holds, and one below its range reads as 0.
+    /// The message does not quote the number.
     /// </exception>
     public T AsNumber<T>()
         where T : INumberBase<T>
