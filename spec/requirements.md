@@ -310,8 +310,10 @@ against the emulators, which check the ordering claim against something other th
 
 ### Process
 
-- Conventional Commits, squash merges; PR titles linted. Version derived from commits (`build/next-version.sh`),
-  tagged and released by CI on main. nuget.org push disabled until `PUBLISH_TO_NUGET` is set (trusted publishing).
+- Conventional Commits on a linear `main`. A change is gated by CI on a `ci/**` branch and then put onto `main` as
+  commits; a pull request (Dependabot's) is squash-merged, so its title is linted (`pr-title.yml`). Version derived
+  from commits (`build/next-version.sh`), tagged and released by CI on main; pushed to nuget.org (trusted
+  publishing) while the repository variable `PUBLISH_TO_NUGET` is `true`.
 - Dependabot: NuGet, .NET SDK, GitHub Actions. Package lock files, locked restore in CI.
 - Roles: the lead owns contracts (public API, module interfaces) and `tasks.md`. Implementers take
   well-specified tasks, in separate git worktrees when working in parallel. Each milestone gets an independent review
