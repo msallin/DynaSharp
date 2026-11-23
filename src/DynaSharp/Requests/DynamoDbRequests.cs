@@ -113,7 +113,7 @@ public static class DynamoDbRequests
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> or <paramref name="request"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:System.ObjectDisposedException']"/>
     /// <exception cref="ConditionalCheckFailedException">
     /// The condition expression did not hold, so this attempt wrote nothing. If an earlier attempt of the same call was retried, it may have written the item.
     /// </exception>
@@ -122,14 +122,7 @@ public static class DynamoDbRequests
     /// <exception cref="ItemCollectionSizeLimitExceededException">The item collection of a table with a local secondary index exceeds 10 GB.</exception>
     /// <exception cref="ProvisionedThroughputExceededException">The table is throttled, and so was every retry.</exception>
     /// <exception cref="AccessDeniedException">The credentials lack permission for <c>dynamodb:PutItem</c> on the table.</exception>
-    /// <exception cref="DynamoDbException">
-    /// DynamoDB returns any other error, or a response that is not a DynamoDB response. A throttling or server error (for example <see cref="InternalServerErrorException"/>)
-    /// surfaces only when the last attempt failed with it too.
-    /// </exception>
-    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
-    /// <exception cref="HttpRequestException">The request could not be sent or the response could not be read, on every attempt.</exception>
-    /// <exception cref="TimeoutException">The last attempt did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:DynaSharp.DynamoDbException' or @cref='T:DynaSharp.CredentialsUnavailableException' or @cref='T:System.Net.Http.HttpRequestException' or @cref='T:System.TimeoutException' or @cref='T:System.OperationCanceledException']"/>
     public static Task<PutItemResponse> PutItemAsync(this DynamoDbClient client, PutItemRequest request, CancellationToken cancellationToken = default) =>
         CoreOf(client).ExecuteAsync<PutItemOperation, PutItemRequest, PutItemResponse>(request, cancellationToken);
 
@@ -161,7 +154,7 @@ public static class DynamoDbRequests
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> or <paramref name="request"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:System.ObjectDisposedException']"/>
     /// <exception cref="ConditionalCheckFailedException">
     /// The condition expression did not hold, so this attempt changed nothing. If an earlier attempt of the same call was retried, it may have changed the item.
     /// </exception>
@@ -170,14 +163,7 @@ public static class DynamoDbRequests
     /// <exception cref="ItemCollectionSizeLimitExceededException">The item collection of a table with a local secondary index exceeds 10 GB.</exception>
     /// <exception cref="ProvisionedThroughputExceededException">The table is throttled, and so was every retry.</exception>
     /// <exception cref="AccessDeniedException">The credentials lack permission for <c>dynamodb:UpdateItem</c> on the table.</exception>
-    /// <exception cref="DynamoDbException">
-    /// DynamoDB returns any other error, or a response that is not a DynamoDB response. A throttling or server error (for example <see cref="InternalServerErrorException"/>)
-    /// surfaces only when the last attempt failed with it too.
-    /// </exception>
-    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
-    /// <exception cref="HttpRequestException">The request could not be sent or the response could not be read, on every attempt.</exception>
-    /// <exception cref="TimeoutException">The last attempt did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:DynaSharp.DynamoDbException' or @cref='T:DynaSharp.CredentialsUnavailableException' or @cref='T:System.Net.Http.HttpRequestException' or @cref='T:System.TimeoutException' or @cref='T:System.OperationCanceledException']"/>
     public static Task<UpdateItemResponse> UpdateItemAsync(this DynamoDbClient client, UpdateItemRequest request, CancellationToken cancellationToken = default) =>
         CoreOf(client).ExecuteAsync<UpdateItemOperation, UpdateItemRequest, UpdateItemResponse>(request, cancellationToken);
 
@@ -204,7 +190,7 @@ public static class DynamoDbRequests
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> or <paramref name="request"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:System.ObjectDisposedException']"/>
     /// <exception cref="ConditionalCheckFailedException">
     /// The condition expression did not hold, so this attempt deleted nothing. If an earlier attempt of the same call was retried, it may have deleted the item.
     /// </exception>
@@ -212,14 +198,7 @@ public static class DynamoDbRequests
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example when the key does not match the key schema of the table or <see cref="DeleteItemRequest.ReturnValues"/> is neither none nor all old.</exception>
     /// <exception cref="ProvisionedThroughputExceededException">The table is throttled, and so was every retry.</exception>
     /// <exception cref="AccessDeniedException">The credentials lack permission for <c>dynamodb:DeleteItem</c> on the table.</exception>
-    /// <exception cref="DynamoDbException">
-    /// DynamoDB returns any other error, or a response that is not a DynamoDB response. A throttling or server error (for example <see cref="InternalServerErrorException"/>)
-    /// surfaces only when the last attempt failed with it too.
-    /// </exception>
-    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
-    /// <exception cref="HttpRequestException">The request could not be sent or the response could not be read, on every attempt.</exception>
-    /// <exception cref="TimeoutException">The last attempt did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:DynaSharp.DynamoDbException' or @cref='T:DynaSharp.CredentialsUnavailableException' or @cref='T:System.Net.Http.HttpRequestException' or @cref='T:System.TimeoutException' or @cref='T:System.OperationCanceledException']"/>
     public static Task<DeleteItemResponse> DeleteItemAsync(this DynamoDbClient client, DeleteItemRequest request, CancellationToken cancellationToken = default) =>
         CoreOf(client).ExecuteAsync<DeleteItemOperation, DeleteItemRequest, DeleteItemResponse>(request, cancellationToken);
 
@@ -250,19 +229,12 @@ public static class DynamoDbRequests
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> or <paramref name="request"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:System.ObjectDisposedException']"/>
     /// <exception cref="ResourceNotFoundException">The table or index does not exist or is not <c>ACTIVE</c>.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the key condition is not an equality on the partition key, <see cref="QueryRequest.Limit"/> is below 1, a consistent read is requested on a global secondary index, or <see cref="QueryRequest.Select"/> conflicts with the projection expression.</exception>
     /// <exception cref="ProvisionedThroughputExceededException">The table or index is throttled, and so was every retry.</exception>
     /// <exception cref="AccessDeniedException">The credentials lack permission for <c>dynamodb:Query</c> on the table or index.</exception>
-    /// <exception cref="DynamoDbException">
-    /// DynamoDB returns any other error, or a response that is not a DynamoDB response. A throttling or server error (for example <see cref="InternalServerErrorException"/>)
-    /// surfaces only when the last attempt failed with it too.
-    /// </exception>
-    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
-    /// <exception cref="HttpRequestException">The request could not be sent or the response could not be read, on every attempt.</exception>
-    /// <exception cref="TimeoutException">The last attempt did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:DynaSharp.DynamoDbException' or @cref='T:DynaSharp.CredentialsUnavailableException' or @cref='T:System.Net.Http.HttpRequestException' or @cref='T:System.TimeoutException' or @cref='T:System.OperationCanceledException']"/>
     public static Task<QueryResponse> QueryAsync(this DynamoDbClient client, QueryRequest request, CancellationToken cancellationToken = default) =>
         CoreOf(client).ExecuteAsync<QueryOperation, QueryRequest, QueryResponse>(request, cancellationToken);
 
@@ -293,19 +265,12 @@ public static class DynamoDbRequests
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> or <paramref name="request"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:System.ObjectDisposedException']"/>
     /// <exception cref="ResourceNotFoundException">The table or index does not exist or is not <c>ACTIVE</c>.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because <see cref="ScanRequest.Limit"/> is below 1, only one of <see cref="ScanRequest.Segment"/> and <see cref="ScanRequest.TotalSegments"/> is set, the segment is not below the total, or a consistent read is requested on a global secondary index.</exception>
     /// <exception cref="ProvisionedThroughputExceededException">The table or index is throttled, and so was every retry.</exception>
     /// <exception cref="AccessDeniedException">The credentials lack permission for <c>dynamodb:Scan</c> on the table or index.</exception>
-    /// <exception cref="DynamoDbException">
-    /// DynamoDB returns any other error, or a response that is not a DynamoDB response. A throttling or server error (for example <see cref="InternalServerErrorException"/>)
-    /// surfaces only when the last attempt failed with it too.
-    /// </exception>
-    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
-    /// <exception cref="HttpRequestException">The request could not be sent or the response could not be read, on every attempt.</exception>
-    /// <exception cref="TimeoutException">The last attempt did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:DynaSharp.DynamoDbException' or @cref='T:DynaSharp.CredentialsUnavailableException' or @cref='T:System.Net.Http.HttpRequestException' or @cref='T:System.TimeoutException' or @cref='T:System.OperationCanceledException']"/>
     public static Task<ScanResponse> ScanAsync(this DynamoDbClient client, ScanRequest request, CancellationToken cancellationToken = default) =>
         CoreOf(client).ExecuteAsync<ScanOperation, ScanRequest, ScanResponse>(request, cancellationToken);
 
@@ -336,19 +301,12 @@ public static class DynamoDbRequests
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> or <paramref name="request"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:System.ObjectDisposedException']"/>
     /// <exception cref="ResourceNotFoundException">A table does not exist or is not <c>ACTIVE</c>.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because it names more than 100 keys or the same key twice, a key does not match the key schema of its table, or a placeholder is unused.</exception>
     /// <exception cref="ProvisionedThroughputExceededException">None of the keys could be processed because the tables are throttled, and so was every retry.</exception>
     /// <exception cref="AccessDeniedException">The credentials lack permission for <c>dynamodb:BatchGetItem</c> on a table.</exception>
-    /// <exception cref="DynamoDbException">
-    /// DynamoDB returns any other error, or a response that is not a DynamoDB response. A throttling or server error (for example <see cref="InternalServerErrorException"/>)
-    /// surfaces only when the last attempt failed with it too.
-    /// </exception>
-    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
-    /// <exception cref="HttpRequestException">The request could not be sent or the response could not be read, on every attempt.</exception>
-    /// <exception cref="TimeoutException">The last attempt did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:DynaSharp.DynamoDbException' or @cref='T:DynaSharp.CredentialsUnavailableException' or @cref='T:System.Net.Http.HttpRequestException' or @cref='T:System.TimeoutException' or @cref='T:System.OperationCanceledException']"/>
     public static Task<BatchGetItemResponse> BatchGetItemAsync(this DynamoDbClient client, BatchGetItemRequest request, CancellationToken cancellationToken = default) =>
         CoreOf(client).ExecuteAsync<BatchGetItemOperation, BatchGetItemRequest, BatchGetItemResponse>(request, cancellationToken);
 
@@ -380,7 +338,7 @@ public static class DynamoDbRequests
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> or <paramref name="request"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:System.ObjectDisposedException']"/>
     /// <exception cref="ResourceNotFoundException">A table does not exist or is not <c>ACTIVE</c>.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because it contains more than 25 writes, an item exceeds 400 KB, a key does not match the key schema of its table, or two writes address the same item.</exception>
     /// <exception cref="ItemCollectionSizeLimitExceededException">The item collection of a table with a local secondary index exceeds 10 GB.</exception>
@@ -390,10 +348,7 @@ public static class DynamoDbRequests
     /// DynamoDB returns any other error, or a response that is not a DynamoDB response. A throttling or server error (for example <see cref="InternalServerErrorException"/>
     /// or <see cref="ReplicatedWriteConflictException"/>) surfaces only when the last attempt failed with it too.
     /// </exception>
-    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
-    /// <exception cref="HttpRequestException">The request could not be sent or the response could not be read, on every attempt.</exception>
-    /// <exception cref="TimeoutException">The last attempt did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:DynaSharp.CredentialsUnavailableException' or @cref='T:System.Net.Http.HttpRequestException' or @cref='T:System.TimeoutException' or @cref='T:System.OperationCanceledException']"/>
     public static Task<BatchWriteItemResponse> BatchWriteItemAsync(this DynamoDbClient client, BatchWriteItemRequest request, CancellationToken cancellationToken = default) =>
         CoreOf(client).ExecuteAsync<BatchWriteItemOperation, BatchWriteItemRequest, BatchWriteItemResponse>(request, cancellationToken);
 
@@ -422,20 +377,13 @@ public static class DynamoDbRequests
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> or <paramref name="request"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:System.ObjectDisposedException']"/>
     /// <exception cref="TransactionCanceledException">DynamoDB cancelled the transaction, for example because it conflicts with a concurrent write; see <see cref="TransactionCanceledException.CancellationReasons"/>.</exception>
     /// <exception cref="ResourceNotFoundException">A table does not exist or is not <c>ACTIVE</c>.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because it contains more than 100 actions, the items exceed 4 MB, or a key does not match the key schema of its table.</exception>
     /// <exception cref="ProvisionedThroughputExceededException">A table is throttled, and so was every retry.</exception>
     /// <exception cref="AccessDeniedException">The credentials lack permission for <c>dynamodb:GetItem</c> on a table.</exception>
-    /// <exception cref="DynamoDbException">
-    /// DynamoDB returns any other error, or a response that is not a DynamoDB response. A throttling or server error (for example <see cref="InternalServerErrorException"/>)
-    /// surfaces only when the last attempt failed with it too.
-    /// </exception>
-    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
-    /// <exception cref="HttpRequestException">The request could not be sent or the response could not be read, on every attempt.</exception>
-    /// <exception cref="TimeoutException">The last attempt did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:DynaSharp.DynamoDbException' or @cref='T:DynaSharp.CredentialsUnavailableException' or @cref='T:System.Net.Http.HttpRequestException' or @cref='T:System.TimeoutException' or @cref='T:System.OperationCanceledException']"/>
     public static Task<TransactGetItemsResponse> TransactGetItemsAsync(this DynamoDbClient client, TransactGetItemsRequest request, CancellationToken cancellationToken = default) =>
         CoreOf(client).ExecuteAsync<TransactGetItemsOperation, TransactGetItemsRequest, TransactGetItemsResponse>(request, cancellationToken);
 
@@ -471,7 +419,7 @@ public static class DynamoDbRequests
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> or <paramref name="request"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:System.ObjectDisposedException']"/>
     /// <exception cref="TransactionCanceledException">DynamoDB cancelled the transaction, for example because a condition did not hold or an item takes part in another transaction; see <see cref="TransactionCanceledException.CancellationReasons"/>.</exception>
     /// <exception cref="IdempotentParameterMismatchException">The token was used within the last 10 minutes for a request with other parameters.</exception>
     /// <exception cref="TransactionInProgressException">A transaction with the same token is still running, and so it was on every retry.</exception>
@@ -483,10 +431,7 @@ public static class DynamoDbRequests
     /// DynamoDB returns any other error, or a response that is not a DynamoDB response. A throttling or server error (for example <see cref="InternalServerErrorException"/>
     /// or <see cref="ReplicatedWriteConflictException"/>) surfaces only when the last attempt failed with it too.
     /// </exception>
-    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
-    /// <exception cref="HttpRequestException">The request could not be sent or the response could not be read, on every attempt.</exception>
-    /// <exception cref="TimeoutException">The last attempt did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:DynaSharp.CredentialsUnavailableException' or @cref='T:System.Net.Http.HttpRequestException' or @cref='T:System.TimeoutException' or @cref='T:System.OperationCanceledException']"/>
     public static Task<TransactWriteItemsResponse> TransactWriteItemsAsync(this DynamoDbClient client, TransactWriteItemsRequest request, CancellationToken cancellationToken = default) =>
         CoreOf(client).ExecuteAsync<TransactWriteItemsOperation, TransactWriteItemsRequest, TransactWriteItemsResponse>(request, cancellationToken);
 
@@ -503,18 +448,11 @@ public static class DynamoDbRequests
     /// <see cref="TableDescription.TableStatus"/> is <see cref="TableStatus.Active"/> before using a new table.
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> or <paramref name="request"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:System.ObjectDisposedException']"/>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the table name is malformed.</exception>
     /// <exception cref="AccessDeniedException">The credentials lack permission for <c>dynamodb:DescribeTable</c> on the table.</exception>
-    /// <exception cref="DynamoDbException">
-    /// DynamoDB returns any other error, or a response that is not a DynamoDB response. A throttling or server error (for example <see cref="InternalServerErrorException"/>)
-    /// surfaces only when the last attempt failed with it too.
-    /// </exception>
-    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
-    /// <exception cref="HttpRequestException">The request could not be sent or the response could not be read, on every attempt.</exception>
-    /// <exception cref="TimeoutException">The last attempt did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:DynaSharp.DynamoDbException' or @cref='T:DynaSharp.CredentialsUnavailableException' or @cref='T:System.Net.Http.HttpRequestException' or @cref='T:System.TimeoutException' or @cref='T:System.OperationCanceledException']"/>
     public static Task<DescribeTableResponse> DescribeTableAsync(this DynamoDbClient client, DescribeTableRequest request, CancellationToken cancellationToken = default) =>
         CoreOf(client).ExecuteAsync<DescribeTableOperation, DescribeTableRequest, DescribeTableResponse>(request, cancellationToken);
 
@@ -545,20 +483,13 @@ public static class DynamoDbRequests
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> or <paramref name="request"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:System.ObjectDisposedException']"/>
     /// <exception cref="ArgumentOutOfRangeException">The request has an undefined enum value, or <see cref="KeyType.Unknown"/>, <see cref="ScalarAttributeType.Unknown"/> or <see cref="ProjectionType.Unknown"/> where one is required (raised as the faulted task).</exception>
     /// <exception cref="ResourceInUseException">A table with that name already exists or is being created.</exception>
     /// <exception cref="LimitExceededException">The account has too many tables, or creates or deletes tables too fast.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the table name is malformed, an attribute is defined but no key uses it, capacity is set together with on-demand billing, or an index name is used twice.</exception>
     /// <exception cref="AccessDeniedException">The credentials lack permission for <c>dynamodb:CreateTable</c>.</exception>
-    /// <exception cref="DynamoDbException">
-    /// DynamoDB returns any other error, or a response that is not a DynamoDB response. A throttling or server error (for example <see cref="InternalServerErrorException"/>)
-    /// surfaces only when the last attempt failed with it too.
-    /// </exception>
-    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
-    /// <exception cref="HttpRequestException">The request could not be sent or the response could not be read, on every attempt.</exception>
-    /// <exception cref="TimeoutException">The last attempt did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:DynaSharp.DynamoDbException' or @cref='T:DynaSharp.CredentialsUnavailableException' or @cref='T:System.Net.Http.HttpRequestException' or @cref='T:System.TimeoutException' or @cref='T:System.OperationCanceledException']"/>
     public static Task<CreateTableResponse> CreateTableAsync(this DynamoDbClient client, CreateTableRequest request, CancellationToken cancellationToken = default) =>
         CoreOf(client).ExecuteAsync<CreateTableOperation, CreateTableRequest, CreateTableResponse>(request, cancellationToken);
 
@@ -586,20 +517,13 @@ public static class DynamoDbRequests
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> or <paramref name="request"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:System.ObjectDisposedException']"/>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
     /// <exception cref="ResourceInUseException">The table is being created or updated, or is already being deleted.</exception>
     /// <exception cref="LimitExceededException">The account creates or deletes tables too fast.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the table has deletion protection or the name is malformed.</exception>
     /// <exception cref="AccessDeniedException">The credentials lack permission for <c>dynamodb:DeleteTable</c> on the table.</exception>
-    /// <exception cref="DynamoDbException">
-    /// DynamoDB returns any other error, or a response that is not a DynamoDB response. A throttling or server error (for example <see cref="InternalServerErrorException"/>)
-    /// surfaces only when the last attempt failed with it too.
-    /// </exception>
-    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
-    /// <exception cref="HttpRequestException">The request could not be sent or the response could not be read, on every attempt.</exception>
-    /// <exception cref="TimeoutException">The last attempt did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:DynaSharp.DynamoDbException' or @cref='T:DynaSharp.CredentialsUnavailableException' or @cref='T:System.Net.Http.HttpRequestException' or @cref='T:System.TimeoutException' or @cref='T:System.OperationCanceledException']"/>
     public static Task<DeleteTableResponse> DeleteTableAsync(this DynamoDbClient client, DeleteTableRequest request, CancellationToken cancellationToken = default) =>
         CoreOf(client).ExecuteAsync<DeleteTableOperation, DeleteTableRequest, DeleteTableResponse>(request, cancellationToken);
 
@@ -624,20 +548,13 @@ public static class DynamoDbRequests
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> or <paramref name="request"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:System.ObjectDisposedException']"/>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
     /// <exception cref="ResourceInUseException">The table is being created, updated or deleted.</exception>
     /// <exception cref="LimitExceededException">Too many table operations are running in the account.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the setting is already in effect or was changed less than an hour ago.</exception>
     /// <exception cref="AccessDeniedException">The credentials lack permission for <c>dynamodb:UpdateTimeToLive</c> on the table.</exception>
-    /// <exception cref="DynamoDbException">
-    /// DynamoDB returns any other error, or a response that is not a DynamoDB response. A throttling or server error (for example <see cref="InternalServerErrorException"/>)
-    /// surfaces only when the last attempt failed with it too.
-    /// </exception>
-    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
-    /// <exception cref="HttpRequestException">The request could not be sent or the response could not be read, on every attempt.</exception>
-    /// <exception cref="TimeoutException">The last attempt did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:DynaSharp.DynamoDbException' or @cref='T:DynaSharp.CredentialsUnavailableException' or @cref='T:System.Net.Http.HttpRequestException' or @cref='T:System.TimeoutException' or @cref='T:System.OperationCanceledException']"/>
     public static Task<UpdateTimeToLiveResponse> UpdateTimeToLiveAsync(this DynamoDbClient client, UpdateTimeToLiveRequest request, CancellationToken cancellationToken = default) =>
         CoreOf(client).ExecuteAsync<UpdateTimeToLiveOperation, UpdateTimeToLiveRequest, UpdateTimeToLiveResponse>(request, cancellationToken);
 
@@ -657,17 +574,10 @@ public static class DynamoDbRequests
     /// to repeat.
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> or <paramref name="request"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:System.ObjectDisposedException']"/>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because <see cref="ListTablesRequest.Limit"/> is not between 1 and 100.</exception>
     /// <exception cref="AccessDeniedException">The credentials lack permission for <c>dynamodb:ListTables</c>.</exception>
-    /// <exception cref="DynamoDbException">
-    /// DynamoDB returns any other error, or a response that is not a DynamoDB response. A throttling or server error (for example <see cref="InternalServerErrorException"/>)
-    /// surfaces only when the last attempt failed with it too.
-    /// </exception>
-    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
-    /// <exception cref="HttpRequestException">The request could not be sent or the response could not be read, on every attempt.</exception>
-    /// <exception cref="TimeoutException">The last attempt did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:DynaSharp.DynamoDbException' or @cref='T:DynaSharp.CredentialsUnavailableException' or @cref='T:System.Net.Http.HttpRequestException' or @cref='T:System.TimeoutException' or @cref='T:System.OperationCanceledException']"/>
     public static Task<ListTablesResponse> ListTablesAsync(this DynamoDbClient client, ListTablesRequest request, CancellationToken cancellationToken = default) =>
         CoreOf(client).ExecuteAsync<ListTablesOperation, ListTablesRequest, ListTablesResponse>(request, cancellationToken);
 
@@ -684,18 +594,11 @@ public static class DynamoDbRequests
     /// for up to an hour. The call is safe to repeat.
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> or <paramref name="request"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:System.ObjectDisposedException']"/>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because the table name is malformed.</exception>
     /// <exception cref="AccessDeniedException">The credentials lack permission for <c>dynamodb:DescribeTimeToLive</c> on the table.</exception>
-    /// <exception cref="DynamoDbException">
-    /// DynamoDB returns any other error, or a response that is not a DynamoDB response. A throttling or server error (for example <see cref="InternalServerErrorException"/>)
-    /// surfaces only when the last attempt failed with it too.
-    /// </exception>
-    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
-    /// <exception cref="HttpRequestException">The request could not be sent or the response could not be read, on every attempt.</exception>
-    /// <exception cref="TimeoutException">The last attempt did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:DynaSharp.DynamoDbException' or @cref='T:DynaSharp.CredentialsUnavailableException' or @cref='T:System.Net.Http.HttpRequestException' or @cref='T:System.TimeoutException' or @cref='T:System.OperationCanceledException']"/>
     public static Task<DescribeTimeToLiveResponse> DescribeTimeToLiveAsync(this DynamoDbClient client, DescribeTimeToLiveRequest request, CancellationToken cancellationToken = default) =>
         CoreOf(client).ExecuteAsync<DescribeTimeToLiveOperation, DescribeTimeToLiveRequest, DescribeTimeToLiveResponse>(request, cancellationToken);
 
@@ -728,21 +631,14 @@ public static class DynamoDbRequests
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> or <paramref name="request"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:System.ObjectDisposedException']"/>
     /// <exception cref="ArgumentOutOfRangeException">The request has an undefined enum value, or <see cref="ScalarAttributeType.Unknown"/>, <see cref="KeyType.Unknown"/> or <see cref="ProjectionType.Unknown"/> where one is required (raised as the faulted task).</exception>
     /// <exception cref="ResourceNotFoundException">The table does not exist.</exception>
     /// <exception cref="ResourceInUseException">The table or an index is being created, updated or deleted.</exception>
     /// <exception cref="LimitExceededException">The account has too many tables or indexes, or changes tables too fast.</exception>
     /// <exception cref="ValidationException">DynamoDB rejects the request, for example because it changes nothing, sets the billing mode the table already has, lowers capacity too often, combines changes that are not allowed together or has an index with an attribute that is not defined.</exception>
     /// <exception cref="AccessDeniedException">The credentials lack permission for <c>dynamodb:UpdateTable</c> on the table.</exception>
-    /// <exception cref="DynamoDbException">
-    /// DynamoDB returns any other error, or a response that is not a DynamoDB response. A throttling or server error (for example <see cref="InternalServerErrorException"/>)
-    /// surfaces only when the last attempt failed with it too.
-    /// </exception>
-    /// <exception cref="CredentialsUnavailableException">No credentials can be found.</exception>
-    /// <exception cref="HttpRequestException">The request could not be sent or the response could not be read, on every attempt.</exception>
-    /// <exception cref="TimeoutException">The last attempt did not complete within <see cref="DynamoDbClientOptions.AttemptTimeout"/>.</exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <inheritdoc cref="GetItemAsync" path="/exception[@cref='T:DynaSharp.DynamoDbException' or @cref='T:DynaSharp.CredentialsUnavailableException' or @cref='T:System.Net.Http.HttpRequestException' or @cref='T:System.TimeoutException' or @cref='T:System.OperationCanceledException']"/>
     public static Task<UpdateTableResponse> UpdateTableAsync(this DynamoDbClient client, UpdateTableRequest request, CancellationToken cancellationToken = default) =>
         CoreOf(client).ExecuteAsync<UpdateTableOperation, UpdateTableRequest, UpdateTableResponse>(request, cancellationToken);
 
