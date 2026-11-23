@@ -5,8 +5,8 @@ using DynaSharp.Serialization;
 namespace DynaSharp.Operations;
 
 /// <summary>
-/// A call of the request API: an <see cref="IOperation{TRequest, TResponse}"/> and its request object. Every member forwards to the
-/// operation, so the operation stays what it was before the pipeline knew other kinds of call.
+/// A call of the request API for the pipeline: an <see cref="IOperation{TRequest, TResponse}"/> and its request object. Every member forwards to the
+/// operation, which writes the request and reads the response.
 /// </summary>
 /// <typeparam name="TOperation">The operation.</typeparam>
 /// <typeparam name="TRequest">The request type of the operation.</typeparam>

@@ -7,9 +7,6 @@ namespace DynaSharp.Fluent;
 /// <summary><c>TransactWriteItems</c> as a command runs it.</summary>
 internal readonly struct TransactWriteOperation : IActionOperation<TransactWriteResult>
 {
-    // The length of a GUID in the "D" format, which is what fits the 36 characters that DynamoDB allows for the token.
-    private const int GuidLength = 36;
-
     public static string Name => TransactWriteItemsOperation.Name;
 
     public static bool EndsCommand => true;
@@ -36,9 +33,9 @@ internal readonly struct TransactWriteOperation : IActionOperation<TransactWrite
         }
         else
         {
-            Span<byte> generated = stackalloc byte[GuidLength];
-            _ = Guid.NewGuid().TryFormat(generated, out var written);
-            body.Append(generated[..written]);
+            Span<byte> generated = stackalloc byte[ClientRequestToken.Length];
+            ClientRequestToken.Create(generated);
+            body.Append(generated);
         }
 
         body.Append((byte)'"');
