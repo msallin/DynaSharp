@@ -256,7 +256,7 @@ public sealed class Item : IReadOnlyDictionary<string, AttributeValue>, IEquatab
     /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">The attribute has another type. The message names the attribute.</exception>
-    /// <exception cref="FormatException">The text cannot be represented as <typeparamref name="T"/>. The message names the attribute, not the text.</exception>
+    /// <exception cref="FormatException">The text is not a number. The message names the attribute, not the text.</exception>
     /// <exception cref="OverflowException">
     /// The number is outside the range of <typeparamref name="T"/>, has a fractional part and <typeparamref name="T"/> is an integer
     /// type, or <typeparamref name="T"/> is <see cref="decimal"/> and cannot hold its exact value, which takes 28 to 29 significant digits at most, where DynamoDB has 38.
@@ -271,7 +271,7 @@ public sealed class Item : IReadOnlyDictionary<string, AttributeValue>, IEquatab
             return null;
         }
 
-        // The original exceptions quote the text, so they stay out of the new ones.
+        // The new exceptions name the attribute, which the reader of the value does not know.
         try
         {
             return value.AsNumber<T>();

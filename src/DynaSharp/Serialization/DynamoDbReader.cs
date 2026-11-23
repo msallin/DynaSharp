@@ -273,11 +273,11 @@ public ref struct DynamoDbReader
     /// <typeparam name="T">The target number type.</typeparam>
     /// <returns>The number. Exponent notation such as <c>1E+2</c> is accepted, also for integer types.</returns>
     /// <exception cref="InvalidOperationException">The reader is not positioned on a JSON string.</exception>
-    /// <exception cref="FormatException">The text is not a number.</exception>
+    /// <exception cref="FormatException">The text is not a number. The message does not quote the text.</exception>
     /// <exception cref="OverflowException">
     /// The number is outside the range of <typeparamref name="T"/>, has a fractional part and <typeparamref name="T"/> is an integer type, or <typeparamref name="T"/> is
     /// <see cref="decimal"/> and cannot hold its exact value, which takes 28 to 29 significant digits at most, where DynamoDB has 38. A binary floating-point type counts a number
-    /// that rounds to infinity, and <c>NaN</c>, as out of range; it rounds any other number to the nearest value it holds, and one below its range reads as 0.
+    /// that rounds to infinity, and <c>NaN</c>, as out of range; it rounds any other number to the nearest value it holds, and one below its range reads as 0. The message does not quote the number.
     /// </exception>
     public readonly T GetNumber<T>()
         where T : INumberBase<T>
@@ -321,23 +321,6 @@ public ref struct DynamoDbReader
         }
 
         _json.Skip();
-    }
-
-    /// <summary>Tries to parse a number value (<c>N</c>) or number set element with the invariant culture, without throwing for text that does not fit.</summary>
-    /// <typeparam name="T">The target number type.</typeparam>
-    /// <param name="value">The number, or the default value when parsing failed.</param>
-    /// <returns><see langword="true"/> if the text is a number that <typeparamref name="T"/> can hold.</returns>
-    /// <remarks>Unlike <see cref="GetNumber{T}"/>, a failure carries no exception, so no message can quote the text.</remarks>
-    /// <exception cref="InvalidOperationException">The reader is not positioned on a JSON string.</exception>
-    internal readonly bool TryGetNumber<T>([MaybeNullWhen(false)] out T value)
-        where T : INumberBase<T>
-    {
-        if (_json.TokenType != JsonTokenType.String)
-        {
-            throw new InvalidOperationException($"Cannot read a number from the JSON token {_json.TokenType}.");
-        }
-
-        return _json.ValueIsEscaped ? DynamoDbNumber.TryParse(_json.GetString(), out value) : DynamoDbNumber.TryParse(_json.ValueSpan, out value);
     }
 
     /// <summary>Reads the value the reader stands on, or skips it when the converter counts it as missing. Either way the reader ends on the last token of the value, so the caller reads the closing brace.</summary>

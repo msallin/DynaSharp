@@ -3,7 +3,7 @@ using DynaSharp.Serialization;
 
 namespace DynaSharp.UnitTests.Serialization;
 
-/// <summary>The reader members that generated code and converters use to avoid creating strings: UTF-8 names and strings, <c>ReadAttribute</c> and <c>TryGetNumber</c>.</summary>
+/// <summary>The reader members that generated code and converters use to avoid creating strings: UTF-8 names and strings, <c>ReadAttribute</c> and <c>GetNumber</c>.</summary>
 public sealed class DynamoDbReaderUtf8Tests
 {
     [Test]
@@ -165,81 +165,80 @@ public sealed class DynamoDbReaderUtf8Tests
     }
 
     [Test]
-    public async Task TryGetNumber_Number_ReturnsTrueAndTheNumber()
+    public async Task GetNumber_Number_ReturnsIt()
     {
         // Arrange
         // Act
-        var result = TestJson.Read("""{"N":"42"}""", static (ref reader) =>
+        var value = TestJson.Read("""{"N":"42"}""", static (ref reader) =>
         {
             reader.ReadStartAttribute();
-            return (reader.TryGetNumber<int>(out var value), value);
+            return reader.GetNumber<int>();
         });
 
         // Assert
-        await Assert.That(result).IsEqualTo((true, 42));
+        await Assert.That(value).IsEqualTo(42);
     }
 
     [Test]
-    [Arguments("""{"N":"abc"}""")]
+    [Arguments("""{"N":"secret-7"}""")]
+    [Arguments("{\"N\":\"\\u0073ecret-7\"}")]
+    public async Task GetNumber_TextThatIsNoNumber_ThrowsFormatExceptionWithoutTheText(string json)
+    {
+        // Arrange (a numeric enum reads through here, so a stored value must not reach the message)
+        // Act
+        var act = () => TestJson.Read(json, static (ref reader) =>
+        {
+            reader.ReadStartAttribute();
+            return reader.GetNumber<int>();
+        });
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<FormatException>().WithMessage("The text is not a number.", StringComparison.Ordinal);
+    }
+
+    [Test]
     [Arguments("""{"N":"2147483648"}""")]
     [Arguments("""{"N":"1.5"}""")]
-    public async Task TryGetNumber_TextThatDoesNotFit_ReturnsFalse(string json)
+    public async Task GetNumber_NumberThatDoesNotFit_ThrowsOverflowExceptionWithoutTheNumber(string json)
     {
         // Arrange
         // Act
-        var parsed = TestJson.Read(json, static (ref reader) =>
+        var act = () => TestJson.Read(json, static (ref reader) =>
         {
             reader.ReadStartAttribute();
-            return reader.TryGetNumber<int>(out _);
+            return reader.GetNumber<int>();
         });
 
         // Assert
-        await Assert.That(parsed).IsFalse();
+        await Assert.That(act).ThrowsExactly<OverflowException>().WithMessage("The number does not fit the target type.", StringComparison.Ordinal);
     }
 
     [Test]
-    public async Task TryGetNumber_EscapedDigits_ReturnsTrueAndTheNumber()
+    public async Task GetNumber_EscapedDigits_ReturnsTheNumber()
     {
         // Arrange: "42" as JSON escapes, built from parts so that no tool turns them into characters
         var json = "{\"N\":\"\\u0034\\u0032\"}";
 
         // Act
-        var result = TestJson.Read(json, static (ref reader) =>
+        var value = TestJson.Read(json, static (ref reader) =>
         {
             reader.ReadStartAttribute();
-            return (reader.TryGetNumber<int>(out var value), value);
+            return reader.GetNumber<int>();
         });
 
         // Assert
-        await Assert.That(result).IsEqualTo((true, 42));
+        await Assert.That(value).IsEqualTo(42);
     }
 
     [Test]
-    public async Task TryGetNumber_EscapedLetters_ReturnsFalse()
-    {
-        // Arrange
-        var json = "{\"N\":\"\\u0061\"}";
-
-        // Act
-        var parsed = TestJson.Read(json, static (ref reader) =>
-        {
-            reader.ReadStartAttribute();
-            return reader.TryGetNumber<int>(out _);
-        });
-
-        // Assert
-        await Assert.That(parsed).IsFalse();
-    }
-
-    [Test]
-    public async Task TryGetNumber_NotOnAString_ThrowsInvalidOperationException()
+    public async Task GetNumber_NotOnAString_ThrowsInvalidOperationException()
     {
         // Arrange
         // Act
         var act = () => TestJson.Read("""{"N":"1"}""", static (ref reader) =>
         {
             reader.ReadStartItem();
-            return reader.TryGetNumber<int>(out _);
+            return reader.GetNumber<int>();
         });
 
         // Assert

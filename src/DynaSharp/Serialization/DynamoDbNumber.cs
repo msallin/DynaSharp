@@ -28,6 +28,8 @@ internal static class DynamoDbNumber
 
     private const string NoFit = "The number does not fit the target type.";
 
+    private const string NotANumber = "The text is not a number.";
+
     // DynamoDB's limits: 38 significant digits, and a magnitude from 1E-130 to 9.9999999999999999999999999999999999999E+125, so the first digit stands at a power of ten from -130 to 125.
     private const int MaxDigits = 38;
 
@@ -64,21 +66,15 @@ internal static class DynamoDbNumber
         return value.TryFormat(utf8Destination, out bytesWritten, format, invariant);
     }
 
+    // The parsers of .NET quote the text in a FormatException, and a stored value must not reach a message, so a failure here throws one of its own.
     internal static T Parse<T>(ReadOnlySpan<byte> utf8Text)
         where T : INumberBase<T>
-    {
-        var value = T.Parse(utf8Text, Styles, CultureInfo.InvariantCulture);
-        return Fits(value, utf8Text) ? value : throw new OverflowException(NoFit);
-    }
+        => TryParse<T>(utf8Text, out var value) ? value : throw Failure(utf8Text);
 
     internal static T Parse<T>(ReadOnlySpan<char> text)
         where T : INumberBase<T>
-    {
-        var value = T.Parse(text, Styles, CultureInfo.InvariantCulture);
-        return Fits(value, text) ? value : throw new OverflowException(NoFit);
-    }
+        => TryParse<T>(text, out var value) ? value : throw Failure(text);
 
-    // Parse throws a FormatException that quotes the text; converters must not leak values into messages, so they ask this instead.
     internal static bool TryParse<T>(ReadOnlySpan<byte> utf8Text, [MaybeNullWhen(false)] out T value)
         where T : INumberBase<T>
     {
@@ -170,6 +166,13 @@ internal static class DynamoDbNumber
         var exponent = LeadingDigits(rest);
         return exponent > 0 && exponent == rest.Length;
     }
+
+    // A double reads any text in the number grammar, saturating at infinity, so text it refuses is no number at all and the rest does not fit the type.
+    private static Exception Failure(ReadOnlySpan<byte> utf8Text)
+        => double.TryParse(utf8Text, Styles, CultureInfo.InvariantCulture, out _) ? new OverflowException(NoFit) : new FormatException(NotANumber);
+
+    private static Exception Failure(ReadOnlySpan<char> text)
+        => double.TryParse(text, Styles, CultureInfo.InvariantCulture, out _) ? new OverflowException(NoFit) : new FormatException(NotANumber);
 
     private static int LeadingDigits(ReadOnlySpan<byte> text)
     {

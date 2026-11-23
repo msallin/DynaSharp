@@ -16,12 +16,13 @@ public readonly struct BoolAsNumberConverter : IDynamoDbConverter<bool>
 
     /// <inheritdoc/>
     /// <exception cref="System.Text.Json.JsonException"><paramref name="type"/> is not <see cref="AttributeType.Number"/>.</exception>
-    /// <exception cref="OverflowException">The text is not a number, or one beyond the range of <see cref="double"/>, which DynamoDB never returns. The message does not quote the text.</exception>
+    /// <exception cref="FormatException">The text is not a number. The message does not quote the text.</exception>
+    /// <exception cref="OverflowException">The number is beyond the range of <see cref="double"/>, which DynamoDB never returns.</exception>
     public static bool Read(ref DynamoDbReader reader, AttributeType type)
     {
         ConverterChecks.Expect(type, AttributeType.Number);
 
         // A double holds the range of DynamoDB, 38 digits and exponents from -130 to 125, and its test sees -0 and 0.000 as zero too.
-        return NumberConverter<double>.ReadNumber(ref reader) != 0;
+        return reader.GetNumber<double>() != 0;
     }
 }

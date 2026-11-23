@@ -27,11 +27,12 @@ public readonly struct EpochSecondsConverter : IDynamoDbConverter<DateTimeOffset
 
     /// <inheritdoc/>
     /// <exception cref="System.Text.Json.JsonException"><paramref name="type"/> is not <see cref="AttributeType.Number"/>.</exception>
+    /// <exception cref="FormatException">The text is not a number. The message does not quote the text.</exception>
     /// <exception cref="OverflowException">The number is not a whole number of seconds in the range of <see cref="DateTimeOffset"/>. The message does not quote the number.</exception>
     public static DateTimeOffset Read(ref DynamoDbReader reader, AttributeType type)
     {
         ConverterChecks.Expect(type, AttributeType.Number);
-        var seconds = NumberConverter<long>.ReadNumber(ref reader);
+        var seconds = reader.GetNumber<long>();
         if (seconds is < MinSeconds or > MaxSeconds)
         {
             throw new OverflowException("The number of seconds is outside the range of DateTimeOffset.");

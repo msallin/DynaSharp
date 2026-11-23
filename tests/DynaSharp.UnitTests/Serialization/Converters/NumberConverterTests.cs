@@ -304,9 +304,6 @@ public sealed class NumberConverterTests
     [Arguments("""{"N":"2147483648"}""")]
     [Arguments("""{"N":"-2147483649"}""")]
     [Arguments("""{"N":"1.5"}""")]
-    [Arguments("""{"N":"abc"}""")]
-    [Arguments("""{"N":""}""")]
-    [Arguments("""{"N":" 5"}""")]
     public async Task Read_Int32ThatDoesNotFit_ThrowsOverflowExceptionWithoutTheNumber(string json)
     {
         // Arrange
@@ -315,7 +312,22 @@ public sealed class NumberConverterTests
 
         // Assert
         await Assert.That(act).ThrowsExactly<OverflowException>()
-            .WithMessage("The number is malformed or does not fit the target type.", StringComparison.Ordinal);
+            .WithMessage("The number does not fit the target type.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    [Arguments("""{"N":"abc"}""")]
+    [Arguments("""{"N":""}""")]
+    [Arguments("""{"N":" 5"}""")]
+    public async Task Read_TextThatIsNoNumber_ThrowsFormatExceptionWithoutTheText(string json)
+    {
+        // Arrange
+        // Act
+        var act = () => ConverterRun.Read<int, NumberConverter<int>>(json);
+
+        // Assert
+        await Assert.That(act).ThrowsExactly<FormatException>()
+            .WithMessage("The text is not a number.", StringComparison.Ordinal);
     }
 
     [Test]
@@ -354,7 +366,7 @@ public sealed class NumberConverterTests
 
         // Assert
         await Assert.That(act).ThrowsExactly<OverflowException>()
-            .WithMessage("The number is malformed or does not fit the target type.", StringComparison.Ordinal);
+            .WithMessage("The number does not fit the target type.", StringComparison.Ordinal);
     }
 
     [Test]

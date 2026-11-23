@@ -79,6 +79,24 @@ public sealed class DynamoDbNumberTests
     }
 
     [Test]
+    [Arguments("secret")]
+    [Arguments("1,5")]
+    [Arguments("")]
+    public async Task Parse_TextThatIsNoNumber_ThrowsFormatExceptionWithoutTheText(string text)
+    {
+        // Arrange
+        var utf8 = Encoding.UTF8.GetBytes(text);
+
+        // Act
+        var fromChars = () => DynamoDbNumber.Parse<int>(text.AsSpan());
+        var fromBytes = () => DynamoDbNumber.Parse<int>(utf8);
+
+        // Assert
+        await Assert.That(fromChars).ThrowsExactly<FormatException>().WithMessage("The text is not a number.", StringComparison.Ordinal);
+        await Assert.That(fromBytes).ThrowsExactly<FormatException>().WithMessage("The text is not a number.", StringComparison.Ordinal);
+    }
+
+    [Test]
     [Arguments("1E-29")]
     [Arguments("0.12345678901234567890123456789012345678")]
     public async Task TryParse_DecimalThatCannotHoldTheValue_ReturnsFalse(string text)
