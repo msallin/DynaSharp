@@ -66,7 +66,7 @@ public sealed class SsoCredentialsProvider : IRefreshableCredentialsProvider
     /// <exception cref="ArgumentException"><paramref name="startUrl"/>, <paramref name="accountId"/> or <paramref name="roleName"/> is null or empty, or <paramref name="sessionName"/> is empty.</exception>
     [SuppressMessage("Design", "CA1054:URI-like parameters should not be strings", Justification = "The start URL names the cached token by its SHA-1 exactly as written, which a Uri would normalize.")]
     public SsoCredentialsProvider(string startUrl, AwsRegion ssoRegion, string accountId, string roleName, string? sessionName = null)
-        : this(Validate(startUrl, ssoRegion, accountId, roleName, sessionName), CredentialsDependencies.Default)
+        : this(Validate(startUrl, ssoRegion, accountId, roleName, sessionName), CredentialsDependencies.CreateDefault())
     {
     }
 

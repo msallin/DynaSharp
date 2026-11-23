@@ -1,3 +1,4 @@
+using System.Net;
 using DynaSharp.Configuration;
 using DynaSharp.Credentials;
 using DynaSharp.Testing;
@@ -33,6 +34,34 @@ public sealed class DefaultCredentialsProviderTests
 
         // Assert
         await Assert.That(provider).IsAssignableTo<ICredentialsProvider>();
+    }
+
+    [Test]
+    [NotInParallel(TestClient.ProcessEnvironment)]
+    public async Task GetCredentialsAsync_DefaultConstructorAndRoleProfileOnASkewedClock_CorrectsTheClockAndAssumesTheRole()
+    {
+        // Arrange (a profile that assumes a role, and an STS on this machine whose clock is an hour ahead of this one)
+        var serverTime = DateTimeOffset.UtcNow.AddHours(1).ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+        using var sts = QueuedLoopbackServer.WithAnswers(
+            new ServerAnswer(HttpStatusCode.Forbidden, """<ErrorResponse><Error><Type>Sender</Type><Code>SignatureDoesNotMatch</Code></Error></ErrorResponse>""", $"Date: {serverTime}\r\n"),
+            new ServerAnswer(HttpStatusCode.OK, AssumeRoleCredentialsProviderTests.StsSuccess(ContainerKeyId, DateTimeOffset.UtcNow.AddHours(2))));
+        using var directory = new Generators.TempDirectory();
+        directory.Write("config", $"[profile dev]\nrole_arn = {RoleArn}\nsource_profile = base\n[profile base]\naws_access_key_id = {ProfileKeyId}\naws_secret_access_key = {SecretAccessKey}\n");
+        using var environment = new ScopedEnvironmentVariables(
+            ("AWS_CONFIG_FILE", directory.Combine("config")),
+            ("AWS_SHARED_CREDENTIALS_FILE", directory.Combine("credentials")),
+            ("AWS_PROFILE", "dev"),
+            ("AWS_ENDPOINT_URL_STS", sts.Endpoint.AbsoluteUri),
+            ("AWS_ACCESS_KEY_ID", null),
+            ("AWS_SECRET_ACCESS_KEY", null),
+            ("AWS_WEB_IDENTITY_TOKEN_FILE", null));
+        var provider = new DefaultCredentialsProvider();
+
+        // Act
+        var credentials = await provider.GetCredentialsAsync(CancellationToken.None);
+
+        // Assert
+        await Assert.That((credentials.AccessKeyId, sts.Requests.Count)).IsEqualTo((ContainerKeyId, 2));
     }
 
     [Test]

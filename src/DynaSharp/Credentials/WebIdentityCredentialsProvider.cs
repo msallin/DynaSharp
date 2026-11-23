@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text;
 using DynaSharp.Configuration;
+using DynaSharp.Retries;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -98,7 +99,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     /// current process, reads the token from disk and uses the system clock.
     /// </summary>
     public WebIdentityCredentialsProvider()
-        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, TimeProvider.System, NullLogger.Instance, null)
+        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, new ClockSkewCorrection(TimeProvider.System), NullLogger.Instance, null)
     {
     }
 
@@ -118,7 +119,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     /// <paramref name="tokenFile"/> or <paramref name="roleArn"/> is null or empty, or <paramref name="roleSessionName"/> breaks the rule above.
     /// </exception>
     public WebIdentityCredentialsProvider(string tokenFile, string roleArn, AwsRegion region, string? roleSessionName = null)
-        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, TimeProvider.System, NullLogger.Instance, null, Validate(tokenFile, roleArn, region, roleSessionName))
+        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, new ClockSkewCorrection(TimeProvider.System), NullLogger.Instance, null, Validate(tokenFile, roleArn, region, roleSessionName))
     {
     }
 
@@ -141,7 +142,7 @@ public sealed class WebIdentityCredentialsProvider : IRefreshableCredentialsProv
     /// <paramref name="tokenFile"/> or <paramref name="roleArn"/> is null or empty, or <paramref name="stsEndpoint"/> or <paramref name="roleSessionName"/> breaks the rule above.
     /// </exception>
     public WebIdentityCredentialsProvider(string tokenFile, string roleArn, Uri stsEndpoint, string? roleSessionName = null)
-        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, TimeProvider.System, NullLogger.Instance, null, Validate(tokenFile, roleArn, stsEndpoint, roleSessionName))
+        : this(ProcessEnvironment.GetVariable, SharedConfigFiles.DiskReader, null, new ClockSkewCorrection(TimeProvider.System), NullLogger.Instance, null, Validate(tokenFile, roleArn, stsEndpoint, roleSessionName))
     {
     }
 
