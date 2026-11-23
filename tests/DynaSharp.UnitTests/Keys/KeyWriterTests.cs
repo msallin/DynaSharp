@@ -365,11 +365,11 @@ public sealed class KeyWriterTests
     }
 
     [Test]
-    public async Task WriteUtf8Value_WholeKey_TakesAControlCharacter()
+    public async Task WriteEnumName_WholeKey_TakesAControlCharacter()
     {
         // Arrange
         // Act
-        var written = Text((ref KeyWriter writer) => writer.WriteUtf8Value("a\u0001b"u8, default, Name));
+        var written = Text((ref KeyWriter writer) => writer.WriteEnumName("a\u0001b"u8, default, Name));
 
         // Assert
         await Assert.That(written).IsEqualTo("a\u0001b");
@@ -402,11 +402,11 @@ public sealed class KeyWriterTests
     }
 
     [Test]
-    public async Task WriteUtf8Value_IllFormedUtf8_ThrowsKeyFormatException()
+    public async Task WriteEnumName_IllFormedUtf8_ThrowsKeyFormatException()
     {
         // Arrange
         // Act
-        var act = () => Write((ref KeyWriter writer) => writer.WriteUtf8Value([0xED, 0xA0, 0x80], "#"u8, Name));
+        var act = () => Write((ref KeyWriter writer) => writer.WriteEnumName([0xED, 0xA0, 0x80], "#"u8, Name));
 
         // Assert
         await Assert.That(act).ThrowsExactly<KeyFormatException>().WithParameterName(Name);

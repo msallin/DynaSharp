@@ -26,7 +26,7 @@ public sealed class KeyFormatException : ArgumentException
     /// <summary>Initializes a new instance of the <see cref="KeyFormatException"/> class for a value of a placeholder.</summary>
     /// <param name="placeholder">The name of the placeholder, also reported as <see cref="ArgumentException.ParamName"/>.</param>
     /// <param name="reason">What is wrong with the value. Must not contain the value.</param>
-    public KeyFormatException(string placeholder, string reason)
+    internal KeyFormatException(string placeholder, string reason)
         : base(reason, placeholder)
     {
         _reason = reason;

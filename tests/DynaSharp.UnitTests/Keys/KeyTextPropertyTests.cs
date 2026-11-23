@@ -115,14 +115,14 @@ public sealed class KeyTextPropertyTests
     }
 
     [Test]
-    public async Task WriteUtf8Value_AnyValidString_GivesTheSameBytesAsWriteString()
+    public async Task WriteEnumName_AnyValidString_GivesTheSameBytesAsWriteString()
     {
         // Arrange
         var strings = RandomStrings().ToList();
 
         // Act
         var failures = strings.Count(s => !KeyVectorRunner.Write((ref KeyWriter writer) => writer.WriteString(s, "#"u8, Name), 8)
-            .AsSpan().SequenceEqual(KeyVectorRunner.Write((ref KeyWriter writer) => writer.WriteUtf8Value(Encoding.UTF8.GetBytes(s), "#"u8, Name), 8)));
+            .AsSpan().SequenceEqual(KeyVectorRunner.Write((ref KeyWriter writer) => writer.WriteEnumName(Encoding.UTF8.GetBytes(s), "#"u8, Name), 8)));
 
         // Assert
         await Assert.That(failures).IsEqualTo(0);

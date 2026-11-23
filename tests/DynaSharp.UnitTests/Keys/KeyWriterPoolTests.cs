@@ -153,7 +153,7 @@ public sealed class KeyWriterPoolTests
         {
             writer.WriteLiteral("USER#"u8);
             writer.WriteString("Zurich", "#"u8, Name);
-            writer.WriteUtf8Value("Paid"u8, "#"u8, Name);
+            writer.WriteEnumName("Paid"u8, "#"u8, Name);
             writer.WriteGuid(Guid.Empty);
             writer.WriteInteger(-42L, "#"u8, Name);
             writer.WriteInteger(42UL, "#"u8, Name);

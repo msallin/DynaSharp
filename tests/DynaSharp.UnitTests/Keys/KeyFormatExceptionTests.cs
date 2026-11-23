@@ -11,7 +11,7 @@ public sealed class KeyFormatExceptionTests
         new("string with a delimiter", "S3cr3t#Value", static (ref KeyWriter writer) => writer.WriteString("S3cr3t#Value", "#"u8, Name)),
         new("string with a control character", "S3cr3t\u0001Value", static (ref KeyWriter writer) => writer.WriteString("S3cr3t\u0001Value", "#"u8, Name)),
         new("string with a lone surrogate", "S3cr3t", static (ref KeyWriter writer) => writer.WriteString("S3cr3t\uD800", "#"u8, Name)),
-        new("utf-8 with a delimiter", "S3cr3t#Value", static (ref KeyWriter writer) => writer.WriteUtf8Value("S3cr3t#Value"u8, "#"u8, Name)),
+        new("enum name with a delimiter", "S3cr3t#Value", static (ref KeyWriter writer) => writer.WriteEnumName("S3cr3t#Value"u8, "#"u8, Name)),
         new("integer with a delimiter", "987654321", static (ref KeyWriter writer) => writer.WriteInteger(987654321L, "5"u8, Name)),
         new("unsigned integer with a delimiter", "987654321", static (ref KeyWriter writer) => writer.WriteInteger(987654321UL, "5"u8, Name)),
         new("negative digits", "987654321", static (ref KeyWriter writer) => writer.WriteDigits(-987654321L, 12, Name)),

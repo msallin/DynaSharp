@@ -74,19 +74,19 @@ public sealed class DynamoDbMappingException : Exception
     public static DynamoDbMappingException KeyDoesNotFit(string entityType, string attributeName) =>
         new($"The key \"{attributeName}\" does not fit the key template of {entityType}.", entityType, attributeName, null);
 
-    /// <summary>Creates the exception for an item of another type, which a query over an overloaded prefix can return.</summary>
-    /// <param name="entityType">The .NET type that was read.</param>
-    /// <param name="attributeName">The attribute that holds the discriminator.</param>
-    /// <param name="foundType">The discriminator the item has.</param>
-    /// <returns>The exception.</returns>
-    public static DynamoDbMappingException OtherType(string entityType, string attributeName, string foundType) =>
-        new($"The item is of type \"{foundType}\", so it cannot be read as {entityType}.", entityType, attributeName, null);
-
     /// <summary>Creates the exception for an enum value without a name, for example a cast from a number, on its way into an item.</summary>
     /// <param name="enumType">The enum.</param>
     /// <returns>The exception.</returns>
     public static DynamoDbMappingException UndefinedEnumValue(string enumType) =>
         new($"The value is not a member of {enumType}, so it has no name to store.", enumType, null, null);
+
+    /// <summary>Creates the exception for an item of another type, which a query over an overloaded prefix can return.</summary>
+    /// <param name="entityType">The .NET type that was read.</param>
+    /// <param name="attributeName">The attribute that holds the discriminator.</param>
+    /// <param name="foundType">The discriminator the item has.</param>
+    /// <returns>The exception.</returns>
+    internal static DynamoDbMappingException OtherType(string entityType, string attributeName, string foundType) =>
+        new($"The item is of type \"{foundType}\", so it cannot be read as {entityType}.", entityType, attributeName, null);
 
     /// <summary>
     /// Creates the exception for a read of the version attribute alone, by <c>Select</c>, from an item that has none. A read of the entity gives 0 there, and every write of the library stores a version, so such an
