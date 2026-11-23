@@ -29,15 +29,7 @@ public readonly struct Compare<T, TConverter> : ICondition
     public void Render(ref ExpressionSink sink)
     {
         sink.Path(_path);
-        sink.Text(_comparison switch
-        {
-            ComparisonOperator.Equal => " = "u8,
-            ComparisonOperator.NotEqual => " <> "u8,
-            ComparisonOperator.Less => " < "u8,
-            ComparisonOperator.LessOrEqual => " <= "u8,
-            ComparisonOperator.Greater => " > "u8,
-            _ => " >= "u8,
-        });
+        sink.Text(ComparisonOperatorText.Of(_comparison));
         sink.Value<T, TConverter>(_value);
     }
 }
