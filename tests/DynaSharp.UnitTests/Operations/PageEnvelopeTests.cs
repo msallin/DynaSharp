@@ -6,7 +6,7 @@ using DynaSharp.UnitTests.Serialization;
 
 namespace DynaSharp.UnitTests.Operations;
 
-public sealed class ItemPageTests
+public sealed class PageEnvelopeTests
 {
     [Test]
     public async Task Read_EmptyObject_IsAnEmptyLastPage()
@@ -112,7 +112,7 @@ public sealed class ItemPageTests
         var second = Read(reversed);
 
         // Assert
-        await Assert.That(ResponseJson.Describe(Page(second))).IsEqualTo(ResponseJson.Describe(Page(first)));
+        await Assert.That(ResponseJson.Describe(second)).IsEqualTo(ResponseJson.Describe(first));
     }
 
     [Test]
@@ -265,14 +265,19 @@ public sealed class ItemPageTests
         await Assert.That(act).Throws<JsonException>();
     }
 
-    private static QueryResponse Page(ItemPage page) => new()
+    // The envelope with the readers of the request API, as a response of it.
+    private static QueryResponse Read(string json) => TestJson.Read(json, static (ref reader) =>
     {
-        Items = page.Items,
-        Count = page.Count,
-        ScannedCount = page.ScannedCount,
-        LastEvaluatedKey = page.LastEvaluatedKey,
-        ConsumedCapacity = page.ConsumedCapacity,
-    };
-
-    private static ItemPage Read(string json) => TestJson.Read(json, static (ref reader) => ItemPage.Read(ref reader));
+        var items = default(PageEnvelope.ItemList);
+        var lastEvaluatedKey = default(PageEnvelope.LastKey);
+        var page = PageEnvelope.Read(ref reader, ref items, ref lastEvaluatedKey);
+        return new QueryResponse
+        {
+            Items = items.Value ?? [],
+            Count = page.Count,
+            ScannedCount = page.ScannedCount,
+            LastEvaluatedKey = lastEvaluatedKey.Value,
+            ConsumedCapacity = page.ConsumedCapacity,
+        };
+    });
 }

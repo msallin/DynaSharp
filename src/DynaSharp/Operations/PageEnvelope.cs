@@ -56,4 +56,24 @@ internal readonly record struct PageEnvelope(int Count, int ScannedCount, Consum
 
         return new PageEnvelope(count, scannedCount, capacity);
     }
+
+    /// <summary>Reads <c>"Items":[{...},{...}]</c> into dictionaries, for the request API.</summary>
+    internal struct ItemList : IResponseMember
+    {
+        /// <summary>Gets the items, or <see langword="null"/> for a response without them.</summary>
+        public IReadOnlyList<IReadOnlyDictionary<string, AttributeValue>>? Value { get; private set; }
+
+        /// <inheritdoc/>
+        public void Read(ref DynamoDbReader reader) => Value = OperationJson.ReadItems(ref reader);
+    }
+
+    /// <summary>Reads <c>"LastEvaluatedKey":{...}</c> into a dictionary, for the request API.</summary>
+    internal struct LastKey : IResponseMember
+    {
+        /// <summary>Gets the key, or <see langword="null"/> on the last page.</summary>
+        public IReadOnlyDictionary<string, AttributeValue>? Value { get; private set; }
+
+        /// <inheritdoc/>
+        public void Read(ref DynamoDbReader reader) => Value = OperationJson.ReadLastEvaluatedKey(ref reader);
+    }
 }

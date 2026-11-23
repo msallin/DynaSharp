@@ -34,13 +34,15 @@ internal readonly struct ScanOperation : IOperation<ScanRequest, ScanResponse>
 
     public static ScanResponse ReadResponse(ref DynamoDbReader reader)
     {
-        var page = ItemPage.Read(ref reader);
+        var items = default(PageEnvelope.ItemList);
+        var lastEvaluatedKey = default(PageEnvelope.LastKey);
+        var page = PageEnvelope.Read(ref reader, ref items, ref lastEvaluatedKey);
         return new ScanResponse
         {
-            Items = page.Items,
+            Items = items.Value ?? [],
             Count = page.Count,
             ScannedCount = page.ScannedCount,
-            LastEvaluatedKey = page.LastEvaluatedKey,
+            LastEvaluatedKey = lastEvaluatedKey.Value,
             ConsumedCapacity = page.ConsumedCapacity,
         };
     }
