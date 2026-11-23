@@ -9,9 +9,6 @@ namespace DynaSharp.Operations;
 /// <summary>DynamoDB <c>TransactWriteItems</c>.</summary>
 internal readonly struct TransactWriteItemsOperation : IOperation<TransactWriteItemsRequest, TransactWriteItemsResponse>
 {
-    // The length of a GUID in the "D" format, which is what fits the 36 characters that DynamoDB allows for the token.
-    private const int GuidLength = 36;
-
     public static string Name => "TransactWriteItems";
 
     public static string? GetTableName(TransactWriteItemsRequest request)
@@ -148,8 +145,6 @@ internal readonly struct TransactWriteItemsOperation : IOperation<TransactWriteI
         OperationJson.WriteReturnValuesOnConditionCheckFailure(json, returnValues);
     }
 
-    // The token is made here, in the one place that serializes the request, and the pipeline serializes once per call: every attempt
-    // of the call, retries included, sends the same body and with it the same token. That is what makes a retried transaction idempotent.
     private static void WriteClientRequestToken(Utf8JsonWriter json, string? clientRequestToken)
     {
         if (clientRequestToken is not null)
@@ -158,8 +153,8 @@ internal readonly struct TransactWriteItemsOperation : IOperation<TransactWriteI
             return;
         }
 
-        Span<byte> token = stackalloc byte[GuidLength];
-        _ = Guid.NewGuid().TryFormat(token, out var written);
-        json.WriteString("ClientRequestToken"u8, token[..written]);
+        Span<byte> token = stackalloc byte[ClientRequestToken.Length];
+        ClientRequestToken.Create(token);
+        json.WriteString("ClientRequestToken"u8, token);
     }
 }

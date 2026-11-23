@@ -56,7 +56,7 @@ Exceptions                                            what the service and the c
 | Folder | Holds |
 |---|---|
 | `Http` | `ClientCore` (also hands out its `HttpClient`, handler and logger), `DynamoDbPipeline`, `IWireCall<T>`, `RawCall` (of `SendRawAsync`), `CallBuffers`, `BoundedPool<T>`, `ConflictRetry`, `WireProtocol` (the fixed parts of the protocol, shared with `Operations`, `Fluent` and `DynaSharp.Testing`) |
-| `Operations` | One `IOperation<,>` struct per service call, `RequestCall<,,>`, `OperationCalls.ExecuteAsync` (an extension of `ClientCore` that runs one), `OperationJson`, `WireNames`, `EnumWireNames`, `TableJson`, `BatchJson`, `ReadTags`, the envelopes of the responses both APIs read, `IResponseMember` |
+| `Operations` | One `IOperation<,>` struct per service call, `RequestCall<,,>`, `OperationCalls.ExecuteAsync` (an extension of `ClientCore` that runs one), `OperationJson`, `WireNames`, `EnumWireNames`, `TableJson`, `BatchJson`, `ReadTags`, `ClientRequestToken` (the token of a transaction the caller gave none), the envelopes of the responses both APIs read, `IResponseMember` |
 | `Requests` | Records of the request API and `DynamoDbRequests` |
 | `Streams` | `DynamoDbStreamsClient` and its records, `StreamMerge` (the shards of `ReadStreamAsync`), `ShardRun` (retries and signal of a shard), `TableStreamExtensions`, `Table.Streams.cs`, `Change<T>`, `MixedChange<...>`, `ChangeTyping` with `IChangeTypes<TOut>` and `SingleChange<T>` |
 | `Fluent` | `Table<T>`, `Index<T>`, `ItemTableExtensions`, `EntityTableExtensions`, `EntityWriteExtensions`, `TableModel`, `DiscriminatorCheck`, `TableAdministration`, `TableSchema` |
