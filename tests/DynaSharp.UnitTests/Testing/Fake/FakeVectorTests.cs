@@ -114,7 +114,7 @@ public sealed partial class FakeVectorTests
         {
             var type = body["__type"]!.GetValue<string>();
             var code = type[(type.AsSpan().LastIndexOf('#') + 1)..];
-            var message = body["message"]?.GetValue<string>();
+            var message = (body["message"] ?? body["Message"])?.GetValue<string>();
             if (code != step["code"]!.GetValue<string>())
             {
                 yield return $"code {code}, expected {step["code"]}: {message}";

@@ -5,7 +5,7 @@ using DynaSharp.Testing.Fake;
 namespace DynaSharp.UnitTests.Testing.Fake;
 
 // The error bodies of the API reference, "Error handling with DynamoDB": {"__type":"com.amazonaws.dynamodb.v20120810#Code","message":"..."}, with Item for a failed
-// condition that asked for it and CancellationReasons for a cancelled transaction.
+// condition that asked for it and CancellationReasons for a cancelled transaction, whose message member is "Message" (a recorded answer of real DynamoDB in operation_vectors.json).
 internal sealed class FakeErrorTests
 {
     public static IEnumerable<Func<(FakeError Error, string Body)>> Errors()
@@ -23,7 +23,7 @@ internal sealed class FakeErrorTests
             $$"""{"__type":"{{Prefix}}IdempotentParameterMismatchException","message":"The request uses the same client token as a previous, but non-identical request."}""");
         yield return () => (FakeError.TransactionCanceled([new CancellationReason { Code = "ConditionalCheckFailed", Message = "The conditional request failed", Item = new Item { ["pk"] = "a" } }, new CancellationReason()]),
             $$$$"""
-            {"__type":"{{{{Prefix}}}}TransactionCanceledException","message":"Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None]",
+            {"__type":"{{{{Prefix}}}}TransactionCanceledException","Message":"Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None]",
              "CancellationReasons":[{"Code":"ConditionalCheckFailed","Message":"The conditional request failed","Item":{"pk":{"S":"a"}}},{}]}
             """);
     }
@@ -101,6 +101,19 @@ internal sealed class FakeErrorTests
 
         // Assert
         await Assert.That(exception.ErrorCode).IsEqualTo("UnsupportedByFakeException");
+    }
+
+    [Test]
+    public async Task ToDynamoDbException_TransactionCanceled_ReadsTheMessage()
+    {
+        // Arrange
+        var error = FakeError.TransactionCanceled([new CancellationReason { Code = "None" }]);
+
+        // Act
+        var exception = error.ToDynamoDbException("TransactWriteItems", null);
+
+        // Assert
+        await Assert.That(((TransactionCanceledException)exception).Message).Contains("Transaction cancelled, please refer cancellation reasons for specific reasons [None]", StringComparison.Ordinal);
     }
 
     [Test]
