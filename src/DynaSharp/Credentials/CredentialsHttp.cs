@@ -74,11 +74,6 @@ internal static class CredentialsHttp
     /// <returns>The client. Do not dispose it.</returns>
     public static HttpClient GetClient(HttpMessageHandler? handler) => handler is null ? SharedClient : CreateClient(handler);
 
-    /// <summary>Returns the client that uses the default proxy, or a client over <paramref name="handler"/> (for tests) if there is one.</summary>
-    /// <param name="handler">The handler to send through, or <see langword="null"/> for the shared client.</param>
-    /// <returns>The client. Do not dispose it.</returns>
-    public static HttpClient GetProxiedClient(HttpMessageHandler? handler) => handler is null ? ProxiedClient : CreateClient(handler);
-
     /// <summary>
     /// Returns the client for a public endpoint that may also be configured to something else: the one that uses the default proxy, or for a loopback address the one that does not. A proxy cannot reach a port of this
     /// machine, and the default proxy says that it can: <c>HTTP_PROXY</c> covers loopback too, unless <c>NO_PROXY</c> names it.
@@ -86,7 +81,8 @@ internal static class CredentialsHttp
     /// <param name="endpoint">The endpoint.</param>
     /// <param name="handler">The handler to send through, or <see langword="null"/> for a shared client.</param>
     /// <returns>The client. Do not dispose it.</returns>
-    public static HttpClient GetClientFor(Uri endpoint, HttpMessageHandler? handler) => endpoint.IsLoopback ? GetClient(handler) : GetProxiedClient(handler);
+    public static HttpClient GetClientFor(Uri endpoint, HttpMessageHandler? handler) =>
+        handler is not null ? CreateClient(handler) : endpoint.IsLoopback ? SharedClient : ProxiedClient;
 
     /// <summary>
     /// Sends a request until the answer is not transient, at most <see cref="MaxAttempts"/> times, one second apart. Each attempt gets 5 seconds, so a
@@ -164,8 +160,11 @@ internal static class CredentialsHttp
         }
     }
 
-    /// <summary>Gets the handler that a client of this class sends through, whose set-up is the contract of the class.</summary>
-    /// <param name="client">A client that <see cref="GetClient"/>, <see cref="GetProxiedClient"/> or <see cref="GetClientFor"/> returned.</param>
+    /// <summary>
+    /// Gets the handler that a client of this class sends through, whose set-up is the contract of the class: no redirects, no cookies, the proxy
+    /// or not, the lifetime of a pooled connection. Tests pin it here, because none of these shows in a response on this machine.
+    /// </summary>
+    /// <param name="client">A client that <see cref="GetClient"/> or <see cref="GetClientFor"/> returned.</param>
     /// <returns>The handler.</returns>
     public static HttpMessageHandler HandlerOf(HttpClient client) => ((Client)client).Handler;
 
