@@ -60,12 +60,7 @@ public static class ConverterChecks
     public static AttributeValue ToAttributeValue<T, TConverter>(T value)
         where TConverter : IDynamoDbConverter<T>
     {
-        using var buffer = new PooledByteBuffer();
-        using (var json = WireJson.CreateWriter(buffer))
-        {
-            TConverter.Write(new DynamoDbWriter(json), value);
-        }
-
+        using var buffer = WireJson.Render(ref value, static (Utf8JsonWriter json, ref T value) => TConverter.Write(new DynamoDbWriter(json), value));
         var reader = new DynamoDbReader(buffer.WrittenSpan);
         return reader.ReadAttribute<AttributeValue, AttributeValueConverter>();
     }
@@ -109,12 +104,7 @@ public static class ConverterChecks
     public static object? ReadValue<T, TConverter>(AttributeValue value)
         where TConverter : IDynamoDbConverter<T>
     {
-        using var buffer = new PooledByteBuffer(256);
-        using (var json = WireJson.CreateWriter(buffer))
-        {
-            AttributeValueConverter.Write(new DynamoDbWriter(json), value);
-        }
-
+        using var buffer = WireJson.Render(ref value, static (Utf8JsonWriter json, ref AttributeValue value) => AttributeValueConverter.Write(new DynamoDbWriter(json), value));
         var reader = new DynamoDbReader(buffer.WrittenSpan);
         try
         {
