@@ -92,6 +92,26 @@ public sealed class DynamoDbStreamsClientIdleTests
     }
 
     [Test]
+    public async Task ReadShardAsync_CancelledWhileItWaitsOnTheFake_ThrowsWithTheTokenOfTheCaller()
+    {
+        // Arrange
+        var time = new ManualTimeProvider(Start);
+        var fake = FakeStreams.UsersOn(time);
+        using var streams = fake.CreateStreamsClient();
+        using var cancellation = new CancellationTokenSource();
+        await using var records = streams.ReadShardAsync(Latest(), cancellation.Token).GetAsyncEnumerator();
+        var next = records.MoveNextAsync().AsTask();
+        await WaitingAsync(time);
+
+        // Act
+        await cancellation.CancelAsync();
+        var failure = await TestClient.CaptureAsync<OperationCanceledException>(() => next);
+
+        // Assert (not the linked token of the wait)
+        await Assert.That((failure.GetType(), failure.CancellationToken == cancellation.Token)).IsEqualTo((typeof(OperationCanceledException), true));
+    }
+
+    [Test]
     public async Task ReadStreamAsync_LatestAfterASplit_EndsAtTheDisableWithoutMovingTheClock()
     {
         // Arrange: the parent closed at the start is watched for more children, every five seconds, and the children wait on empty pages

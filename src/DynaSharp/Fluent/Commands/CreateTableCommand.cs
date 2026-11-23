@@ -490,7 +490,7 @@ public sealed class CreateTableCommand
                 ExceptionDispatchInfo.Throw(inUse);
             }
 
-            await Task.Delay(delay, _table.Core.TimeProvider, cancellationToken).ConfigureAwait(false);
+            await _table.Core.DelayAsync(delay, cancellationToken).ConfigureAwait(false);
             delay *= 2;
         }
     }

@@ -1241,6 +1241,31 @@ public sealed partial class CreateTableCommandTests
     }
 
     [Test]
+    public async Task SendAsync_IfNotExistsCancelledWhileItWaitsToCreateAgain_ThrowsWithTheTokenOfTheCaller()
+    {
+        // Arrange
+        var time = new ManualTimeProvider();
+        using var handler = new StubHandler();
+        handler.Enqueue(NotFound());
+        handler.Enqueue(StubResponse.DynamoDbError("ResourceInUseException", "Table is being created."));
+        handler.Enqueue(StubResponse.DynamoDbError("ResourceNotFoundException", "Not yet."));
+        using var client = TestClient.Create(handler, time);
+        using var caller = new CancellationTokenSource();
+        var sending = client.Table("Shop", "pk").CreateTable().IfNotExists().SendAsync(caller.Token).AsTask();
+        while (time.ArmedTimers == 0 && !sending.IsCompleted)
+        {
+            await Task.Yield();
+        }
+
+        // Act
+        await caller.CancelAsync();
+        var failure = await TestClient.CaptureAsync<OperationCanceledException>(() => sending);
+
+        // Assert (as from a call: no TaskCanceledException of the delay)
+        await Assert.That((failure.GetType(), failure.CancellationToken == caller.Token)).IsEqualTo((typeof(OperationCanceledException), true));
+    }
+
+    [Test]
     public async Task SendAsync_NotIfNotExistsAndTheTableExists_CreatesOnce()
     {
         // Arrange
