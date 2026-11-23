@@ -333,42 +333,29 @@ public sealed class SharedConfigFilesTests
     }
 
     [Test]
-    public async Task FindRegion_ProfileWithRegion_ReturnsIt()
+    public async Task SelectProfile_ProfileExists_ReturnsIt()
     {
         // Arrange
         var files = Files((DefaultConfigPath, "[default]\nregion = eu-central-2\n"));
 
         // Act
-        var found = SharedConfigFiles.FindRegion(Env(("HOME", Home)), files);
+        var found = SharedConfigFiles.SelectProfile(Env(("HOME", Home)), files);
 
         // Assert
-        await Assert.That(found).IsEqualTo(new SharedRegion("eu-central-2", "default", null));
+        await Assert.That((found.Profile?.GetText("region"), found.Name, found.Problem)).IsEqualTo(("eu-central-2", "default", (string?)null));
     }
 
     [Test]
-    public async Task FindRegion_ProfileWithoutRegion_SaysSo()
+    public async Task SelectProfile_ProfileMissing_SaysSo()
     {
         // Arrange
-        var files = Files((DefaultConfigPath, "[default]\noutput = json\n"));
+        var files = Files((DefaultConfigPath, "[profile dev]\nregion = eu-central-2\n"));
 
         // Act
-        var found = SharedConfigFiles.FindRegion(Env(("HOME", Home)), files);
+        var found = SharedConfigFiles.SelectProfile(Env(("HOME", Home)), files);
 
         // Assert
-        await Assert.That(found).IsEqualTo(new SharedRegion(null, "default", "profile 'default' has no region setting"));
-    }
-
-    [Test]
-    public async Task FindRegion_EmptyRegion_CountsAsNoRegion()
-    {
-        // Arrange
-        var files = Files((DefaultConfigPath, "[default]\nregion =\n"));
-
-        // Act
-        var found = SharedConfigFiles.FindRegion(Env(("HOME", Home)), files);
-
-        // Assert
-        await Assert.That(found.Name).IsNull();
+        await Assert.That((found.Profile, found.Problem!.StartsWith("profile 'default' was not found (", StringComparison.Ordinal))).IsEqualTo(((SharedProfile?)null, true));
     }
 
     [Test]
@@ -439,13 +426,13 @@ public sealed class SharedConfigFilesTests
     }
 
     [Test]
-    public async Task FindRegion_MalformedFile_ReturnsTheProblemInsteadOfThrowing()
+    public async Task SelectProfile_MalformedFile_ReturnsTheProblemInsteadOfThrowing()
     {
         // Arrange
         var files = Files((DefaultConfigPath, "oops\n"));
 
         // Act
-        var found = SharedConfigFiles.FindRegion(Env(("HOME", Home)), files);
+        var found = SharedConfigFiles.SelectProfile(Env(("HOME", Home)), files);
 
         // Assert
         await Assert.That(found.Problem).IsEqualTo($"The file '{DefaultConfigPath}' is malformed at line 1: content before the first [section] header.");

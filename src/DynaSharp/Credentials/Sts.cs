@@ -92,7 +92,7 @@ internal static class Sts
     {
         try
         {
-            return ClientConfiguration.ResolveRegion(new DynamoDbClientOptions(), getEnvironmentVariable, readFile).Region;
+            return ClientConfiguration.ResolveRegion(getEnvironmentVariable, readFile).Region;
         }
         catch (InvalidOperationException exception)
         {

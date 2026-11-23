@@ -105,10 +105,10 @@ public sealed class SharedFileVectorTests
         var environment = SharedFileVectors.Environment(lookup.Detail == "default" ? null : lookup.Detail);
 
         // Act
-        var found = SharedConfigFiles.FindRegion(environment, SharedFileVectors.Files(lookup.Vector));
+        var found = SharedConfigFiles.SelectProfile(environment, SharedFileVectors.Files(lookup.Vector)).Profile?.GetText("region");
 
         // Assert
-        await Assert.That(found.Name).IsEqualTo(expected);
+        await Assert.That(found).IsEqualTo(expected);
     }
 
     [Test]

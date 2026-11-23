@@ -1,12 +1,12 @@
 namespace DynaSharp.Configuration;
 
 /// <summary>
-/// The result of looking for the <c>region</c> setting of the selected profile in the shared AWS files.
+/// The profile of the shared AWS files that <c>AWS_PROFILE</c> selects, or why there is none.
 /// </summary>
-/// <param name="Name">The region name, or <see langword="null"/> if none was found.</param>
-/// <param name="ProfileName">The profile that was looked at.</param>
-/// <param name="Problem">When <paramref name="Name"/> is <see langword="null"/>: why, for example that the profile does not exist. Never contains file content.</param>
-internal readonly record struct SharedRegion(string? Name, string ProfileName, string? Problem);
+/// <param name="Profile">The profile, or <see langword="null"/> if it cannot be had.</param>
+/// <param name="Name">The name of the profile that was looked for.</param>
+/// <param name="Problem">When <paramref name="Profile"/> is <see langword="null"/>: why, for example that it does not exist. Never contains file content.</param>
+internal readonly record struct SelectedProfile(SharedProfile? Profile, string Name, string? Problem);
 
 /// <summary>
 /// The shared AWS credentials file (<c>~/.aws/credentials</c>) and config file (<c>~/.aws/config</c>), read and merged into
@@ -129,42 +129,30 @@ internal sealed class SharedConfigFiles
             return fromEnvironment;
         }
 
-        try
-        {
-            return Load(getEnvironmentVariable, readFile).Profiles.TryGetValue(SelectProfileName(getEnvironmentVariable), out var profile) ? profile.GetText(setting) : null;
-        }
-        catch (CredentialsUnavailableException)
-        {
-            return null;
-        }
+        return SelectProfile(getEnvironmentVariable, readFile).Profile?.GetText(setting);
     }
 
     /// <summary>
-    /// Looks for the <c>region</c> setting of the selected profile. Never throws: a missing, unreadable or malformed file just
-    /// means that no region was found, and <see cref="SharedRegion.Problem"/> says why.
+    /// Finds the profile that <c>AWS_PROFILE</c> selects. Never throws: a missing, unreadable or malformed file just
+    /// means that there is no profile, and <see cref="SelectedProfile.Problem"/> says why.
     /// </summary>
     /// <param name="getEnvironmentVariable">Reads an environment variable.</param>
     /// <param name="readFile">Reads a file.</param>
-    /// <returns>The region and the profile that was looked at.</returns>
-    public static SharedRegion FindRegion(Func<string, string?> getEnvironmentVariable, ReadTextFile readFile)
+    /// <returns>The profile, or why there is none.</returns>
+    public static SelectedProfile SelectProfile(Func<string, string?> getEnvironmentVariable, ReadTextFile readFile)
     {
         var profileName = SelectProfileName(getEnvironmentVariable);
         try
         {
             var files = Load(getEnvironmentVariable, readFile);
-            if (!files.Profiles.TryGetValue(profileName, out var profile))
-            {
-                return new SharedRegion(null, profileName, $"profile '{profileName}' was not found ({files.Description})");
-            }
-
-            return profile.GetText("region") is { } region
-                ? new SharedRegion(region, profileName, null)
-                : new SharedRegion(null, profileName, $"profile '{profileName}' has no region setting");
+            return files.Profiles.TryGetValue(profileName, out var profile)
+                ? new SelectedProfile(profile, profileName, null)
+                : new SelectedProfile(null, profileName, $"profile '{profileName}' was not found ({files.Description})");
         }
         catch (CredentialsUnavailableException exception)
         {
             // The message names the file and the line of a malformed file, never its content.
-            return new SharedRegion(null, profileName, exception.Message);
+            return new SelectedProfile(null, profileName, exception.Message);
         }
     }
 
