@@ -44,7 +44,7 @@ public sealed record DynamoDbClientOptions
     /// <remarks>
     /// <para>
     /// <b>Shape.</b> An absolute http or https URL without user info, path, query and fragment; the client rejects anything else when it is created. The public endpoint of the region is
-    /// <see cref="AwsRegion.DynamoDbEndpoint"/>.
+    /// <c>https://dynamodb.&lt;region&gt;.amazonaws.com/</c>.
     /// </para>
     /// <para>
     /// <b>Plain http.</b> Over http the requests, their signatures and the session token travel unencrypted, so for an http endpoint whose host is not <c>localhost</c> or a loopback address,
@@ -52,7 +52,7 @@ public sealed record DynamoDbClientOptions
     /// </para>
     /// <para>
     /// <b>Streams.</b> A <see cref="Streams.DynamoDbStreamsClient"/> created from the same options uses the same URL (an emulator such as DynamoDB Local serves both APIs on one address);
-    /// without it, it reads <c>AWS_ENDPOINT_URL_DYNAMODB_STREAMS</c>, then <c>AWS_ENDPOINT_URL</c>, and otherwise uses <see cref="AwsRegion.DynamoDbStreamsEndpoint"/>.
+    /// without it, it reads <c>AWS_ENDPOINT_URL_DYNAMODB_STREAMS</c>, then <c>AWS_ENDPOINT_URL</c>, and otherwise uses the public endpoint of DynamoDB Streams in the region, <c>https://streams.dynamodb.&lt;region&gt;.amazonaws.com/</c>.
     /// </para>
     /// </remarks>
     public Uri? ServiceUrl { get; init; }
@@ -248,21 +248,10 @@ public sealed record DynamoDbClientOptions
     public static DynamoDbClientOptions ForEmulator(Uri serviceUrl, string region = "us-east-1")
     {
         ArgumentNullException.ThrowIfNull(serviceUrl);
-        ArgumentException.ThrowIfNullOrEmpty(region);
-        AwsRegion name;
-        try
-        {
-            name = AwsRegion.FromName(region);
-        }
-        catch (ArgumentException exception)
-        {
-            throw new ArgumentException($"'{region}' is not a valid AWS region name. Expected lowercase letters, digits and inner hyphens, for example 'eu-central-2'.", nameof(region), exception);
-        }
-
         return new DynamoDbClientOptions
         {
             ServiceUrl = serviceUrl,
-            Region = name,
+            Region = AwsRegion.Parse(region, nameof(region)),
             Credentials = new StaticCredentialsProvider(EmulatorKey, EmulatorKey),
         };
     }

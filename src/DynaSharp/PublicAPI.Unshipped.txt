@@ -1,3 +1,5 @@
 #nullable enable
+*REMOVED*DynaSharp.AwsRegion.DynamoDbEndpoint.get -> System.Uri!
+*REMOVED*DynaSharp.AwsRegion.DynamoDbStreamsEndpoint.get -> System.Uri!
 *REMOVED*DynaSharp.Streams.Change<T>.Keys.init -> void
 *REMOVED*DynaSharp.Streams.Change<T>.SequenceNumber.init -> void
