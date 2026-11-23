@@ -12,17 +12,17 @@ internal static class WriteEmitter
     // WriteEmitterTests holds the list against the built-in converters of the library.
     internal static readonly string[] RefusingConverters =
     [
-        "global::DynaSharp.Serialization.DateTimeConverter",
-        "global::DynaSharp.Serialization.NumberConverter<double>",
-        "global::DynaSharp.Serialization.NumberConverter<float>",
-        "global::DynaSharp.Serialization.NumberConverter<global::System.Half>",
-        "global::DynaSharp.Serialization.NumberSetElement<double>",
-        "global::DynaSharp.Serialization.NumberSetElement<float>",
-        "global::DynaSharp.Serialization.NumberSetElement<global::System.Half>",
-        "global::DynaSharp.Serialization.NonEmptySetConverter<",
-        "global::DynaSharp.Serialization.DictionaryConverter<",
-        "global::DynaSharp.Serialization.ReadOnlyDictionaryConverter<",
-        "global::DynaSharp.Serialization.JsonElementConverter",
+        CodeText.Serialization + "DateTimeConverter",
+        CodeText.Serialization + "NumberConverter<double>",
+        CodeText.Serialization + "NumberConverter<float>",
+        CodeText.Serialization + "NumberConverter<global::System.Half>",
+        CodeText.Serialization + "NumberSetElement<double>",
+        CodeText.Serialization + "NumberSetElement<float>",
+        CodeText.Serialization + "NumberSetElement<global::System.Half>",
+        CodeText.Serialization + "NonEmptySetConverter<",
+        CodeText.Serialization + "DictionaryConverter<",
+        CodeText.Serialization + "ReadOnlyDictionaryConverter<",
+        CodeText.Serialization + "JsonElementConverter",
     ];
 
     private const string VersionParameter = "__version";

@@ -8,9 +8,9 @@ namespace DynaSharp.Generators;
 /// </summary>
 internal static class PlainKeyBuilderEmitter
 {
-    private const string StringConverter = "global::DynaSharp.Serialization.StringConverter";
+    private const string StringConverter = CodeText.Serialization + "StringConverter";
 
-    private const string ValueOf = "global::DynaSharp.Serialization.ConverterChecks.ToAttributeValue";
+    private const string ValueOf = CodeText.Serialization + "ConverterChecks.ToAttributeValue";
 
     private const string AttributeValue = "global::DynaSharp.AttributeValue";
 
@@ -20,12 +20,12 @@ internal static class PlainKeyBuilderEmitter
     private static readonly HashSet<string> OrderedText =
     [
         StringConverter,
-        "global::DynaSharp.Serialization.GuidConverter",
-        "global::DynaSharp.Serialization.DateTimeOffsetConverter",
-        "global::DynaSharp.Serialization.DateTimeConverter",
-        "global::DynaSharp.Serialization.SdkDateTimeConverter",
-        "global::DynaSharp.Serialization.DateOnlyConverter",
-        "global::DynaSharp.Serialization.TimeOnlyConverter",
+        CodeText.Serialization + "GuidConverter",
+        CodeText.Serialization + "DateTimeOffsetConverter",
+        CodeText.Serialization + "DateTimeConverter",
+        CodeText.Serialization + "SdkDateTimeConverter",
+        CodeText.Serialization + "DateOnlyConverter",
+        CodeText.Serialization + "TimeOnlyConverter",
     ];
 
     /// <summary>Writes the builder.</summary>

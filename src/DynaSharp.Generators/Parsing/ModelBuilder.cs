@@ -9,9 +9,8 @@ namespace DynaSharp.Generators;
 /// </summary>
 internal sealed class ModelBuilder
 {
-    private const string DefaultDiscriminatorAttribute = "_type";
-
-    private const string Serialization = "global::DynaSharp.Serialization.";
+    /// <summary>The attribute of the discriminator of an entity whose <c>[Discriminator]</c> names none.</summary>
+    internal const string DefaultDiscriminatorAttribute = "_type";
 
     private static readonly string[] KeyAttributesOnType =
     [
@@ -150,11 +149,11 @@ internal sealed class ModelBuilder
         var inner = Types.Unwrap(property.Type).Inner;
         if (inner.SpecialType == SpecialType.System_String)
         {
-            return Serialization + "OmitEmptyConverter<";
+            return CodeText.Serialization + "OmitEmptyConverter<";
         }
 
         var wrapper = property.Resolved!.IsAddable ? "OmitEmptySetConverter" : "OmitEmptyCollectionConverter";
-        return $"{Serialization}{wrapper}<{Names.Of(inner)}, {ConverterResolver.ElementOf(inner)}, ";
+        return $"{CodeText.Serialization}{wrapper}<{Names.Of(inner)}, {ConverterResolver.ElementOf(inner)}, ";
     }
 
     private static PropertyModel ToModel(PropertyFacts property, string setFlag)
@@ -245,8 +244,7 @@ internal sealed class ModelBuilder
         EntityModel? entity = null;
         if (discriminator is not null)
         {
-            var tableName = ReadTableName();
-            entity = new EntityKeyBuilder(_type, _spot, properties, claims, reserved, _enums, _defaults, _bag).Build(discriminator) is { } built ? built with { TableName = tableName } : null;
+            entity = new EntityKeyBuilder(_type, _spot, properties, claims, reserved, _enums, _defaults, _bag).Build(discriminator, ReadTableName());
         }
 
         KeepWhatAReadNeeds(properties);

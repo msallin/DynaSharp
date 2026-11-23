@@ -62,7 +62,7 @@ internal sealed class EntityKeyBuilder(
     // The Include argument of each index that has one, for DYNA047.
     private readonly Dictionary<string, Spot> _includeSpots = [];
 
-    public EntityModel? Build(DiscriminatorInfo discriminator)
+    public EntityModel? Build(DiscriminatorInfo discriminator, string? tableName)
     {
         var partition = TableKey(PartitionSlot);
         var hasPartition = AttributeReader.Find(type, WellKnownNames.PartitionKeyAttribute) is not null || properties.Exists(static property => property.PartitionKey is not null);
@@ -103,7 +103,7 @@ internal sealed class EntityKeyBuilder(
         FindFallbackKeys();
         ReportProjectionsThatLeaveOutRequired(indexes, partition!, sort, discriminator.Value is null ? null : discriminator.AttributeName);
         var built = new EquatableArray<IndexModel>([.. indexes.Select(index => WithGates(index, indexes))]);
-        return new EntityModel(discriminator.Value, discriminator.AttributeName, partition!, sort, built, version, computedInputs, timeToLive);
+        return new EntityModel(discriminator.Value, discriminator.AttributeName, partition!, sort, built, version, computedInputs, timeToLive, tableName);
     }
 
     private static IndexModel WithGates(IndexModel index, List<IndexModel> indexes) => index with

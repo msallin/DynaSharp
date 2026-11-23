@@ -9,7 +9,7 @@ namespace DynaSharp.Generators;
 /// <param name="Reach">The accessibility the type really has, see <see cref="TypeModel.Reach"/>.</param>
 /// <param name="TableName">The table it declares, or null.</param>
 /// <param name="MetadataName">The name the compilation finds the type by, for example <c>Shop.Outer+Order</c>, which places a diagnostic without a place in the model.</param>
-internal sealed record RegisteredEntity(string FullName, string PartitionKey, string? SortKey, Accessibility Reach, string? TableName = null, string MetadataName = "")
+internal sealed record RegisteredEntity(string FullName, string PartitionKey, string? SortKey, Accessibility Reach, string? TableName, string MetadataName)
 {
     /// <summary>Gets the name as a message shows it, for example <c>Shop.Order</c>.</summary>
     public string DisplayName => FullName.Substring("global::".Length);
