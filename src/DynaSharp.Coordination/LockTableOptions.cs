@@ -8,7 +8,7 @@ namespace DynaSharp.Coordination;
 public sealed class LockTableOptions
 {
     /// <summary>The longest <see cref="HolderLabel"/>, in characters.</summary>
-    public const int MaxHolderLabelLength = 256;
+    internal const int MaxHolderLabelLength = 256;
 
     /// <summary>
     /// Gets a label of this process, such as the name of its pod or host, which every lease writes into the item of its lock as the attribute <c>holder</c>, for operators who ask who
@@ -16,7 +16,7 @@ public sealed class LockTableOptions
     /// </summary>
     /// <remarks>
     /// The logs of the takeover and of the terms of a leader name it too. A release removes it, and an acquire without a label removes the label of the holder before. The label is shown to operators, in the table and in the logs, but never in a metric or on a span. So it must not carry data: no user id, no secret,
-    /// nothing that is not a name of the process. From 1 to <see cref="MaxHolderLabelLength"/> characters.
+    /// nothing that is not a name of the process. From 1 to 256 characters.
     /// </remarks>
     public string? HolderLabel { get; init; }
 
