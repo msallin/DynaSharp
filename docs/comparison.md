@@ -2,7 +2,7 @@
 
 DynaSharp is one of three ways to reach DynamoDB from .NET with mapped types. The other two are the object persistence model of the AWS SDK, `DynamoDBContext`, and EfficientDynamoDb. This page compares what each has, so you can choose. It is about features: [Performance](performance.md) has the cost of a call, and [Migrating](migrating.md) the way from either of them.
 
-The versions compared are AWSSDK.DynamoDBv2 4.0.109 with AWSSDK.Core 4.0.102.12, and EfficientDynamoDb 0.9.19. The claims come from their packages: the assemblies, the XML documentation of the AWS SDK and the package metadata. Where a claim comes from the documentation of EfficientDynamoDb alone, it says "from its docs".
+The versions compared are AWSSDK.DynamoDBv2 4.0.109 with AWSSDK.Core 4.0.102.12, and EfficientDynamoDb 0.9.19: the claims were checked against them, and a later version may have changed one. The claims come from their packages: the assemblies, the XML documentation of the AWS SDK and the package metadata. Where a claim comes from the documentation of EfficientDynamoDb alone, it says "from its docs".
 
 ## Feature matrix
 

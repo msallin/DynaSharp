@@ -4,7 +4,7 @@ What a call costs comes in two parts: what the client allocates and spends on th
 
 ## Benchmarks
 
-Allocations are exact. Times depend on the machine: they are the means of one run on an idle 8-core AMD EPYC with .NET 11 (SDK 11.0.100), each within 3 %. A KB is 1,024 bytes. All clients run on the same canned responses with no network, so these numbers show the client's own cost.
+Allocations are exact. Times depend on the machine: they are the means of one run on an idle 8-core AMD EPYC with .NET 11 (SDK 11.0.100), each within 3 %, against AWSSDK.DynamoDBv2 4.0.109 and EfficientDynamoDb 0.9.19. A KB is 1,024 bytes. All clients run on the same canned responses with no network, so these numbers show the client's own cost.
 
 Time per call, mapped APIs, in µs:
 
