@@ -22,41 +22,14 @@ internal static class ErrorMapper
     /// </summary>
     public const string UnrecognizedResponseCode = "UnrecognizedResponse";
 
-    // Error codes as DynamoDB sends them, which is also what ErrorCode reports. InternalServerError and RequestLimitExceeded have no "Exception" suffix on the wire.
-    // When adding an exception type: add its factory here, with the names of the call, its wire code to Retries/FailureClassifier.cs if it is retried (or a case of IsTransient there
-    // if it passes later without a retry), a row to the tests of both and to the transience cases of DynamoDbExceptionTests, and the type to the list in the remarks of
-    // DynamoDbClientOptions.MaxAttempts.
-    private static readonly Dictionary<string, Func<ErrorBody, DynamoDbException>> Factories = new(StringComparer.Ordinal)
-    {
-        ["AccessDeniedException"] = static body => new AccessDeniedException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["ConditionalCheckFailedException"] = static body => new ConditionalCheckFailedException(body.Message, body.Item, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["IdempotentParameterMismatchException"] = static body => new IdempotentParameterMismatchException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["ExpiredIteratorException"] = static body => new ExpiredIteratorException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["InternalServerError"] = static body => new InternalServerErrorException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["ItemCollectionSizeLimitExceededException"] = static body => new ItemCollectionSizeLimitExceededException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["LimitExceededException"] = static body => new LimitExceededException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["ProvisionedThroughputExceededException"] = static body => new ProvisionedThroughputExceededException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["ReplicatedWriteConflictException"] = static body => new ReplicatedWriteConflictException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["RequestLimitExceeded"] = static body => new RequestLimitExceededException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["ResourceInUseException"] = static body => new ResourceInUseException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["ResourceNotFoundException"] = static body => new ResourceNotFoundException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["ThrottlingException"] = static body => new ThrottlingException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["TransactionCanceledException"] = static body => new TransactionCanceledException(body.Message, body.CancellationReasons, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["TransactionConflictException"] = static body => new TransactionConflictException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["TransactionInProgressException"] = static body => new TransactionInProgressException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["TrimmedDataAccessException"] = static body => new TrimmedDataAccessException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["UnrecognizedClientException"] = static body => new UnrecognizedClientException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-        ["ValidationException"] = static body => new ValidationException(body.Message, body.RequestId, body.StatusCode) { OperationName = body.OperationName, TableName = body.TableName },
-    };
-
     /// <summary>Maps an error response.</summary>
     /// <param name="statusCode">The HTTP status code.</param>
     /// <param name="requestId">The value of the <c>x-amzn-RequestId</c> header, if any.</param>
     /// <param name="body">The response body.</param>
-    /// <param name="operationName">The operation that failed, if known.</param>
+    /// <param name="operationName">The operation that failed.</param>
     /// <param name="tableName">The table of the failed call, if it has a single one.</param>
     /// <returns>The exception to throw. Never <see langword="null"/>.</returns>
-    public static DynamoDbException Map(HttpStatusCode statusCode, string? requestId, ReadOnlySpan<byte> body, string? operationName = null, string? tableName = null)
+    public static DynamoDbException Map(HttpStatusCode statusCode, string? requestId, ReadOnlySpan<byte> body, string operationName, string? tableName)
     {
         string? type = null;
         string? message = null;
@@ -107,9 +80,37 @@ internal static class ErrorMapper
             message = $"DynamoDB returned the error {code} (HTTP {(int)statusCode}) without a message.";
         }
 
-        return Factories.TryGetValue(code, out var create)
-            ? create(new ErrorBody(message, requestId, statusCode, item, cancellationReasons, operationName, tableName))
-            : new DynamoDbException(message, code, statusCode, requestId) { OperationName = operationName, TableName = tableName };
+        // Error codes as DynamoDB sends them, which is also what ErrorCode reports. InternalServerError and RequestLimitExceeded have no "Exception" suffix on the wire.
+        // When adding an exception type: add it here, its wire code to Retries/FailureClassifier.cs if it is retried (or a case of IsTransient there if it passes later
+        // without a retry), a row to the tests of both and to the transience cases of DynamoDbExceptionTests, and the type to the list in the remarks of
+        // DynamoDbClientOptions.MaxAttempts.
+        DynamoDbException failure = code switch
+        {
+            "AccessDeniedException" => new AccessDeniedException(message, requestId, statusCode),
+            "ConditionalCheckFailedException" => new ConditionalCheckFailedException(message, item, requestId, statusCode),
+            "IdempotentParameterMismatchException" => new IdempotentParameterMismatchException(message, requestId, statusCode),
+            "ExpiredIteratorException" => new ExpiredIteratorException(message, requestId, statusCode),
+            "InternalServerError" => new InternalServerErrorException(message, requestId, statusCode),
+            "ItemCollectionSizeLimitExceededException" => new ItemCollectionSizeLimitExceededException(message, requestId, statusCode),
+            "LimitExceededException" => new LimitExceededException(message, requestId, statusCode),
+            "ProvisionedThroughputExceededException" => new ProvisionedThroughputExceededException(message, requestId, statusCode),
+            "ReplicatedWriteConflictException" => new ReplicatedWriteConflictException(message, requestId, statusCode),
+            "RequestLimitExceeded" => new RequestLimitExceededException(message, requestId, statusCode),
+            "ResourceInUseException" => new ResourceInUseException(message, requestId, statusCode),
+            "ResourceNotFoundException" => new ResourceNotFoundException(message, requestId, statusCode),
+            "ThrottlingException" => new ThrottlingException(message, requestId, statusCode),
+            "TransactionCanceledException" => new TransactionCanceledException(message, cancellationReasons, requestId, statusCode),
+            "TransactionConflictException" => new TransactionConflictException(message, requestId, statusCode),
+            "TransactionInProgressException" => new TransactionInProgressException(message, requestId, statusCode),
+            "TrimmedDataAccessException" => new TrimmedDataAccessException(message, requestId, statusCode),
+            "UnrecognizedClientException" => new UnrecognizedClientException(message, requestId, statusCode),
+            "ValidationException" => new ValidationException(message, requestId, statusCode),
+            _ => new DynamoDbException(message, code, statusCode, requestId),
+        };
+
+        failure.OperationName = operationName;
+        failure.TableName = tableName;
+        return failure;
     }
 
     /// <summary>Creates the exception for a response that is not a DynamoDB document.</summary>
@@ -117,10 +118,10 @@ internal static class ErrorMapper
     /// <param name="requestId">The value of the <c>x-amzn-RequestId</c> header, if any.</param>
     /// <param name="innerException">Why the body could not be understood, if parsing failed.</param>
     /// <param name="message">A message found in the body, if any. Otherwise a message that names the status code is used.</param>
-    /// <param name="operationName">The operation that failed, if known.</param>
+    /// <param name="operationName">The operation that failed.</param>
     /// <param name="tableName">The table of the failed call, if it has a single one.</param>
     /// <returns>A <see cref="DynamoDbException"/> with the error code <see cref="UnrecognizedResponseCode"/>.</returns>
-    public static DynamoDbException Unrecognized(HttpStatusCode statusCode, string? requestId, Exception? innerException, string? message = null, string? operationName = null, string? tableName = null) =>
+    public static DynamoDbException Unrecognized(HttpStatusCode statusCode, string? requestId, Exception? innerException, string? message, string operationName, string? tableName) =>
         new(
             message ?? $"DynamoDB returned HTTP {(int)statusCode} ({statusCode}) with a body that is not a DynamoDB response.",
             UnrecognizedResponseCode,

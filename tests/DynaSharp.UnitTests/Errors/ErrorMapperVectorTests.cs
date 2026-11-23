@@ -96,5 +96,5 @@ public sealed class ErrorMapperVectorTests
     }
 
     private static DynamoDbException Map(ErrorVector vector) =>
-        ErrorMapper.Map((HttpStatusCode)vector.Status, RequestId, Encoding.UTF8.GetBytes(vector.Wire));
+        ErrorMapper.Map((HttpStatusCode)vector.Status, RequestId, Encoding.UTF8.GetBytes(vector.Wire), "PutItem", null);
 }

@@ -461,7 +461,7 @@ public sealed class ErrorMapperTests
         const string body = """{"__type":"com.amazonaws.dynamodb.v20120810#ResourceNotFoundException","message":"gone"}""";
 
         // Act
-        var exception = ErrorMapper.Map(HttpStatusCode.BadRequest, null, Encoding.UTF8.GetBytes(body));
+        var exception = ErrorMapper.Map(HttpStatusCode.BadRequest, null, Encoding.UTF8.GetBytes(body), "PutItem", null);
 
         // Assert
         await Assert.That(exception.RequestId).IsNull();
@@ -605,7 +605,7 @@ public sealed class ErrorMapperTests
         // Arrange (nothing to arrange)
 
         // Act
-        var exception = ErrorMapper.Unrecognized(HttpStatusCode.OK, null, null);
+        var exception = ErrorMapper.Unrecognized(HttpStatusCode.OK, null, null, null, "PutItem", null);
 
         // Assert
         await Assert.That(exception.Message).IsEqualTo("DynamoDB returned HTTP 200 (OK) with a body that is not a DynamoDB response.");
@@ -617,12 +617,12 @@ public sealed class ErrorMapperTests
         // Arrange (nothing to arrange)
 
         // Act
-        var exception = ErrorMapper.Unrecognized(HttpStatusCode.OK, null, null);
+        var exception = ErrorMapper.Unrecognized(HttpStatusCode.OK, null, null, null, "PutItem", null);
 
         // Assert
         await Assert.That(exception.ErrorCode).IsEqualTo(ErrorMapper.UnrecognizedResponseCode);
     }
 
     private static DynamoDbException Map(HttpStatusCode statusCode, string body) =>
-        ErrorMapper.Map(statusCode, RequestId, Encoding.UTF8.GetBytes(body));
+        ErrorMapper.Map(statusCode, RequestId, Encoding.UTF8.GetBytes(body), "PutItem", null);
 }

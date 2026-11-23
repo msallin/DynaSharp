@@ -73,7 +73,7 @@ Exceptions                                            what the service and the c
 | `Credentials` | The providers, `IRefreshableCredentialsProvider`, `RefreshingCredentialsCache`, `CredentialsHttp` (the HTTP clients of the endpoints and their one retry loop), `CredentialsLog`, `CredentialsDocument`, `StsDocument`, `CredentialsDependencies` (the seams a profile hands to its providers), `CommandLine` and `CredentialProcess`, `ProfileChain` (a profile to its provider, in botocore's order), `Sts`, `SsoToken` (the AWS CLI's token cache) |
 | `Configuration` | `ClientConfiguration`, `SharedConfigFiles`, `IniFile`, the file seams `ReadTextFile` and `WriteTextFile` |
 | `Signing` | `SigV4Signer` |
-| `Errors` | `ErrorMapper`, `ErrorBody` |
+| `Errors` | `ErrorMapper` |
 | `Exceptions` | `DynamoDbException` and the exceptions of service and client, `TransactionFailure`, `TransactionActionFailure`, `TransactMarker`, `ConditionParts` |
 | `Telemetry` | `OperationTelemetry`, `DynaSharpTelemetry`, `TelemetryNames`, `ConsumedCapacityTelemetry`, `ClientLog` |
 
