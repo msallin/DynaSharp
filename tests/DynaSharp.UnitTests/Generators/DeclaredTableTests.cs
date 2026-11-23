@@ -191,7 +191,7 @@ public sealed class DeclaredTableTests
         var source = "using DynaSharp.Mapping;\nnamespace Shop;\n" + Order + "\n" + Plain;
 
         // Act
-        var output = GeneratorRun.Run(source, new DynaSharpGenerator(), LanguageVersion.CSharp11);
+        var output = GeneratorRun.Run(source, new DynaSharpGenerator(), LanguageVersion.CSharp13);
 
         // Assert
         await Assert.That(output.Problems).IsEmpty();

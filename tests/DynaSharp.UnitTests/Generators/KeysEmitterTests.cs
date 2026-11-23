@@ -59,7 +59,7 @@ public sealed partial class KeysEmitterTests
     }
 
     [Test]
-    [Arguments(LanguageVersion.CSharp11)]
+    [Arguments(LanguageVersion.CSharp13)]
     [Arguments(LanguageVersion.Latest)]
     public async Task Run_EveryKeyShape_CompilesWithoutWarnings(LanguageVersion language)
     {
@@ -144,7 +144,7 @@ public sealed partial class KeysEmitterTests
     }
 
     [Test]
-    [Arguments(LanguageVersion.CSharp11)]
+    [Arguments(LanguageVersion.CSharp13)]
     [Arguments(LanguageVersion.Latest)]
     public async Task Run_EntitiesWithIndexesOverABase_CompilesWithoutWarnings(LanguageVersion language)
     {
@@ -357,7 +357,7 @@ public sealed partial class KeysEmitterTests
             """;
 
         // Act
-        var output = GeneratorRun.Run(Source, new DynaSharpGenerator(), LanguageVersion.CSharp11);
+        var output = GeneratorRun.Run(Source, new DynaSharpGenerator(), LanguageVersion.CSharp13);
 
         // Assert
         await Assert.That(output.Problems).IsEmpty();

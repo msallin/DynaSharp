@@ -61,7 +61,7 @@ public sealed class KeyEncodingTests
         source.Append("}\n");
 
         // Act
-        var errors = GeneratorRun.CreateCompilation(source.ToString(), LanguageVersion.CSharp11).GetDiagnostics()
+        var errors = GeneratorRun.CreateCompilation(source.ToString(), LanguageVersion.CSharp13).GetDiagnostics()
             .Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
             .Select(diagnostic => diagnostic.ToString());
 

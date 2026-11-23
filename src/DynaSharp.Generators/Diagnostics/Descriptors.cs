@@ -69,7 +69,7 @@ internal static class Descriptors
         "DYNA014", "Generated member conflicts", "Generated member '{0}' conflicts with a member of '{1}'", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor LanguageVersionTooLow = new(
-        "DYNA015", "C# version is too low", "DynaSharp generated code needs C# 11 or later; this project uses {0}", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
+        "DYNA015", "C# version is too low", "DynaSharp generated code needs C# 13 or later; this project uses {0}", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);
 
     public static readonly DiagnosticDescriptor InaccessibleType = new(
         "DYNA016", "Type is not accessible", "Type '{0}' used by '{1}' is not accessible to generated code", Mapping, DiagnosticSeverity.Error, true, helpLinkUri: EntityHelp);

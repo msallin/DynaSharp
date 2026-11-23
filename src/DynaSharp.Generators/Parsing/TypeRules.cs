@@ -44,7 +44,7 @@ internal static class TypeRules
         }
 
         var language = ((CSharpParseOptions)context.TargetNode.SyntaxTree.Options).LanguageVersion;
-        if (language < LanguageVersion.CSharp11)
+        if (language < LanguageVersion.CSharp13)
         {
             bag.Report(Descriptors.LanguageVersionTooLow, spot, language.ToDisplayString());
         }

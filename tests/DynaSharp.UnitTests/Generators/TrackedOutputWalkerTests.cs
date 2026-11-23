@@ -12,7 +12,7 @@ public sealed class TrackedOutputWalkerTests
     public async Task Violations_NameNumberAndEnum_ReportsNothing()
     {
         // Arrange
-        var output = new Clean("Order", 3, LanguageVersion.CSharp11);
+        var output = new Clean("Order", 3, LanguageVersion.CSharp13);
 
         // Act
         var violations = TrackedOutputWalker.Violations(output);
