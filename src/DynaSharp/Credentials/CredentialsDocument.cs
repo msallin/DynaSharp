@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 
 namespace DynaSharp.Credentials;
@@ -26,58 +25,14 @@ internal readonly record struct CredentialsDocument(string? AccessKeyId, string?
     /// <returns><see langword="false"/> if the body is not a JSON object.</returns>
     public static bool TryParse(ReadOnlySpan<byte> json, out CredentialsDocument document)
     {
-        string? accessKeyId = null;
-        string? secretAccessKey = null;
-        string? token = null;
-        string? expiration = null;
-        string? code = null;
-
-        var reader = new Utf8JsonReader(json);
-        try
+        if (CredentialsJson.TryRead(json) is not { } members)
         {
-            if (!reader.Read() || reader.TokenType != JsonTokenType.StartObject)
-            {
-                document = default;
-                return false;
-            }
-
-            while (reader.Read() && reader.TokenType == JsonTokenType.PropertyName)
-            {
-                if (reader.ValueTextEquals("AccessKeyId"u8))
-                {
-                    accessKeyId = ReadString(ref reader);
-                }
-                else if (reader.ValueTextEquals("SecretAccessKey"u8))
-                {
-                    secretAccessKey = ReadString(ref reader);
-                }
-                else if (reader.ValueTextEquals("Token"u8))
-                {
-                    token = ReadString(ref reader);
-                }
-                else if (reader.ValueTextEquals("Expiration"u8))
-                {
-                    expiration = ReadString(ref reader);
-                }
-                else if (reader.ValueTextEquals("Code"u8))
-                {
-                    code = ReadString(ref reader);
-                }
-                else
-                {
-                    // On a name, Skip passes its value too.
-                    reader.Skip();
-                }
-            }
-        }
-        catch (Exception exception) when (exception is JsonException or InvalidOperationException)
-        {
-            // InvalidOperationException: a string that is not valid UTF-8, which the reader only notices when it decodes the string.
             document = default;
             return false;
         }
 
-        document = new CredentialsDocument(accessKeyId, secretAccessKey, token, expiration, code);
+        document = new CredentialsDocument(
+            members.GetString("AccessKeyId"), members.GetString("SecretAccessKey"), members.GetString("Token"), members.GetString("Expiration"), members.GetString("Code"));
         return true;
     }
 
@@ -91,33 +46,17 @@ internal readonly record struct CredentialsDocument(string? AccessKeyId, string?
     public string? TryCreateCredentials(out AwsCredentials? credentials, string tokenField = "Token")
     {
         credentials = null;
-        var missing = new List<string>(4);
-        if (string.IsNullOrEmpty(AccessKeyId))
+        var missing = CredentialsJson.DescribeMissing(
+            ("AccessKeyId", string.IsNullOrEmpty(AccessKeyId)),
+            ("SecretAccessKey", string.IsNullOrEmpty(SecretAccessKey)),
+            (tokenField, string.IsNullOrEmpty(Token)),
+            ("Expiration", string.IsNullOrEmpty(Expiration)));
+        if (missing is not null)
         {
-            missing.Add("AccessKeyId");
+            return "the response does not contain " + missing;
         }
 
-        if (string.IsNullOrEmpty(SecretAccessKey))
-        {
-            missing.Add("SecretAccessKey");
-        }
-
-        if (string.IsNullOrEmpty(Token))
-        {
-            missing.Add(tokenField);
-        }
-
-        if (string.IsNullOrEmpty(Expiration))
-        {
-            missing.Add("Expiration");
-        }
-
-        if (missing.Count > 0)
-        {
-            return "the response does not contain " + string.Join(", ", missing);
-        }
-
-        if (!DateTimeOffset.TryParse(Expiration, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var expiration))
+        if (CredentialsJson.ParseTime(Expiration) is not { } expiration)
         {
             return "the Expiration of the response is not a valid timestamp";
         }
@@ -129,17 +68,4 @@ internal readonly record struct CredentialsDocument(string? AccessKeyId, string?
     /// <summary>Returns the name of the type: the generated text of a record would print the secret and the session token.</summary>
     /// <returns>The name of the type.</returns>
     public override string ToString() => nameof(CredentialsDocument);
-
-    // The reader is on a property name; moves to the value and returns it if it is a string.
-    private static string? ReadString(ref Utf8JsonReader reader)
-    {
-        reader.Read();
-        if (reader.TokenType == JsonTokenType.String)
-        {
-            return reader.GetString();
-        }
-
-        reader.Skip();
-        return null;
-    }
 }
