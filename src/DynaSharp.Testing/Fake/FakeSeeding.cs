@@ -77,18 +77,6 @@ public sealed partial class FakeDynamoDb
     public void Put<T>(T entity)
         where T : IDynamoDbEntity<T> => Put(DeclaredTable.Of<T>(), entity);
 
-    /// <summary>Gets an item by its key from the table the entity declares, as <see cref="Get{T}(string, Item)"/> does.</summary>
-    /// <typeparam name="T">The entity, which declares its table.</typeparam>
-    /// <param name="key">The key attributes, such as <c>StubResponse.KeyOf(Customer.Keys.Of("alice"))</c>.</param>
-    /// <returns>The entity, or the default of <typeparamref name="T"/> if there is no item: <see langword="null"/> for a class.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
-    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> declares no table.</exception>
-    /// <exception cref="ResourceNotFoundException">There is no such table.</exception>
-    /// <exception cref="ValidationException">The key does not match the schema of the table.</exception>
-    /// <exception cref="DynamoDbMappingException">The item is not one the entity can read, also when it is of another entity.</exception>
-    public T? Get<T>(Item key)
-        where T : IDynamoDbEntity<T> => Get<T>(DeclaredTable.Of<T>(), key);
-
     /// <summary>Gets an item by a generated key from the table the entity declares, and reads it as the entity: <c>fake.Get(Customer.Keys.Of("alice"))</c>.</summary>
     /// <remarks>An item of another entity on that key throws, as <see cref="Get{T}(string, Item)"/> explains.</remarks>
     /// <typeparam name="T">The entity of the key, which declares its table.</typeparam>

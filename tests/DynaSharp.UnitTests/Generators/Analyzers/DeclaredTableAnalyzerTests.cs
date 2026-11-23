@@ -27,7 +27,7 @@ public sealed class DeclaredTableAnalyzerTests
     [Arguments("_ = client?[|.Table<Order>()|];", "Table")]
     [Arguments("fake.[|CreateTable<Order>|]();", "CreateTable")]
     [Arguments("fake.[|Put|](order);", "Put")]
-    [Arguments("_ = fake.[|Get<Order>|](key);", "Get")]
+    [Arguments("_ = fake.[|Get|](Order.Keys.Of(\"o-1\"));", "Get")]
     [Arguments("_ = fake.[|Items<Order>|]();", "Items")]
     [Arguments("_ = fake.[|Delete|](order);", "Delete")]
     [Arguments("_ = fake.[|DescribeTable<Order>|]();", "DescribeTable")]
