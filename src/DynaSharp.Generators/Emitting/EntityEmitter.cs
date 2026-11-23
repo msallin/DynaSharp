@@ -100,7 +100,7 @@ internal static class EntityEmitter
 
         code.Close("},");
 
-        // The optional arguments follow, each only where it says something, so the last one ends the call.
+        // The optional arguments follow, each only where it says something, and whatever comes last ends the call.
         var optional = new List<string>();
         if (version is { ReadsMissingAsZero: true })
         {
@@ -131,9 +131,9 @@ internal static class EntityEmitter
             code.Close(optional.Count == 0 ? "});" : "},");
         }
 
-        for (var i = 0; i < optional.Count; i++)
+        if (optional.Count > 0)
         {
-            code.Line(optional[i] + (i == optional.Count - 1 ? ");" : ","));
+            code.Line(string.Join(", ", optional) + ");");
         }
 
         code.Outdent();
