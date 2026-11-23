@@ -119,7 +119,7 @@ internal sealed record ClientConfiguration
                 $"{nameof(DynamoDbClientOptions.MaxAttempts)} must be at least 1, which sends every request once and does not retry.");
         }
 
-        readFile ??= SharedConfigFiles.DiskReader;
+        readFile ??= TextFiles.DiskReader;
         var loggerFactory = options.LoggerFactory ?? NullLoggerFactory.Instance;
         var (region, regionSource) = options.Region is { } configured ? (configured, OptionsSource) : ResolveRegion(getEnvironmentVariable, readFile);
         var (endpoint, endpointSource) = ResolveEndpoint(options, region, getEnvironmentVariable, service);

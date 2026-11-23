@@ -70,8 +70,8 @@ Exceptions                                            what the service and the c
 | `Keys` | `KeyWriter`, `KeyReader`, `KeyText`, `KeyTimeFormat`, `PartitionKey<T>`, `KeyFormatException`, `GuidExtensions` (`Guid.FirstVersion7`, `Guid.LastVersion7`) |
 | `Shared` | `AttributeValue`, `Item`, capacity types, shared enums |
 | `Retries` | `RetryPolicy`, `RetryQuota`, `FailureClassifier`, `ClockSkewCorrection` |
-| `Credentials` | The providers, `IRefreshableCredentialsProvider`, `RefreshingCredentialsCache`, `CredentialsHttp` (the HTTP clients of the endpoints and their one retry loop), `CredentialsLog`, `CredentialsDocument`, `StsDocument`, `CredentialsDependencies` (the seams a profile hands to its providers), `CommandLine` and `CredentialProcess`, `ProfileChain` (a profile to its provider, in botocore's order), `Sts`, `SsoToken` (the AWS CLI's token cache) |
-| `Configuration` | `ClientConfiguration`, `SharedConfigFiles`, `IniFile`, the file seams `ReadTextFile` and `WriteTextFile` |
+| `Credentials` | The providers, `IRefreshableCredentialsProvider`, `RefreshingCredentialsCache`, `CredentialsHttp` (the HTTP clients of the endpoints, their one retry loop and the endpoint a variable configures), `CredentialsLog`, `UnencryptedEndpointWarning`, `CredentialsJson` (the one reader of the JSON documents, their times and missing fields), `CredentialsDocument`, `StsDocument`, `CredentialsDependencies` (the seams every provider takes), `CommandLine` and `CredentialProcess`, `ProfileChain` (a profile to its provider, in botocore's order), `Sts`, `SsoToken` (the AWS CLI's token cache) |
+| `Configuration` | `ClientConfiguration` (also the one region lookup: the variables, then a given profile), `SharedConfigFiles`, `IniFile`, the file seams `ReadTextFile` and `WriteTextFile` with their disk defaults in `TextFiles` |
 | `Signing` | `SigV4Signer` |
 | `Errors` | `ErrorMapper` |
 | `Exceptions` | `DynamoDbException` and the exceptions of service and client, `TransactionFailure`, `TransactionActionFailure`, `TransactMarker`, `ConditionParts` |

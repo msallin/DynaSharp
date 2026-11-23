@@ -3,7 +3,6 @@ using System.Globalization;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
-using DynaSharp.Configuration;
 using DynaSharp.Retries;
 using DynaSharp.Signing;
 using Microsoft.Extensions.Logging;
@@ -53,7 +52,7 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
     private readonly CredentialsDependencies _dependencies;
     private readonly ILogger _logger;
     private readonly RefreshingCredentialsCache _cache;
-    private int _unencryptedWarned;
+    private readonly UnencryptedEndpointWarning _unencrypted;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AssumeRoleCredentialsProvider"/> class.
@@ -82,6 +81,7 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
         _settings = settings;
         _dependencies = dependencies;
         _logger = dependencies.LoggerFactory.CreateLogger<AssumeRoleCredentialsProvider>();
+        _unencrypted = new UnencryptedEndpointWarning(_logger, CredentialsLog.UnencryptedStsEndpoint);
         _cache = new RefreshingCredentialsCache($"role {settings.RoleArn}", dependencies.TimeProvider, _logger, FetchAsync);
     }
 
@@ -224,10 +224,7 @@ public sealed class AssumeRoleCredentialsProvider : IRefreshableCredentialsProvi
     private async ValueTask<CredentialsOutcome> FetchAsync()
     {
         var (endpoint, signingRegion, note) = ResolveEndpoint();
-        if (ClientConfiguration.IsUnencryptedRemote(endpoint) && Interlocked.Exchange(ref _unencryptedWarned, 1) == 0)
-        {
-            CredentialsLog.UnencryptedStsEndpoint(_logger, endpoint.Host);
-        }
+        _unencrypted.Check(endpoint);
 
         var source = await GetSourceCredentialsAsync().ConfigureAwait(false);
         var body = CreateBody();

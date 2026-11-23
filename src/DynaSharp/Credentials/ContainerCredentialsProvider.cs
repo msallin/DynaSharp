@@ -200,10 +200,10 @@ public sealed class ContainerCredentialsProvider : IRefreshableCredentialsProvid
         {
             return _readFile(path) ?? throw new CredentialsUnavailableException($"The file named by {TokenFileVariable} does not exist.");
         }
-        catch (Exception exception) when (SharedConfigFiles.IsFileReadFailure(exception))
+        catch (Exception exception) when (TextFiles.IsFileReadFailure(exception))
         {
             throw new CredentialsUnavailableException(
-                $"The file named by {TokenFileVariable} cannot be read: {SharedConfigFiles.DescribeFileReadFailure(exception)}.", exception);
+                $"The file named by {TokenFileVariable} cannot be read: {TextFiles.DescribeFileReadFailure(exception)}.", exception);
         }
     }
 
