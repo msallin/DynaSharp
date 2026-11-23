@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
+using DynaSharp.Operations;
 
 namespace DynaSharp;
 
@@ -52,8 +53,6 @@ namespace DynaSharp;
 public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T>>
     where T : IDynamoDbDocument<T>
 {
-    private const string Operation = "BatchWriteItem";
-
     private readonly CommandState? _state;
     private readonly int _version;
     private readonly TableModel? _table;
@@ -65,9 +64,9 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
         _table = table;
     }
 
-    internal string DebuggerText => CommandDebugger.Describe(Operation, _state, _version, _table);
+    internal string DebuggerText => CommandDebugger.Describe(BatchWriteItemOperation.Name, _state, _version, _table);
 
-    internal CommandHandle Handle => new(_state, _version, Operation, _table);
+    internal CommandHandle Handle => new(_state, _version, BatchWriteItemOperation.Name, _table);
 
     /// <summary>Adds a put of a whole item, which replaces everything under its key. The item is written to the request here and now, so changing it afterwards changes nothing.</summary>
     /// <param name="item">The item, which must hold the key attributes.</param>
@@ -291,8 +290,8 @@ public readonly ref struct BatchWriteCommand<T> : IRetryable<BatchWriteCommand<T
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public string ToRequestJson() => BatchDriver.RenderJson<BatchWriteOperation, BatchWriteResult>(Enter().Settle());
 
-    internal CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+    internal CommandState Enter() => CommandState.Enter(_state, _version, BatchWriteItemOperation.Name, _table);
 
     // The table of the command, for a check of an argument that must leave the command as it was when it throws.
-    internal TableModel CheckedTable() => CommandState.Check(_state, _version, Operation, _table).Table;
+    internal TableModel CheckedTable() => CommandState.Check(_state, _version, BatchWriteItemOperation.Name, _table).Table;
 }

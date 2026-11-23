@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
+using DynaSharp.Operations;
 using DynaSharp.Serialization;
 
 namespace DynaSharp;
@@ -53,8 +54,6 @@ namespace DynaSharp;
 public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     where T : IDynamoDbDocument<T>
 {
-    private const string Operation = "BatchGetItem";
-
     private readonly CommandState? _state;
     private readonly int _version;
     private readonly TableModel? _table;
@@ -66,9 +65,9 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
         _table = table;
     }
 
-    internal string DebuggerText => CommandDebugger.Describe(Operation, _state, _version, _table);
+    internal string DebuggerText => CommandDebugger.Describe(BatchGetItemOperation.Name, _state, _version, _table);
 
-    internal CommandHandle Handle => new(_state, _version, Operation, _table);
+    internal CommandHandle Handle => new(_state, _version, BatchGetItemOperation.Name, _table);
 
     /// <summary>Adds a key built by the generator, such as <c>Order.Keys.Of(customerId, number)</c>.</summary>
     /// <typeparam name="TKey">The key. A key of another entity is a compile error.</typeparam>
@@ -272,10 +271,10 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     /// <exception cref="InvalidOperationException">The command was already sent, extended or rendered.</exception>
     public string ToRequestJson() => BatchDriver.RenderJson<BatchGetOperation<T>, BatchGetResult<T>>(Prepare());
 
-    internal CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+    internal CommandState Enter() => CommandState.Enter(_state, _version, BatchGetItemOperation.Name, _table);
 
     // The table of the command, for a check of an argument that must leave the command as it was when it throws.
-    internal TableModel CheckedTable() => CommandState.Check(_state, _version, Operation, _table).Table;
+    internal TableModel CheckedTable() => CommandState.Check(_state, _version, BatchGetItemOperation.Name, _table).Table;
 
     private static void AddKey<TKey>(CommandState state, TKey key)
         where TKey : IKey<T>
@@ -305,7 +304,7 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
     // the call leaves the command as it was.
     private void ThrowIfProjected(TableModel table)
     {
-        var state = CommandState.Check(_state, _version, Operation, _table);
+        var state = CommandState.Check(_state, _version, BatchGetItemOperation.Name, _table);
         if (table.Name == state.Table.Name && state.Expressions[Clause.Projection].WrittenCount > 0)
         {
             throw new InvalidOperationException($"This batch reads {state.Table.Name} with a projection, which a get with a slot on that table would get too. Read the other type in a batch of its own, or leave out Project.");
@@ -314,7 +313,7 @@ public readonly ref struct BatchGetCommand<T> : IRetryable<BatchGetCommand<T>>
 
     private void ThrowIfSlotOnTable()
     {
-        var state = CommandState.Check(_state, _version, Operation, _table);
+        var state = CommandState.Check(_state, _version, BatchGetItemOperation.Name, _table);
         if (state.Actions.Slots?.TableNamed(state.Table.Name) is not null)
         {
             throw new InvalidOperationException($"This batch has a get with a slot on {state.Table.Name}, which reads another type and needs the whole item. Read that type in a batch of its own, or leave out Project.");

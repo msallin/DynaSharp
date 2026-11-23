@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using DynaSharp.Fluent;
+using DynaSharp.Operations;
 using DynaSharp.Serialization;
 
 namespace DynaSharp;
@@ -27,8 +28,6 @@ public readonly ref struct GetSelectCommand<T1, TConverter1, T2, TConverter2, T3
     where TConverter3 : IDynamoDbConverter<T3>
     where TConverter4 : IDynamoDbConverter<T4>
 {
-    private const string Operation = "GetItem";
-
     private readonly CommandState? _state;
     private readonly int _version;
     private readonly TableModel? _table;
@@ -40,7 +39,7 @@ public readonly ref struct GetSelectCommand<T1, TConverter1, T2, TConverter2, T3
         _table = state.Table;
     }
 
-    internal string DebuggerText => CommandDebugger.Describe(Operation, _state, _version, _table);
+    internal string DebuggerText => CommandDebugger.Describe(GetItemOperation.Name, _state, _version, _table);
 
     /// <summary>
     /// Sends the command. An item that does not exist is not an error: <see cref="SelectResult{TValue}.Found"/> is <see langword="false"/>. An attribute that the item does not have follows the type of its handle,
@@ -70,5 +69,5 @@ public readonly ref struct GetSelectCommand<T1, TConverter1, T2, TConverter2, T3
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
     public string ToRequestJson() => Enter().RenderJson();
 
-    private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+    private CommandState Enter() => CommandState.Enter(_state, _version, GetItemOperation.Name, _table);
 }

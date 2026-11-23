@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using DynaSharp.Expressions;
 using DynaSharp.Fluent;
+using DynaSharp.Operations;
 using DynaSharp.Serialization;
 
 namespace DynaSharp;
@@ -17,8 +18,6 @@ namespace DynaSharp;
 public readonly ref struct GetSelectCommand<TValue, TConverter>
     where TConverter : IDynamoDbConverter<TValue>
 {
-    private const string Operation = "GetItem";
-
     private readonly CommandState? _state;
     private readonly int _version;
     private readonly TableModel? _table;
@@ -30,9 +29,9 @@ public readonly ref struct GetSelectCommand<TValue, TConverter>
         _table = state.Table;
     }
 
-    internal string DebuggerText => CommandDebugger.Describe(Operation, _state, _version, _table);
+    internal string DebuggerText => CommandDebugger.Describe(GetItemOperation.Name, _state, _version, _table);
 
-    internal CommandHandle Handle => new(_state, _version, Operation, _table);
+    internal CommandHandle Handle => new(_state, _version, GetItemOperation.Name, _table);
 
     /// <summary>
     /// Reads one more attribute in the same request, so that the read gives a tuple: <c>var (total, status) = (await orders.Get(key).Select(Order.Attrs.Total).And(Order.Attrs.Status).SendAsync(ct)).Value;</c>.
@@ -54,7 +53,7 @@ public readonly ref struct GetSelectCommand<TValue, TConverter>
     /// <exception cref="ArgumentException">The handle is a default value, its path has a list index, or the read gives that attribute already.</exception>
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
     public GetSelectCommand<TValue, TConverter, TNext, TNextConverter> And<TNext, TNextConverter>(Attr<TNext, TNextConverter> attribute)
-        where TNextConverter : IDynamoDbConverter<TNext> => new(Selection.Another(_state, _version, Operation, _table, attribute.Path));
+        where TNextConverter : IDynamoDbConverter<TNext> => new(Selection.Another(_state, _version, GetItemOperation.Name, _table, attribute.Path));
 
     /// <summary>Reads one more nullable attribute in the same request, which gives null for an item without it. See <see cref="GetSelectCommand{TValue, TConverter}.And{TNext, TNextConverter}(Attr{TNext, TNextConverter})"/>.</summary>
     /// <typeparam name="TNext">The type of the attribute.</typeparam>
@@ -65,7 +64,7 @@ public readonly ref struct GetSelectCommand<TValue, TConverter>
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
     public GetSelectCommand<TValue, TConverter, TNext?, NullableConverter<TNext, TNextConverter>> And<TNext, TNextConverter>(Attr<TNext, NullableHandleConverter<TNext, TNextConverter>> attribute)
         where TNext : struct
-        where TNextConverter : IDynamoDbConverter<TNext> => new(Selection.Another(_state, _version, Operation, _table, attribute.Path));
+        where TNextConverter : IDynamoDbConverter<TNext> => new(Selection.Another(_state, _version, GetItemOperation.Name, _table, attribute.Path));
 
     /// <summary>Reads one more nullable attribute in the same request, which gives null for an item without it. See <see cref="GetSelectCommand{TValue, TConverter}.And{TNext, TNextConverter}(Attr{TNext, TNextConverter})"/>.</summary>
     /// <typeparam name="TNext">The type of the attribute.</typeparam>
@@ -76,7 +75,7 @@ public readonly ref struct GetSelectCommand<TValue, TConverter>
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
     public GetSelectCommand<TValue, TConverter, TNext?, NullableReferenceConverter<TNext, TNextConverter>> And<TNext, TNextConverter>(Attr<TNext, NullableReferenceHandleConverter<TNext, TNextConverter>> attribute)
         where TNext : class
-        where TNextConverter : IDynamoDbConverter<TNext> => new(Selection.Another(_state, _version, Operation, _table, attribute.Path));
+        where TNextConverter : IDynamoDbConverter<TNext> => new(Selection.Another(_state, _version, GetItemOperation.Name, _table, attribute.Path));
 
     /// <summary>
     /// Sends the command. An item that does not exist is not an error: <see cref="SelectResult{TValue}.Found"/> is <see langword="false"/>, also for a handle that cannot be null. An attribute that the item does
@@ -106,5 +105,5 @@ public readonly ref struct GetSelectCommand<TValue, TConverter>
     /// <exception cref="InvalidOperationException">The command was already sent or rendered.</exception>
     public string ToRequestJson() => Enter().RenderJson();
 
-    private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+    private CommandState Enter() => CommandState.Enter(_state, _version, GetItemOperation.Name, _table);
 }

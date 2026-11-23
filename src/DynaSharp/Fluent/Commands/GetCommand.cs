@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using DynaSharp.Expressions;
 using DynaSharp.Fluent;
 using DynaSharp.Mapping;
+using DynaSharp.Operations;
 using DynaSharp.Serialization;
 
 namespace DynaSharp;
@@ -37,8 +38,6 @@ namespace DynaSharp;
 public readonly ref struct GetCommand<T> : IRetryable<GetCommand<T>>
     where T : IDynamoDbDocument<T>
 {
-    private const string Operation = "GetItem";
-
     private readonly CommandState? _state;
     private readonly int _version;
     private readonly TableModel? _table;
@@ -50,9 +49,9 @@ public readonly ref struct GetCommand<T> : IRetryable<GetCommand<T>>
         _table = table;
     }
 
-    internal string DebuggerText => CommandDebugger.Describe(Operation, _state, _version, _table);
+    internal string DebuggerText => CommandDebugger.Describe(GetItemOperation.Name, _state, _version, _table);
 
-    internal CommandHandle Handle => new(_state, _version, Operation, _table);
+    internal CommandHandle Handle => new(_state, _version, GetItemOperation.Name, _table);
 
     /// <summary>
     /// Asks for a strongly consistent read, which sees every write that succeeded before it and costs twice the capacity. A read is eventually
@@ -211,7 +210,7 @@ public readonly ref struct GetCommand<T> : IRetryable<GetCommand<T>>
         return state;
     }
 
-    private CommandState Enter() => CommandState.Enter(_state, _version, Operation, _table);
+    private CommandState Enter() => CommandState.Enter(_state, _version, GetItemOperation.Name, _table);
 
     private CommandState Prepare()
     {
