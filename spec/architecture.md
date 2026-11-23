@@ -154,8 +154,8 @@ as `object` plus an index, because a change is a class and a field per type only
 
 **The request API** adds nothing to the path: an `IOperation<TRequest, TResponse>` is a stateless struct with `Name`, `WriteRequest` and `ReadResponse`, and
 `OperationCalls.ExecuteAsync` checks the request and sends it as a `RequestCall`, so `Http` knows calls, not operations. A response both APIs read goes through one envelope in
-`Operations` (`GetEnvelope<T>`, `WriteEnvelope<T>`, `PageEnvelope`, and those of batches and transactions), which owns the loop over the members and reads what both read alike, so
-a new member is added once. A member the two read in forms of their own (page items, `LastEvaluatedKey`, `Responses`, unprocessed requests) goes to an `IResponseMember` struct,
+`Operations` (`GetEnvelope`, `WriteEnvelope<T>`, `PageEnvelope`, and those of batches and transactions), which owns the loop over the members and reads what both read alike, so
+a new member is added once. A member the two read in forms of their own (the item of a get, page items, `LastEvaluatedKey`, `Responses`, unprocessed requests) goes to an `IResponseMember` struct,
 passed as a type argument so the loop calls it without a delegate. A command only locates a key or the unprocessed requests, because the next request sends them back as they are.
 
 ## 3. The command layer
@@ -246,7 +246,7 @@ spans and metrics and write no JSON of their own; `TableAdministration` holds th
 
 ## 4. Reads
 
-**Get.** `GetOperation<T>` reads through `GetEnvelope<T>`, which calls `T.ReadAttributes` on `Item`, so `Item`, an entity and the request API's `GetItem` go one way.
+**Get.** `GetOperation<T>` and `GetSelectOperation<TValue, TReader>` read through `GetEnvelope`, which hands `Item` to `GetItemMember<TValue, TReader>` (`DocumentItem<T>` for a whole item), and the request API's `GetItem` to a member that parses an `Item`.
 `GetValueOperation<T>` backs `ItemAsync`. Every typed read, `BatchGet` included, adds what it needs to a projection at the terminal (`TableModel.AddRequiredNames`).
 
 A get of `BatchGetCommand<T>` with a slot adds an action on its own table to the `ActionList` and an entry to `ActionList.Slots` (`BatchSlots`), keyed by the table name and a canonical form of its key values (S as text, N through `NumberOrder`, B as bytes), because `BatchGetItem` answers per table in no order. `BatchGetOperation<T>` writes `RequestItems` grouped by table as `BatchWriteOperation` does, the projection only for the own table; reading a response, an item of a table with slots that matches one is recorded as a range and copied after the whole response was read (`Commit`, or `Discard` on a failure), other items of the own table become `T`, the rest is skipped. `BatchSlots.Read` parses the copy on demand, like `TransactGetResult`. On giving up, `MarkUnprocessed` marks the slots of unsent actions and of the carry, which `BatchGetIncompleteException<T>.Read` refuses.
