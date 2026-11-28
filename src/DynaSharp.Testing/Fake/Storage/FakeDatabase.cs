@@ -34,6 +34,10 @@ internal sealed class FakeDatabase(TimeProvider clock)
     // Completes at the next change of a stream, and is replaced then: the readers of a client of CreateStreamsClient end their waits on it.
     private TaskCompletionSource _nextStreamChange = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+    // How far ExpireIterators has moved the time of the shard iterators ahead of the clock. An iterator is dated and checked on that time alone, so moving it on by the life of an
+    // iterator expires every one handed out, as 15 minutes on the clock do, and leaves records, shards, streams and time to live where the clock has them.
+    private TimeSpan _iteratorTimeAhead;
+
     /// <summary>Gets the gate.</summary>
     public Lock Gate { get; } = new();
 
@@ -137,6 +141,21 @@ internal sealed class FakeDatabase(TimeProvider clock)
         {
             return _nextStreamChange.Task;
         }
+    }
+
+    /// <summary>Gives the time a shard iterator is dated and checked on: the clock, moved on by every <see cref="ExpireIterators"/>.</summary>
+    /// <param name="now">The time of the clock.</param>
+    /// <returns>The time of the iterators.</returns>
+    public DateTimeOffset IteratorTime(DateTimeOffset now) => now + _iteratorTimeAhead;
+
+    /// <summary>
+    /// Expires every shard iterator handed out so far, as moving the clock on by <see cref="ShardIterator.Lifetime"/> does for iterators, and wakes the readers that wait for a change,
+    /// as such a move ends their waits on the clock.
+    /// </summary>
+    public void ExpireIterators()
+    {
+        _iteratorTimeAhead += ShardIterator.Lifetime;
+        StreamsChanged();
     }
 
     /// <summary>Gives the number of the id of a new shard.</summary>

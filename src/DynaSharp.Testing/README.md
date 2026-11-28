@@ -166,6 +166,8 @@ The shards of a disabled stream are closed, so `fake.DisableStream("Shop")` ends
 
 A reader of `CreateStreamsClient` that finds nothing waits `EmptyPageDelay`, as against DynamoDB, but the wait also ends at the next change of a stream of the fake, so a test reads a write in milliseconds without setting the delay or moving a clock. A child that `secondChildListedAfter` lists late and a retry after `FailNext` still wait on the clock, which the test moves. A test of the delay itself reads through `StubClient.CreateStreams` over a script of answers.
 
+`fake.ExpireStreamIterators()` expires every shard iterator the fake has handed out, as 15 minutes on its clock do, and nothing else: no record is trimmed and no item expires. A reading renews its iterators, and a shard read from `Latest` that has handed out no record yet calls `onGap` once and reads on from `Latest`, so a test of `onGap` needs no clock, see [When records were skipped](https://msallin.github.io/DynaSharp/streams.html#when-records-were-skipped). Call it once the reading has sent its second `GetRecords`, which `fake.Requests` shows: an iterator that expires before its first use ends the reading with `ExpiredIteratorException`.
+
 ### Failing a call
 
 `fake.FailNext(operation, failure, times = 1, when = null)` makes the next requests of an operation fail, through every handler of the fake. The fake never sees such a request, so a failed write writes nothing. `ThrowIfFailuresLeft()` fails a test whose code sent fewer requests than it planned failures for:

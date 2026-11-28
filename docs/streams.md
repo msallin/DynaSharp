@@ -143,6 +143,32 @@ await foreach (var change in orders.ReadChangesAsync(streams, ShardIteratorType.
 - **Where it runs.** On the task of the shard, and several shards can call it at once, so keep it short and thread-safe, as the flag above is. An exception from it ends the loop.
 - **Without it.** The client counts every such gap in `dynasharp.client.stream.gaps` and logs a warning, event 15, see [Observability](observability.md#logs), with or without the callback.
 - **Avoiding it.** `TrimHorizon` repeats what is kept instead, and [Resuming one shard](#resuming-one-shard) goes on from a stored sequence number. `ReadShardRequest.OnGap` reports the same for `ReadShardAsync`.
+- **Testing it.** `FakeDynamoDb.ExpireStreamIterators()` expires every iterator the fake has handed out, as 15 minutes do, so a test needs no clock. Call it once the reading has sent its second `GetRecords`: the reading holds the iterator of `GetShardIterator` until its first page, and one that expires before its first use ends the reading with `ExpiredIteratorException`.
+
+```csharp
+var fake = new FakeDynamoDb();
+fake.CreateTable<Order>();
+fake.EnableStream<Order>(StreamViewType.NewAndOldImages);
+using var client = fake.CreateClient();
+using var streams = fake.CreateStreamsClient();
+var gap = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+var reading = Task.Run(async () =>
+{
+    var changes = client.Table<Order>().ReadChangesAsync(streams, ShardIteratorType.Latest, emptyPageDelay: TimeSpan.FromMilliseconds(10), onGap: shard => gap.TrySetResult(shard), cancellationToken: ct);
+    await foreach (var change in changes)
+    {
+        Console.WriteLine($"{change.Kind} #{(change.After ?? change.Before)!.Number}");
+    }
+}, ct);
+
+while (fake.Requests.Count(request => request.Operation == "GetRecords") < 2)
+{
+    await Task.Delay(10, ct);
+}
+
+fake.ExpireStreamIterators();
+Console.WriteLine($"Gap in {await gap.Task.WaitAsync(ct)}"); // once, and the reading goes on from Latest
+```
 
 ### Waiting until the reading holds its position
 

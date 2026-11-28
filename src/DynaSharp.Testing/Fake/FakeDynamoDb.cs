@@ -35,7 +35,7 @@ namespace DynaSharp.Testing;
 /// no transaction conflicts, a batch leaves nothing unprocessed, a stream has one shard until <see cref="SplitStreamShards"/> gives it children, and nothing expires by itself.
 /// </para>
 /// <para>
-/// <b>Time.</b> The clock given to the constructor dates the tables and the stream records, expires shard iterators after 15 minutes and trims records after 24 hours, and
+/// <b>Time.</b> The clock given to the constructor dates the tables and the stream records, expires shard iterators after 15 minutes, which <see cref="ExpireStreamIterators"/> does at once, and trims records after 24 hours, and
 /// <see cref="ExpireItems"/> deletes what has expired by it. One fake per test, made with <see langword="new"/>: it holds no static state
 /// and nothing to dispose. It is thread-safe, and each request runs under one lock from start to end.
 /// </para>
@@ -415,6 +415,40 @@ public sealed partial class FakeDynamoDb
         lock (_db.Gate)
         {
             return TimeToLive.Expire(_db);
+        }
+    }
+
+    /// <summary>
+    /// Expires every shard iterator the fake has handed out, of every stream, so that the next <c>GetRecords</c> with one is <c>ExpiredIteratorException</c>, as on DynamoDB 15 minutes after
+    /// the iterator was handed out. A reading renews it, and a shard read from <c>Latest</c> that has handed out no record yet calls <c>OnGap</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Iterators only.</b> It does to iterators what moving the clock of the fake on by 15 minutes does, and nothing else: no record is trimmed, no shard or stream goes, no item expires,
+    /// and an iterator handed out afterwards is valid. A reader of <see cref="CreateStreamsClient"/> that waits for records asks again at once.
+    /// </para>
+    /// <para>
+    /// <b>After the first page.</b> A reading holds the iterator of <c>GetShardIterator</c> until its first <c>GetRecords</c>, and one that expires before its first use ends the reading with
+    /// <see cref="ExpiredIteratorException"/> instead of a gap, as on DynamoDB. Call it once the reading has read a page: a second <c>GetRecords</c> in <see cref="Requests"/> shows that.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var fake = new FakeDynamoDb();
+    /// fake.CreateTable&lt;Customer&gt;("Shop");
+    /// fake.EnableStream("Shop", StreamViewType.NewAndOldImages);
+    /// using var client = fake.CreateClient();
+    /// using var streams = fake.CreateStreamsClient();
+    /// var reading = client.Table&lt;Customer&gt;("Shop").ReadChangesAsync(streams, ShardIteratorType.Latest, onGap: shard =&gt; Console.WriteLine($"Gap in {shard}"), cancellationToken: ct);
+    /// // Enumerate the reading in the background; once fake.Requests holds two GetRecords of it:
+    /// fake.ExpireStreamIterators(); // the next GetRecords is ExpiredIteratorException: onGap, then Latest again
+    /// </code>
+    /// </example>
+    public void ExpireStreamIterators()
+    {
+        lock (_db.Gate)
+        {
+            _db.ExpireIterators();
         }
     }
 

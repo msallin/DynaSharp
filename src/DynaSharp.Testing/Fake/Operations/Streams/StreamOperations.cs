@@ -12,7 +12,7 @@ namespace DynaSharp.Testing.Fake;
 /// </summary>
 /// <remarks>
 /// <para>
-/// An iterator is valid for 15 minutes on the clock of the fake and is then <c>ExpiredIteratorException</c>; a position older than the 24 hours records are kept is
+/// An iterator is valid for 15 minutes on the clock of the fake, which <see cref="FakeDatabase.ExpireIterators"/> moves on for iterators alone, and is then <c>ExpiredIteratorException</c>; a position older than the 24 hours records are kept is
 /// <c>TrimmedDataAccessException</c>; a shard or a stream closed for 24 hours is <c>ResourceNotFoundException</c>. A page holds at most <c>Limit</c> records, 1,000 by default, and at most
 /// 1 MB of them by <c>SizeBytes</c>, and the last page of a closed shard has no <c>NextShardIterator</c>. A record arrives in the answer of the request that made it.
 /// </para>
@@ -168,7 +168,7 @@ internal static class StreamOperations
             ShardIteratorType.Latest => shard.Records.Count,
             _ => Locate(shard, sequenceNumber!.Value, after: type == ShardIteratorType.AfterSequenceNumber, horizon),
         };
-        response.WriteString("ShardIterator"u8, new ShardIterator(stream.Arn, shard.Id, position, now).Encode());
+        response.WriteString("ShardIterator"u8, new ShardIterator(stream.Arn, shard.Id, position, db.IteratorTime(now)).Encode());
     }
 
     /// <summary>
@@ -185,7 +185,8 @@ internal static class StreamOperations
         var limit = ReadLimit(request, MaxRecords);
         var iterator = ShardIterator.Decode(text) ?? throw InvalidIterator();
         var now = db.Clock.GetUtcNow();
-        if (now - iterator.IssuedAt >= ShardIterator.Lifetime)
+        var iteratorTime = db.IteratorTime(now);
+        if (iteratorTime - iterator.IssuedAt >= ShardIterator.Lifetime)
         {
             throw FakeError.ExpiredIterator();
         }
@@ -216,7 +217,7 @@ internal static class StreamOperations
         response.WriteEndArray();
         if (shard.IsOpen || next < records.Count)
         {
-            response.WriteString("NextShardIterator"u8, (iterator with { Position = next, IssuedAt = now }).Encode());
+            response.WriteString("NextShardIterator"u8, (iterator with { Position = next, IssuedAt = iteratorTime }).Encode());
         }
     }
 
