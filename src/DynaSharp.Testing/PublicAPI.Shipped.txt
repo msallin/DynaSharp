@@ -22,6 +22,7 @@ DynaSharp.Testing.FakeDynamoDb.EnableStream(string! tableName, DynaSharp.Request
 DynaSharp.Testing.FakeDynamoDb.EnableStream<T>(DynaSharp.Requests.StreamViewType viewType) -> DynaSharp.Requests.TableDescription!
 DynaSharp.Testing.FakeDynamoDb.Enqueue(DynaSharp.Testing.StubResponse! response) -> void
 DynaSharp.Testing.FakeDynamoDb.ExpireItems() -> int
+DynaSharp.Testing.FakeDynamoDb.ExpireStreamIterators() -> void
 DynaSharp.Testing.FakeDynamoDb.FailNext(string! operation, DynaSharp.Testing.StubResponse! failure, int times = 1, System.Func<DynaSharp.Testing.RecordedRequest!, bool>? when = null) -> void
 DynaSharp.Testing.FakeDynamoDb.FakeDynamoDb(System.TimeProvider? timeProvider = null) -> void
 DynaSharp.Testing.FakeDynamoDb.Get(string! tableName, DynaSharp.Item! key) -> DynaSharp.Item?
