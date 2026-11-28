@@ -80,6 +80,8 @@ List<Order> history = await FindAllAsync(after, ct);
 
 Code that glued the key together by hand, as the AWS SDK lets it, sent `CUSTOMER#` for a blank id, read an empty partition and found nothing. The same lookup over `Of` throws instead, which surfaces in a read path that used to answer "not found": `TryOf` keeps that answer. Where a blank value from outside is an error worth telling the sender about, check it where it comes in, and keep `Of` behind the check.
 
+`TryOf` refuses only what `Of` refuses, so a value of spaces only is a key, `CUSTOMER#   `, because DynamoDB takes any non-empty string as a key; whether a blank value from outside means "no lookup" is the app's call, such as `string.IsNullOrWhiteSpace(customerId) ? null : Order.Keys.Pk.TryOf(customerId)`.
+
 ### Builders
 
 Each key has a static class under `Keys`:

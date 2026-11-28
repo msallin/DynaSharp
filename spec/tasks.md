@@ -70,6 +70,7 @@ Git history has the detail; each line says what an area delivered and where it l
 - Legacy review (2026-11-23), one reviewer per part: relay layer between `ClientCore` and the pipeline, `ErrorBody`, `ItemPage`, `SingleChange<T>`, five page operations folded to two, one credentials dependency shape and JSON reader, one writer per answer shape in the fake and the stubs, code fixes onto `SuggestedEdit`, shared analyzer helpers in `DynaSharpCalls`, `tasks.md` and docs pages compacted. Bugs found on the way: number reads quoted the stored text, the default credentials chain did not correct clock skew, the fake sent `message` where DynamoDB sends `Message` for `TransactionCanceledException`, Coordination tagged a timeout `System.TimeoutException`, waits outside a call threw `TaskCanceledException`, and a leader whose work returned right after the loss did not contend again.
 - Stryker survivors of `fluent` and `core` on `e78cb67`, of `coordination` and `testing` on `9776bc6`: the equivalent ones under Stryker verdicts.
 - Consumer feedback after 0.12.1 (2026-11-28): `FakeDynamoDb.ExpireStreamIterators()`, so a test of `onGap` needs neither `FailNext` nor a clock moved by 16 minutes (Decisions, 2026-11-28).
+- Consumer feedback after 0.12.1 (2026-11-28): [Looking up a value from outside](../docs/generated-code.md#looking-up-a-value-from-outside) says that `TryOf` takes a value of spaces only, as DynamoDB does, and that treating a blank value as no lookup is the app's call.
 
 ## Decisions
 
